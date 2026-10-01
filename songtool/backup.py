@@ -18,7 +18,7 @@ import subprocess
 from pathlib import Path
 from typing import Callable
 
-from . import catalog, config, karaoke, lyrics as lyrics_mod, manifest
+from . import catalog, config, karaoke, lyrics as lyrics_mod, manifest, settings
 from .download import Download, list_downloads
 
 SONGS_FILE = "songs.json"
@@ -92,6 +92,7 @@ def snapshot(log: Callable[[str], None] = print) -> dict:
                for f in sorted(cat.folders.values(), key=lambda f: f.id)]
     songs.sort(key=lambda s: s["id"])
     changed += _write(data / SONGS_FILE, _dumps({"version": 1, "folders": folders, "songs": songs}))
+    changed += _write(data / settings.SETTINGS_FILE, _dumps(settings.load()))   # 全域設定（字幕大小等）
 
     # 歌被刪掉、歌詞或對時不見了：備份裡也拿掉（只動 lyrics/ 與 timing/ 裡我們管理的檔案）。
     for sub in (LYRICS, TIMING):

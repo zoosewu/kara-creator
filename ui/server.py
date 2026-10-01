@@ -28,7 +28,8 @@ from fastapi.responses import FileResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
-from songtool import backup, catalog, config, export, hooks, karaoke, lyrics, manifest, qa, reading, titles  # noqa: E402
+from songtool import (backup, catalog, config, export, hooks, karaoke, lyrics, manifest, qa, reading,  # noqa: E402
+                      settings, titles)
 from songtool.download import refresh_metadata  # noqa: E402
 from songtool.local import import_local  # noqa: E402
 from songtool.download import Download, list_downloads  # noqa: E402
@@ -223,6 +224,7 @@ def state() -> dict:
         "folders": _folders_state(cat),
         "jobs": jobs.list(),
         "export_dir": str(config.EXPORT_DIR),
+        "settings": {**settings.load(), "subtitle_ratio": karaoke.subtitle_ratio()},
     }
 
 
@@ -381,6 +383,24 @@ def update_song(key: str, body: SongBody) -> dict:
                                               language=body.language, link=body.link, note=body.note,
                                               translation=body.translation))
     return {"key": key}
+
+
+class SettingsBody(BaseModel):
+    subtitle_scale: float | None = None
+
+
+def put_settings_value(body: SettingsBody) -> dict:
+    try:
+        settings.update(**body.model_dump(exclude_none=True))
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return {**settings.load(), "subtitle_ratio": karaoke.subtitle_ratio()}
+
+
+@app.put("/api/settings")
+def put_settings(body: SettingsBody) -> dict:
+    """修改全域設定（字幕大小等）。"""
+    return put_settings_value(body)
 
 
 class ApprovalBody(BaseModel):

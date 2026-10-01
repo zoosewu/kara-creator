@@ -217,6 +217,19 @@ class SongJob(BaseModel):
     mode: Literal["from", "line"] | None = Field(None, description="retime：from 這句及之後全部 / line 只重對這句")
 
 
+# ---- 全域設定 ------------------------------------------------------------------
+
+class Settings(BaseModel):
+    """全域設定，套用到所有歌。"""
+    subtitle_scale: float = Field(description="字幕大小（相對預設的倍數，0.6–1.6；1.0 = 預設）", examples=[1.2])
+    subtitle_ratio: float = Field(description="實際的字幕字高 / 畫面高（唯讀）")
+
+
+class SettingsPatch(BaseModel):
+    """只改有給的欄位。改了字幕大小，已經做好的伴唱帶會顯示需更新（重新燒錄、不重新對時）。"""
+    subtitle_scale: float | None = Field(None, ge=0.6, le=1.6, description="字幕大小（0.6–1.6）")
+
+
 # ---- 資料夾 --------------------------------------------------------------------
 
 class Folder(BaseModel):

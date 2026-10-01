@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-from . import align, ass, catalog, config, lyrics as lyrics_mod, manifest, qa, reading, titles
+from . import align, ass, catalog, config, lyrics as lyrics_mod, manifest, qa, reading, settings, titles
 from .download import Download
 from .config import FFMPEG
 from .media import Cancelled, run_cancellable, video_size
@@ -98,6 +98,14 @@ def approval(item: Download, song) -> str | None:
     return "approved" if record.get("ass_sha1") == song.approved else "stale"
 
 
+def subtitle_ratio() -> float:
+    """字幕字高佔畫面高度的比例：預設樣式 × 全域設定的字幕大小。
+    設定是 100% 時和原本的樣式完全相同，已經做好的伴唱帶不會變成需更新。"""
+    base = ass.Style().size_ratio
+    scale = settings.load()["subtitle_scale"]
+    return base if scale == 1 else round(base * scale, 5)
+
+
 def burn_translations(item: Download, lyr: lyrics_mod.Lyrics, line_count: int) -> list[str]:
     """要燒進伴唱帶的中文翻譯（每句一個，沒有翻譯的句子是空字串）。
     歌曲設定不燒、歌詞沒有翻譯、或句數和對時結果對不上時回傳 []。"""
@@ -127,6 +135,9 @@ def status(item: Download) -> str:
     if fresh and "alignment_sha1" in record:
         alignment = manifest.read(out_dir / ALIGNMENT)
         fresh = bool(alignment) and record["alignment_sha1"] == _lines_sha1(alignment["lines"])
+    if fresh and record.get("style"):
+        # 改了全域的字幕大小：做好的伴唱帶都要重新產生字幕並燒錄
+        fresh = record["style"].get("size_ratio") == subtitle_ratio()
     if fresh:
         lyr = lyrics_mod.load(lyrics_path)
         alignment = manifest.read(out_dir / ALIGNMENT)
@@ -211,7 +222,7 @@ def _make(item: Download, lyr: lyrics_mod.Lyrics, out_dir: Path,
         log("  . 對時結果沒有變化，沿用 alignment.json")
 
     # 2. 字幕
-    style = ass.Style(font=opts.font or ass.DEFAULT_FONTS.get(language, "Yu Gothic"))
+    style = ass.Style(font=opts.font or ass.DEFAULT_FONTS.get(language, "Yu Gothic"), size_ratio=subtitle_ratio())
     ass_path = out_dir / f"{item.file.stem}.ass"
     size = video_size(item.file) or (1920, 1080)
     card = title_card(item, lyr.meta)

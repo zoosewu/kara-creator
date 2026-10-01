@@ -23,12 +23,12 @@ from fastapi.responses import StreamingResponse
 from fastapi.routing import APIRoute
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from songtool import backup, catalog, export, karaoke, lyrics
+from songtool import backup, catalog, export, karaoke, lyrics, settings
 from songtool.download import Download, list_downloads
 
 from api_schema import (Error, Folder, FolderPatch, Job, JobLog, JobStatus, LinePatch, Lyrics, LyricsBody,
-                        LyricsFormat, Media, NewFolder, NewSong, QaResult, Song, SongDetail, SongJob, SongPatch,
-                        StageStatus, Timing)
+                        LyricsFormat, Media, NewFolder, NewSong, QaResult, Settings, SettingsPatch, Song, SongDetail,
+                        SongJob, SongPatch, StageStatus, Timing)
 
 API_VERSION = "1.0.0"
 # 規格最上方給 API 使用者看的說明（Markdown）
@@ -49,6 +49,7 @@ TAGS = [
     {"name": "歌詞與時間", "description": "歌詞（三種格式）、逐字時間、對時檢查結果、可播放的檔案"},
     {"name": "工作", "description": "背景處理：去人聲、製作伴唱帶、檢查對時、AI 重對。建立後回 202，用 GET 或事件追蹤"},
     {"name": "資料夾", "description": "曲庫的巢狀資料夾（只是整理結構，不會搬動檔案）"},
+    {"name": "設定", "description": "全域設定（套用到所有歌），例如字幕大小"},
     {"name": "事件", "description": "Server-Sent Events 即時通知"},
 ]
 
@@ -369,6 +370,21 @@ def build(srv) -> APIRouter:
         """
         srv._catalog_call(lambda cat: cat.delete_folder(folder_id))
         return Response(status_code=204)
+
+    # ---- 設定 ----------------------------------------------------------------
+
+    @router.get("/settings", tags=["設定"], response_model=Settings)
+    def get_settings():
+        """讀取全域設定"""
+        return {**settings.load(), "subtitle_ratio": karaoke.subtitle_ratio()}
+
+    @router.patch("/settings", tags=["設定"], response_model=Settings, responses=E400)
+    def patch_settings(body: SettingsPatch):
+        """修改全域設定
+
+        只改有給的欄位。改了字幕大小，已經做好的伴唱帶都會顯示需更新（重新燒錄、不會重新對時）。
+        """
+        return srv.put_settings_value(srv.SettingsBody(**body.model_dump(exclude_none=True)))
 
     # ---- 事件 ----------------------------------------------------------------
 

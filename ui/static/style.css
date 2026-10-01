@@ -576,7 +576,7 @@ kbd {
 .live-sub {
   position: absolute; left: 4%; right: 4%; bottom: 5%;
   display: grid; gap: .25em; pointer-events: none;
-  font: 700 clamp(15px, 2.6vw, 34px)/1.3 var(--lyric-font);
+  font: 700 28px/1.3 var(--lyric-font);   /* 實際字級由 fitStudioSub() 依畫面大小與字幕設定決定 */
   --fill: #3fa9ff;
 }
 .sub-row { min-height: 1.3em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -697,3 +697,23 @@ ruby.slot rt { color: var(--border); }
   filter: drop-shadow(0 0 1.5px #000) drop-shadow(0 0 1.5px #000);
 }
 .check-field { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+
+/* 全域設定：字幕大小預覽（16:9，字高 = 框高 × 比例） */
+.scale-value { float: right; color: var(--text); font-variant-numeric: tabular-nums; }
+#set-scale { width: 100%; accent-color: var(--accent); }
+.size-preview {
+  --fs: 16px;
+  position: relative; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden;
+  background: linear-gradient(160deg, #2c3e50, #0f1820);
+  font-family: var(--lyric-font); font-weight: 700; color: #fff;
+}
+.size-preview > div {
+  position: absolute; white-space: nowrap; line-height: 1;
+  filter: drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000);
+}
+.pv-line { font-size: var(--fs); }
+.pv-lower { right: 6%; bottom: 7%; }
+.pv-upper { left: 6%; bottom: calc(7% + var(--fs) * 1.35); }
+.pv-trans { left: 0; right: 0; text-align: center; font-size: calc(var(--fs) * 0.6); color: #ffe08a;
+  bottom: calc(7% + var(--fs) * 2.65); }
+.pv-sung { color: #1e90ff; }

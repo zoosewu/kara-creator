@@ -1477,6 +1477,108 @@
         }
       }
     },
+    "/api/v1/settings": {
+      "get": {
+        "tags": [
+          "設定"
+        ],
+        "summary": "讀取全域設定",
+        "description": "讀取全域設定",
+        "operationId": "get_settings_api_v1_settings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Settings"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "設了 SONG_API_TOKEN，但沒帶或帶錯 Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "設定"
+        ],
+        "summary": "修改全域設定",
+        "description": "只改有給的欄位。改了字幕大小，已經做好的伴唱帶都會顯示需更新（重新燒錄、不會重新對時）。",
+        "operationId": "patch_settings_api_v1_settings_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Settings"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "設了 SONG_API_TOKEN，但沒帶或帶錯 Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "參數不合理（例如時間移過頭）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/events": {
       "get": {
         "tags": [
@@ -2231,6 +2333,51 @@
         ],
         "title": "QaSummary"
       },
+      "Settings": {
+        "properties": {
+          "subtitle_scale": {
+            "type": "number",
+            "title": "Subtitle Scale",
+            "description": "字幕大小（相對預設的倍數，0.6–1.6；1.0 = 預設）",
+            "examples": [
+              1.2
+            ]
+          },
+          "subtitle_ratio": {
+            "type": "number",
+            "title": "Subtitle Ratio",
+            "description": "實際的字幕字高 / 畫面高（唯讀）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "subtitle_scale",
+          "subtitle_ratio"
+        ],
+        "title": "Settings",
+        "description": "全域設定，套用到所有歌。"
+      },
+      "SettingsPatch": {
+        "properties": {
+          "subtitle_scale": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.6,
+                "minimum": 0.6
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle Scale",
+            "description": "字幕大小（0.6–1.6）"
+          }
+        },
+        "type": "object",
+        "title": "SettingsPatch",
+        "description": "只改有給的欄位。改了字幕大小，已經做好的伴唱帶會顯示需更新（重新燒錄、不重新對時）。"
+      },
       "Song": {
         "properties": {
           "id": {
@@ -2980,6 +3127,10 @@
     {
       "name": "資料夾",
       "description": "曲庫的巢狀資料夾（只是整理結構，不會搬動檔案）"
+    },
+    {
+      "name": "設定",
+      "description": "全域設定（套用到所有歌），例如字幕大小"
     },
     {
       "name": "事件",

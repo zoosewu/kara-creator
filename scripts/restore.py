@@ -26,7 +26,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from songtool import align, backup, catalog, config, karaoke, lyrics, manifest  # noqa: E402
+from songtool import align, backup, catalog, config, karaoke, lyrics, manifest, settings  # noqa: E402
 from songtool.catalog import Folder  # noqa: E402
 from songtool.download import Download, download, list_downloads  # noqa: E402
 from songtool.local import import_local  # noqa: E402
@@ -76,6 +76,12 @@ def main() -> int:
     if unknown:
         parser.error(f"備份裡沒有這些歌曲 id：{', '.join(sorted(unknown))}")
     import_local(log=print)
+
+    # 0. 全域設定（字幕大小等）
+    saved = config.DATA_DIR / settings.SETTINGS_FILE
+    if saved.is_file():
+        settings.update(**json.loads(saved.read_text(encoding="utf-8")))
+        print(f"全域設定：{settings.load()}")
 
     # 1. 曲庫的資料夾（沿用備份裡的 id，結構與順序都一樣）
     with catalog.edit() as cat:

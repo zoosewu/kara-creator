@@ -31,6 +31,7 @@
 | `songtool/ass.py` | ASS 字幕產生（字寬用 Pillow 量、換算 libass 比例） |
 | `songtool/karaoke.py` | 串起對時 → 字幕 → 燒錄 → 檢查；手動平移時間 `shift_timing`、AI 重對 `retime` |
 | `songtool/catalog.py` | 曲庫（`output/library.json`）：巢狀資料夾、順序、手動歌名 / 演唱者 / 語言、已確認（成品字幕的 sha1，成品變了就失效）、手動放入影片補上的連結（`link`）、備註（`note`，標題畫面第三行）、是否燒上翻譯（`translation`） |
+| `songtool/settings.py` | 全域設定（`output/settings.json`）：字幕大小等；`karaoke.subtitle_ratio()` 算出實際字高比例，100% 時和預設樣式相同 |
 | `songtool/titles.py` | 從 yt-dlp 資訊與影片標題猜歌名 / 演唱者（純規則，**不用 LLM**） |
 | `songtool/export.py` | 同步 `output/export/`（硬連結，只管自己放的檔案） |
 | `songtool/jobs.py` | 工作佇列：下載（2 條）與 AI 處理（1 條）分開；佇列清空時呼叫 `on_idle`；收尾工作 lane = `system` |

@@ -113,7 +113,7 @@ function remember() {
 
 async function loadState() {
   const data = await api("/api/state");
-  Object.assign(state, { items: data.items, folders: data.folders, jobs: data.jobs });
+  Object.assign(state, { items: data.items, folders: data.folders, jobs: data.jobs, settings: data.settings });
   if (state.folder && !folderById(state.folder)) state.folder = null;  // 資料夾被刪掉了
   const keys = new Set(data.items.map((i) => i.key));
   for (const k of state.selected) if (!keys.has(k)) state.selected.delete(k);  // 歌曲不見了
@@ -1043,6 +1043,43 @@ $("#song-form").addEventListener("submit", async (event) => {
   }
 });
 
+// ---- 全域設定 ---------------------------------------------------------------
+
+const BASE_RATIO = 0.075;   // 預設字幕字高 / 畫面高（和 songtool/ass.py 的 Style 一致）
+
+function openSettings() {
+  $("#set-scale").value = Math.round((state.settings?.subtitle_scale ?? 1) * 100);
+  $("#settings-dialog").hidden = false;   // 先顯示，預覽框才量得到高度
+  updateScalePreview();
+}
+
+function updateScalePreview() {
+  const scale = Number($("#set-scale").value) / 100;
+  $("#set-scale-value").textContent = `${Math.round(scale * 100)}%`;
+  // 預覽框和影片同樣是 16:9，字高 = 框高 × 比例（和燒進影片的一樣）
+  const box = document.querySelector(".size-preview");
+  box.style.setProperty("--fs", `${box.clientHeight * BASE_RATIO * scale}px`);
+  const made = state.items.filter((i) => i.stages.karaoke === "done").length;
+  const changed = Math.abs(scale - (state.settings?.subtitle_scale ?? 1)) > 0.001;
+  $("#set-scale-hint").textContent = "歌詞、假名、翻譯與開頭標題畫面會一起縮放；一行放不下時會自動拆成兩行。"
+    + (changed && made ? `儲存後已做好的 ${made} 首伴唱帶會顯示需更新（重新燒錄，不會重新對時），可以用批次「製作伴唱帶」一次更新。` : "");
+}
+
+$("#open-settings").addEventListener("click", openSettings);
+$("#set-scale").addEventListener("input", updateScalePreview);
+$("#set-reset").addEventListener("click", () => { $("#set-scale").value = 100; updateScalePreview(); });
+$("#settings-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    await api("/api/settings", { method: "PUT", body: { subtitle_scale: Number($("#set-scale").value) / 100 } });
+    closeDialog("#settings-dialog");
+    toast("已儲存設定");
+    await refresh();
+  } catch (e) {
+    toast(e.message, true);
+  }
+});
+
 // ---- 資料夾 -----------------------------------------------------------------
 
 let folderEditing = null;   // null = 新增
@@ -1758,6 +1795,21 @@ $("#studio-approve").addEventListener("click", async () => {
   }
 });
 
+/** 即時字幕的字級：影片實際顯示的高度 × 字幕比例（和燒進影片的一樣大）。 */
+function fitStudioSub() {
+  const video = studioVideo();
+  const frame = video.parentElement;
+  if (!frame) return;
+  const ratio = state.settings?.subtitle_ratio ?? BASE_RATIO;
+  const shown = video.videoWidth && video.videoHeight
+    ? Math.min(frame.clientHeight, frame.clientWidth * video.videoHeight / video.videoWidth)
+    : frame.clientHeight;
+  $("#studio-sub").style.fontSize = `${Math.max(10, shown * ratio)}px`;
+}
+
+new ResizeObserver(fitStudioSub).observe($(".stage-frame"));
+studioVideo().addEventListener("loadedmetadata", fitStudioSub);
+
 function closeStudio() {
   const video = studioVideo();
   video.pause();
@@ -2283,6 +2335,7 @@ const CLOSERS = {
   "#studio": closeStudio,
   "#song-dialog": () => closeDialog("#song-dialog"),
   "#folder-dialog": () => closeDialog("#folder-dialog"),
+  "#settings-dialog": () => closeDialog("#settings-dialog"),
 };
 
 for (const [sel, close] of Object.entries(CLOSERS)) {
@@ -2297,7 +2350,7 @@ document.addEventListener("keydown", (e) => {
   if (editor.time) return closeTimePop();
   if (!$("#menu").hidden) return closeMenu();
   // 由最上層的對話框開始關。
-  for (const sel of ["#song-dialog", "#folder-dialog", "#studio", "#editor"]) {
+  for (const sel of ["#song-dialog", "#folder-dialog", "#settings-dialog", "#studio", "#editor"]) {
     if (!$(sel).hidden) return CLOSERS[sel]();
   }
 });
