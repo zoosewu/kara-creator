@@ -1,0 +1,3 @@
+# 鎖住已安裝的 CUDA 版 torch，避免其他套件把它換成 PyPI 上的 CPU 版
+torch==2.11.0
+torchaudio==2.11.0

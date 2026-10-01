@@ -1,0 +1,503 @@
+"""KTV 字幕：把歌詞逐字對齊到人聲，產生 ASS 字幕並燒進伴奏影片。
+
+輸出在 output/karaoke/<下載資料夾名稱>/：
+    alignment.json        逐字時間軸（對時很花時間，歌詞與人聲沒變就重複使用）；
+                          UI 可手動平移某句（或某句之後全部）的時間，記在 adjustments
+    <標題>.ass            字幕檔，可以手動微調；改完重跑只會重新燒錄，不會被覆蓋
+    <標題>_karaoke.mp4    伴奏 + 字幕
+    <標題>_lyrics.mp4     原曲 + 字幕（--target original / both 時）
+    karaoke.json          紀錄檔
+
+每個步驟各自判斷要不要重做：
+    對時   歌詞內容、人聲檔、模型、語言任一改變
+    字幕   重新對時過、時間被手動調整、字幕樣式改變，或 .ass 不見了
+    燒錄   .ass 內容或來源影片改變，或輸出檔不見了
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import shutil
+import tempfile
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Callable
+
+from . import align, ass, catalog, config, lyrics as lyrics_mod, manifest, qa, reading, titles
+from .download import Download
+from .config import FFMPEG
+from .media import Cancelled, run_cancellable, video_size
+from .separate import SeparateOptions, is_current, output_dir_for, separate_file
+
+ALIGNMENT = "alignment.json"
+RECORD = "karaoke.json"
+# 燒錄方式有改動時調高，讓舊成品被視為需要更新。
+BURN_VERSION = 1
+
+TARGETS = {
+    "instrumental": "_karaoke",   # 伴奏 + 字幕
+    "original": "_lyrics",        # 原曲 + 字幕
+}
+
+
+@dataclass
+class KaraokeOptions:
+    whisper_model: str = "large-v3"
+    language: str | None = None      # None = 由歌詞文字判斷
+    targets: tuple[str, ...] = ("instrumental",)
+    font: str | None = None          # None = 依語言挑選
+    device: str = "auto"
+    realign: bool = False            # 強制重新對時
+    force: bool = False              # 全部重做（包含覆蓋手動修改過的 .ass）
+
+
+@dataclass
+class KaraokeResult:
+    item: Download
+    status: str  # "made" | "skipped" | "no_lyrics" | "failed"
+    out_dir: Path
+    outputs: list[Path] = field(default_factory=list)
+    error: str | None = None
+
+
+def output_dir(item: Download) -> Path:
+    return config.KARAOKE_DIR / item.name
+
+
+def title_card(item: Download, lyrics_meta: dict) -> list:
+    """前奏標題畫面的 [歌名, 演唱者]，來源同 catalog.display_info。
+    自動辨識不出格式、只能用整個影片標題時不顯示（[None, None]），避免整串 YouTube 標題上畫面。"""
+    song = catalog.load().songs.get(catalog.song_key(item))
+    title, artist = catalog.display_info(item, song, lyrics_meta)
+    known = (song and song.title) or lyrics_meta.get("title") or titles.guess(item.info).source != "fallback"
+    return [title, artist] if known else [None, None]
+
+
+def language_of(item: Download, lyr: lyrics_mod.Lyrics) -> str | None:
+    """演唱語言：曲庫手動指定的優先，沒有就依歌詞文字判斷。"""
+    song = catalog.load().songs.get(catalog.song_key(item))
+    return (song.language if song else "") or lyr.language
+
+
+def status(item: Download) -> str:
+    """給 --list / UI 用的狀態：no_lyrics / pending / done / outdated。"""
+    lyrics_path = lyrics_mod.find(item)
+    if lyrics_path is None:
+        return "no_lyrics"
+    out_dir = output_dir(item)
+    record = manifest.read(out_dir / RECORD)
+    if not record:
+        return "pending"
+    ass_path = out_dir / record.get("ass", "")
+    fresh = (
+        record.get("lyrics_sha1") == _sha1(lyrics_path)
+        and ass_path.is_file() and record.get("ass_sha1") == _sha1(ass_path)
+        and all(_video_current(v, record["ass_sha1"], out_dir)
+                for v in record.get("videos", {}).values())
+    )
+    if fresh and "alignment_sha1" in record:
+        alignment = manifest.read(out_dir / ALIGNMENT)
+        fresh = bool(alignment) and record["alignment_sha1"] == _lines_sha1(alignment["lines"])
+    if fresh and ("title_card" in record or "language" in record):
+        lyr = lyrics_mod.load(lyrics_path)
+        if "title_card" in record:
+            fresh = record["title_card"] == title_card(item, lyr.meta)
+        if fresh and record.get("language"):
+            fresh = record["language"] == language_of(item, lyr)   # 改了語言要重新對時
+    return "done" if fresh else "outdated"
+
+
+def make(item: Download, opts: KaraokeOptions | None = None, *,
+         log: Callable[[str], None] = print,
+         should_stop: Callable[[], bool] | None = None) -> KaraokeResult:
+    """should_stop() 為真時在下一個安全點中斷並拋出 media.Cancelled。
+    對時本身無法中途打斷，會在對時完成後才停下（對時結果仍會保存，下次可沿用）。"""
+    opts = opts or KaraokeOptions()
+    out_dir = output_dir(item)
+    lyrics_path = lyrics_mod.find(item)
+    if lyrics_path is None:
+        return KaraokeResult(item, "no_lyrics", out_dir)
+    try:
+        return _make(item, lyrics_mod.load(lyrics_path), out_dir, opts, log, should_stop)
+    except Cancelled:
+        raise
+    except Exception as exc:
+        return KaraokeResult(item, "failed", out_dir, error=str(exc))
+
+
+def _make(item: Download, lyr: lyrics_mod.Lyrics, out_dir: Path,
+          opts: KaraokeOptions, log: Callable[[str], None],
+          should_stop: Callable[[], bool] | None = None) -> KaraokeResult:
+    def check() -> None:
+        if should_stop and should_stop():
+            raise Cancelled()
+
+    if not lyr.lines:
+        raise RuntimeError(f"歌詞檔沒有內容: {lyr.path}")
+    vocals, instrumental = _ensure_separated(item, log, should_stop)
+    check()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    record = manifest.read(out_dir / RECORD) or {}
+    language = opts.language or language_of(item, lyr)
+    changed = False
+
+    # 1. 對時
+    align_key = {
+        "lyrics_sha1": lyr.align_sha1,
+        "vocals": vocals.name,
+        "vocals_size": vocals.stat().st_size,
+        "vocals_mtime_ns": vocals.stat().st_mtime_ns,
+        "model": opts.whisper_model,
+        "language": language,
+        "method": align.VERSION,
+    }
+    alignment = manifest.read(out_dir / ALIGNMENT)
+    # 從資料備份還原的對時（scripts/restore.py）：人聲是重新分離的，檔案和當初不同，
+    # 但歌詞、語言、對時方法都一樣就直接沿用，手動調整過的時間才不會被重新對時蓋掉。
+    restored = (alignment or {}).get("restored")
+    if (restored and not (opts.realign or opts.force) and restored.get("lyrics_sha1") == lyr.align_sha1
+            and restored.get("language") == language and restored.get("method") == align.VERSION):
+        alignment = {"key": align_key, "lines": alignment["lines"], "adjustments": alignment.get("adjustments", [])}
+        manifest.write(out_dir / ALIGNMENT, alignment)
+        log("  . 沿用資料備份裡的對時（不重新對時）")
+    realigned = opts.realign or opts.force or not alignment or alignment.get("key") != align_key
+    if realigned:
+        if alignment and alignment.get("adjustments"):
+            log(f"  . 注意：重新對時會取代先前手動調整的 {len(alignment['adjustments'])} 處時間")
+        if language in align.CTC_ONLY:
+            log(f"  . 逐字對時中（CTC，{catalog.LANGUAGES.get(language, language)}）...")
+        else:
+            log(f"  . 逐字對時中（whisper {opts.whisper_model}, 語言 {language or '自動'}）...")
+        lines = align.align(vocals, lyr, model_name=opts.whisper_model, language=language,
+                            device=opts.device, log=log)
+        alignment = {"key": align_key, "lines": lines}
+        manifest.write(out_dir / ALIGNMENT, alignment)
+        changed = True
+        check()
+    else:
+        log("  . 對時結果沒有變化，沿用 alignment.json")
+
+    # 2. 字幕
+    style = ass.Style(font=opts.font or ass.DEFAULT_FONTS.get(language, "Yu Gothic"))
+    ass_path = out_dir / f"{item.file.stem}.ass"
+    size = video_size(item.file) or (1920, 1080)
+    card = title_card(item, lyr.meta)
+    # 演唱者只影響字幕顏色，不影響對時；對時結果與歌詞行數一致時才能一句一句對上。
+    singers = lyr.singers if len(lyr.singers) == len(alignment["lines"]) else []
+    lines_sha1 = _lines_sha1(alignment["lines"])
+    retimed = record.get("alignment_sha1", lines_sha1) != lines_sha1   # 舊紀錄沒有這個欄位時不算
+    if retimed and not realigned:
+        log("  . 時間已手動調整，重新產生字幕（會取代手動修改過的 .ass）")
+    if (realigned or retimed or not ass_path.is_file() or record.get("style") != style.key()
+            or record.get("title_card", card) != card or record.get("singers", []) != singers):
+        log(f"  . 產生字幕 -> {ass_path.name}")
+        lines = [dict(line) for line in alignment["lines"]]
+        for line, singer in zip(lines, singers):
+            line["singer"] = singer
+        if language == "ja":
+            _attach_furigana(lines, lyr)
+        text = ass.build(lines, *size, style, title=card[0], artist=card[1] or None)
+        ass_path.write_text(text, encoding="utf-8-sig")
+        changed = True
+    elif record.get("ass_sha1") != _sha1(ass_path):
+        log(f"  . 偵測到 {ass_path.name} 被手動修改，保留修改內容")
+    ass_sha1 = _sha1(ass_path)
+
+    # 3. 燒錄
+    sources = {"instrumental": instrumental, "original": item.file}
+    videos: dict[str, dict] = {}
+    outputs = [ass_path]
+    for target in opts.targets:
+        src = sources[target]
+        dest = out_dir / f"{item.file.stem}{TARGETS[target]}.mp4"
+        entry = {"file": dest.name, "source": str(src), "source_size": src.stat().st_size,
+                 "source_mtime_ns": src.stat().st_mtime_ns, "ass_sha1": ass_sha1,
+                 "burn_version": BURN_VERSION}
+        if not opts.force and record.get("videos", {}).get(target) == entry and dest.is_file():
+            log(f"  . {dest.name} 已是最新")
+        else:
+            log(f"  . 燒錄字幕 -> {dest.name}")
+            check()
+            _burn(src, ass_path, dest, size, log, should_stop)
+            changed = True
+        videos[target] = entry
+        outputs.append(dest)
+
+    # 對時品質檢查（本機獨立聽寫比對）；對時沒變且已檢查過就略過。檢查失敗不影響成品。
+    check()
+    _run_qa(item, lyr, alignment, vocals, language, opts.whisper_model, opts.device, out_dir, log)
+
+    # 這次沒要求的舊成品一併移除，避免留下過期檔案。
+    for target, old in record.get("videos", {}).items():
+        if target not in videos:
+            (out_dir / old["file"]).unlink(missing_ok=True)
+
+    manifest.write(out_dir / RECORD, {
+        "lyrics": str(lyr.path),
+        "lyrics_sha1": lyr.sha1,
+        "language": language,
+        "whisper_model": opts.whisper_model,
+        "style": style.key(),
+        "title_card": card,
+        "singers": singers,
+        "alignment_sha1": lines_sha1,
+        "ass": ass_path.name,
+        "ass_sha1": ass_sha1,
+        "videos": videos,
+        "made_at": manifest.now() if changed else record.get("made_at", manifest.now()),
+    })
+    return KaraokeResult(item, "made" if changed else "skipped", out_dir, outputs)
+
+
+def qa_doc(item: Download) -> dict | None:
+    """目前有效的對時檢查結果；還沒檢查或對時已經改變時回傳 None。"""
+    out_dir = output_dir(item)
+    doc = manifest.read(out_dir / qa.QA_FILE)
+    alignment = manifest.read(out_dir / ALIGNMENT)
+    if not doc or not alignment or doc.get("key") != qa.key_of(alignment["lines"]):
+        return None
+    return doc
+
+
+def _lines_sha1(lines: list[dict]) -> str:
+    return hashlib.sha1(json.dumps(lines, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+
+
+def timing(item: Download) -> dict | None:
+    """每句的開始 / 結束時間（給 UI 調整用）；還沒對時回傳 None。"""
+    alignment = manifest.read(output_dir(item) / ALIGNMENT)
+    if not alignment:
+        return None
+    return {
+        "lines": [{"index": i, "text": line["text"], "start": line["start"], "end": line["end"],
+                   "words": [{"text": w["text"], "start": w["start"], "end": w["end"]} for w in line.get("words", [])]}
+                  for i, line in enumerate(alignment["lines"])],
+        "adjustments": alignment.get("adjustments", []),
+    }
+
+
+def shift_timing(item: Download, line: int, delta: float, following: bool = True) -> dict:
+    """把第 line 句（following=True 時連同之後所有句子）整句平移 delta 秒。
+
+    句子之間的先後順序必須維持：往前移不能早於上一句開始，只移一句時往後移不能晚於下一句開始。
+    改完之後伴唱帶顯示「需更新」，重新製作時只會重新產生字幕並燒錄，不必重新對時。
+    """
+    path = output_dir(item) / ALIGNMENT
+    alignment = manifest.read(path)
+    if not alignment:
+        raise ValueError("還沒有對時結果，請先製作伴唱帶")
+    lines = alignment["lines"]
+    if not 0 <= line < len(lines):
+        raise ValueError("沒有這一句")
+    delta = round(float(delta), 3)
+    if abs(delta) < 0.001:
+        raise ValueError("移動量是 0")
+    start = lines[line]["start"]
+    new_start = start + delta
+    floor = lines[line - 1]["start"] + 0.01 if line > 0 else 0.0
+    if new_start < floor:
+        where = "上一句開始）；需要的話先調整上一句" if line > 0 else "歌曲開頭）"
+        raise ValueError(f"最多只能往前移 {max(0.0, start - floor):.2f} 秒（不能早於{where}")
+    if not following and line + 1 < len(lines) and new_start >= lines[line + 1]["start"]:
+        raise ValueError("不能移到下一句的開頭之後；請先調整下一句，或用「AI 重對這句及之後全部」")
+
+    _remember_baseline(item, lines)
+    last = len(lines) if following else line + 1
+    for target in lines[line:last]:
+        target["start"] = round(target["start"] + delta, 3)
+        target["end"] = round(target["end"] + delta, 3)
+        for word in target.get("words", []):
+            word["start"] = round(word["start"] + delta, 3)
+            word["end"] = round(word["end"] + delta, 3)
+    alignment.setdefault("adjustments", []).append(
+        {"line": line, "text": lines[line]["text"], "delta": delta, "following": following, "at": manifest.now()})
+    manifest.write(path, alignment)
+    return timing(item)
+
+
+def _remember_baseline(item: Download, lines: list[dict]) -> None:
+    """舊版紀錄沒有 alignment_sha1：先補上修改前的值，重新製作時才認得出時間被改過。"""
+    record_path = output_dir(item) / RECORD
+    record = manifest.read(record_path)
+    if record and "alignment_sha1" not in record:
+        record["alignment_sha1"] = _lines_sha1(lines)
+        manifest.write(record_path, record)
+
+
+RETIME_MODES = {"from": "重新對時這句及之後全部", "line": "只重對這一句"}
+
+
+def retime(item: Download, line: int, mode: str, *, log: Callable[[str], None] = print,
+           should_stop: Callable[[], bool] | None = None) -> dict:
+    """以第 line 句目前的開頭為準，讓 AI 重新對時。
+
+    mode="from"：第 line 句之後全部重新對（只看這個開頭之後的人聲）；之前的句子不動。
+    mode="line"：只重對第 line 句每個字的時間，範圍是它的開頭到下一句的開頭。
+    和平移一樣只改 alignment.json，重新製作伴唱帶時重產字幕並燒錄、不會整首重新對時。
+    """
+    if mode not in RETIME_MODES:
+        raise ValueError(f"不支援的方式：{mode}")
+    out_dir = output_dir(item)
+    path = out_dir / ALIGNMENT
+    alignment = manifest.read(path)
+    lyrics_path = lyrics_mod.find(item)
+    if not alignment or lyrics_path is None:
+        raise RuntimeError("還沒有對時結果，請先製作伴唱帶")
+    lyr = lyrics_mod.load(lyrics_path)
+    lines = alignment["lines"]
+    same = len(lines) == len(lyr.lines) and all(
+        "".join(a["text"].split()) == "".join(b.split()) for a, b in zip(lines, lyr.lines))
+    if not same:
+        raise RuntimeError("歌詞改過，和目前的對時結果對不上：請先按「更新伴唱帶」（會整首重新對時）再調整")
+    if not 0 <= line < len(lines):
+        raise ValueError("沒有這一句")
+
+    vocals, _ = _ensure_separated(item, log, should_stop)
+    if should_stop and should_stop():
+        raise Cancelled()
+    key = alignment["key"]
+    anchor = lines[line]["start"]
+    log(f"  . {RETIME_MODES[mode]}：第 {line + 1} 句，從 {anchor:.2f}s 開始")
+    _remember_baseline(item, lines)
+    if mode == "from":
+        new = align.align_from(vocals, lyr, line, anchor, model_name=key.get("model", "large-v3"),
+                               language=key.get("language"), device="auto", log=log)
+        if line:
+            # 上一句的尾音不能拖過新的起點。
+            prev = lines[line - 1]
+            tail = prev["words"][-1]
+            tail["end"] = round(max(tail["start"] + 0.05, min(tail["end"], anchor)), 3)
+            prev["end"] = tail["end"]
+        lines[line:] = new
+    else:
+        nxt = lines[line + 1]["start"] if line + 1 < len(lines) else None
+        lines[line] = align.align_line(vocals, lyr.lines[line], lyr.rubies[line], anchor, nxt,
+                                       language=key.get("language"), device="auto")
+    alignment.setdefault("adjustments", []).append(
+        {"line": line, "text": lines[line]["text"], "retime": mode, "anchor": anchor, "at": manifest.now()})
+    manifest.write(path, alignment)
+    log(f"  . 完成，重新製作伴唱帶後生效")
+    return timing(item)
+
+
+def check_timing(item: Download, *, log: Callable[[str], None] = print,
+                 should_stop: Callable[[], bool] | None = None, force: bool = True) -> dict:
+    """單獨檢查一首已經對時過的歌。force=False 時，對時沒變且已檢查過就略過。"""
+    out_dir = output_dir(item)
+    alignment = manifest.read(out_dir / ALIGNMENT)
+    lyrics_path = lyrics_mod.find(item)
+    if not alignment or lyrics_path is None:
+        raise RuntimeError("還沒有對時結果，請先製作伴唱帶")
+    old = manifest.read(out_dir / qa.QA_FILE)
+    if not force and old and old.get("key") == qa.key_of(alignment["lines"]):
+        log("  . 對時沒有變動、已檢查過，略過")
+        return old
+    vocals, _ = _ensure_separated(item, log, should_stop)
+    key = alignment["key"]
+    return _run_qa(item, lyrics_mod.load(lyrics_path), alignment, vocals, key.get("language"),
+                   key.get("model", "large-v3"), "auto", out_dir, log, force=force)
+
+
+def _run_qa(item: Download, lyr: lyrics_mod.Lyrics, alignment: dict, vocals: Path,
+            language: str | None, model_name: str, device: str, out_dir: Path,
+            log: Callable[[str], None], force: bool = False) -> dict | None:
+    path = out_dir / qa.QA_FILE
+    old = manifest.read(path)
+    if not force and old and old.get("key") == qa.key_of(alignment["lines"]):
+        return old
+    try:
+        doc = qa.check(alignment["lines"], lyr.lines, lyr.rubies, vocals, language,
+                       model_name=model_name, device=device, log=log)
+    except Exception as exc:
+        log(f"  [!] 對時檢查失敗（不影響伴唱帶）：{exc}")
+        return None
+    doc["checked_at"] = manifest.now()
+    manifest.write(path, doc)
+    counts = qa.summary(doc)
+    if counts["wrong"] or counts["suspect"]:
+        log(f"  . 對時檢查：{counts['wrong']} 句可能不準、{counts['suspect']} 句待確認（在歌詞編輯器查看）")
+    else:
+        log("  . 對時檢查：沒有發現問題")
+    return doc
+
+
+def _attach_furigana(lines: list[dict], lyr: lyrics_mod.Lyrics) -> None:
+    """替每句加上假名位置（自動讀音 + 歌詞裡手動指定的讀音）。
+
+    假名要對到字元位置，所以只處理「逐字時間串起來剛好等於歌詞原文」的句子
+    （CTC 精修過的句子都是）；對不上的句子不加假名，避免標錯字。
+    """
+    if len(lines) != len(lyr.lines):
+        return
+    for line, text, rubies in zip(lines, lyr.lines, lyr.rubies):
+        if "".join(w["text"] for w in line["words"]) != text:
+            continue
+        segments = reading.furigana(text, "ja", rubies)
+        line["text"] = text
+        line["rubies"] = [(s["start"], s["end"], s["ruby"]) for s in segments if s["ruby"]]
+
+
+def _ensure_separated(item: Download, log: Callable[[str], None],
+                      should_stop: Callable[[], bool] | None = None) -> tuple[Path, Path]:
+    """取得人聲與伴奏檔；還沒分離（或只有 4 軌）時自動做 2 軌分離。"""
+    sep_dir = output_dir_for(item.file)
+    record = manifest.read(sep_dir / manifest.SEPARATE)
+    if not (record and record.get("stems") == 2 and is_current(record, item.file, sep_dir)):
+        log("  . 尚未有人聲 / 伴奏分離結果，先進行分離")
+        result = separate_file(item.file, SeparateOptions(stems=2), log=log, should_stop=should_stop)
+        if result.status == "failed":
+            raise RuntimeError(f"分離失敗: {result.error}")
+        record = manifest.read(sep_dir / manifest.SEPARATE)
+
+    def pick(label: str) -> Path:
+        name = next(n for n in record["outputs"] if Path(n).stem.endswith(f"_{label}"))
+        return sep_dir / name
+
+    return pick("vocals"), pick("instrumental")
+
+
+def _burn(src: Path, ass_path: Path, dest: Path, size: tuple[int, int],
+          log: Callable[[str], None], should_stop: Callable[[], bool] | None = None) -> None:
+    has_video = video_size(src) is not None
+    with tempfile.TemporaryDirectory(prefix="karaoke_") as tmpdir:
+        tmp = Path(tmpdir)
+        # subtitles 濾鏡對路徑中的冒號、括號等字元很敏感，改用暫存目錄裡的 ASCII 檔名。
+        shutil.copyfile(ass_path, tmp / "sub.ass")
+        tmp_out = tmp / "out.mp4"
+        if has_video:
+            inputs = ["-i", str(src)]
+            maps = ["-map", "0:v:0", "-map", "0:a:0"]
+        else:
+            # 純音訊來源：用黑底當畫面。
+            w, h = size
+            inputs = ["-f", "lavfi", "-i", f"color=c=black:s={w}x{h}:r=30", "-i", str(src)]
+            maps = ["-map", "0:v:0", "-map", "1:a:0", "-shortest"]
+        base = ["-y", "-v", "error", *inputs, *maps, "-vf", "subtitles=sub.ass"]
+        tail = ["-c:a", "aac", "-b:a", "320k", "-movflags", "+faststart", str(tmp_out)]
+
+        nvenc = [FFMPEG, *base, "-c:v", "h264_nvenc", "-preset", "p5", "-cq", "23",
+                 "-pix_fmt", "yuv420p", *tail]
+        x264 = [FFMPEG, *base, "-c:v", "libx264", "-preset", "medium", "-crf", "18",
+                "-pix_fmt", "yuv420p", *tail]
+        code, _ = run_cancellable(nvenc, should_stop, cwd=tmp)
+        if code != 0:
+            log("  . NVENC 無法使用，改用 CPU 編碼（較慢）")
+            code, err = run_cancellable(x264, should_stop, cwd=tmp)
+            if code != 0:
+                raise RuntimeError(f"燒錄失敗:\n{err[-2000:]}")
+        shutil.move(str(tmp_out), dest)
+
+
+def _video_current(entry: dict, ass_sha1: str, out_dir: Path) -> bool:
+    src = Path(entry.get("source", ""))
+    return (
+        (out_dir / entry.get("file", "")).is_file() and src.is_file()
+        and entry.get("ass_sha1") == ass_sha1
+        and entry.get("burn_version") == BURN_VERSION
+        and (entry.get("source_size"), entry.get("source_mtime_ns"))
+        == (src.stat().st_size, src.stat().st_mtime_ns)
+    )
+
+
+def _sha1(path: Path) -> str:
+    return hashlib.sha1(path.read_bytes()).hexdigest()

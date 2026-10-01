@@ -1,0 +1,21 @@
+# Python 環境（.venv 是目前的，.venv-* 是升級時留下的備份）
+.venv/
+.venv-*/
+__pycache__/
+*.pyc
+
+# 外部工具（setup.ps1 會下載）
+tools/
+
+# 產出物：影片、伴奏、伴唱帶都有版權也很大，絕對不進 git（只保留資料夾結構）
+output/**
+!output/*/
+!output/*/.gitkeep
+
+# 歌詞與資料備份有版權，放在另一個私人 repo（data/ 本身就是那個 repo 的 clone）
+lyrics/
+data/
+
+# 使用者自己的 hook（通常有伺服器位址）；範例 on_idle.example.ps1 會進 git
+hooks/*
+!hooks/*.example.ps1
