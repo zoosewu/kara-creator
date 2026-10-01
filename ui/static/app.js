@@ -953,7 +953,7 @@ function openSongDialog(item) {
   $("#song-note").value = item.note || "";
   $("#song-translation").checked = item.translation !== false;
   $("#song-translation-hint").textContent = item.translation_lines
-    ? `歌詞裡有 ${item.translation_lines} 句翻譯。只顯示正在唱的那一句，放在歌詞上方；切換後只重新燒錄，不會重新對時。`
+    ? `歌詞裡有 ${item.translation_lines} 句翻譯。只顯示正在唱的那一句，放在畫面中央上方；切換後只重新燒錄，不會重新對時。`
     : "歌詞還沒有翻譯：在歌詞編輯器每句下面填翻譯（或在每句下一行寫「> 翻譯」）。";
   $("#song-title").placeholder = fb.title;
   $("#song-artist").placeholder = fb.artist || "（未填）";
@@ -1805,6 +1805,10 @@ function fitStudioSub() {
     ? Math.min(frame.clientHeight, frame.clientWidth * video.videoHeight / video.videoWidth)
     : frame.clientHeight;
   $("#studio-sub").style.fontSize = `${Math.max(10, shown * ratio)}px`;
+  // 翻譯在影片畫面的中央上方（影片上下有黑邊時從影片上緣算起）
+  const trans = $("#studio-trans");
+  trans.style.fontSize = `${Math.max(8, shown * ratio * 0.6)}px`;
+  trans.style.top = `${(frame.clientHeight - shown) / 2 + shown * 0.05}px`;
 }
 
 new ResizeObserver(fitStudioSub).observe($(".stage-frame"));
@@ -1829,6 +1833,7 @@ function setStudioSource(media, at, autoplay = null) {
   for (const btn of $("#studio-tabs").children) btn.classList.toggle("on", btn.dataset.key === media.key);
   const burned = BURNED.has(media.key);
   $("#studio-sub").hidden = burned;
+  $("#studio-trans").hidden = burned;   // 成品已經燒上翻譯，預覽的翻譯也要藏起來
   $("#studio-note").hidden = !burned || !studio.timing.length;
   video.src = media.url;
   video.playbackRate = parseFloat($("#studio-rate").value);
@@ -2200,8 +2205,8 @@ function studioTick() {
   const key = `${top}|${bottom}|${trans}`;
   if (key !== studio.subLine) {
     studio.subLine = key;
+    $("#studio-trans").textContent = trans;
     $("#studio-sub").replaceChildren(
-      el("div", { class: "sub-row trans" }, trans),
       el("div", { class: "sub-row current" }, top >= 0 ? subWords(top) : null),
       el("div", { class: "sub-row next" }, bottom >= 0 ? subWords(bottom) : null));
   }

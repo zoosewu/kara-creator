@@ -142,7 +142,9 @@ def status(item: Download) -> str:
         lyr = lyrics_mod.load(lyrics_path)
         alignment = manifest.read(out_dir / ALIGNMENT)
         count = len(alignment["lines"]) if alignment else 0
-        fresh = record.get("translations", []) == burn_translations(item, lyr, count)   # 切換了翻譯要重新燒錄
+        translations = burn_translations(item, lyr, count)
+        fresh = (record.get("translations", []) == translations   # 切換了翻譯要重新燒錄
+                 and record.get("translation_layout") == (ass.TRANSLATION_LAYOUT if translations else None))
     if fresh and ("title_card" in record or "language" in record):
         if "title_card" in record:
             fresh = record["title_card"] == title_card(item, lyr.meta)
@@ -235,7 +237,8 @@ def _make(item: Download, lyr: lyrics_mod.Lyrics, out_dir: Path,
         log("  . 時間已手動調整，重新產生字幕（會取代手動修改過的 .ass）")
     if (realigned or retimed or not ass_path.is_file() or record.get("style") != style.key()
             or record.get("title_card", card) != card or record.get("singers", []) != singers
-            or record.get("translations", []) != translations):
+            or record.get("translations", []) != translations
+            or record.get("translation_layout") != (ass.TRANSLATION_LAYOUT if translations else None)):
         log(f"  . 產生字幕 -> {ass_path.name}")
         lines = [dict(line) for line in alignment["lines"]]
         for line, singer in zip(lines, singers):
@@ -288,6 +291,7 @@ def _make(item: Download, lyr: lyrics_mod.Lyrics, out_dir: Path,
         "title_card": card,
         "singers": singers,
         "translations": translations,
+        "translation_layout": ass.TRANSLATION_LAYOUT if translations else None,   # 翻譯的位置換了要重新燒錄
         "alignment_sha1": lines_sha1,
         "ass": ass_path.name,
         "ass_sha1": ass_sha1,
