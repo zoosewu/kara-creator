@@ -681,3 +681,19 @@ ruby.slot rt { color: var(--border); }
 .link-row { display: flex; gap: 6px; align-items: center; }
 .link-row input { flex: 1; }
 .link-row input[readonly] { background: var(--surface-2); color: var(--muted); }
+
+/* 中文翻譯 */
+.line-body { flex: 1; min-width: 0; display: grid; }
+.trans-input {
+  border: 1px solid transparent; background: none; padding: 1px 6px; margin: -2px 0 4px -6px;
+  font-size: 13px; color: var(--muted); border-radius: 6px; width: 100%;
+}
+.trans-input:hover { border-color: var(--border); }
+.trans-input:focus { border-color: var(--accent); color: var(--text); outline: none; }
+.trans-input::placeholder { color: color-mix(in srgb, var(--muted) 45%, transparent); }
+.studio-trans { display: block; font-size: 12px; color: var(--muted); font-family: inherit; }
+.live-sub .sub-row.trans {
+  text-align: center; min-height: 1em; font-size: .6em; font-weight: 600; color: #ffe08a;
+  filter: drop-shadow(0 0 1.5px #000) drop-shadow(0 0 1.5px #000);
+}
+.check-field { display: flex; align-items: center; gap: 8px; font-size: 13px; }

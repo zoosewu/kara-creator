@@ -951,6 +951,10 @@ function openSongDialog(item) {
   $("#song-title").value = item.custom_title;
   $("#song-artist").value = item.custom_artist;
   $("#song-note").value = item.note || "";
+  $("#song-translation").checked = item.translation !== false;
+  $("#song-translation-hint").textContent = item.translation_lines
+    ? `歌詞裡有 ${item.translation_lines} 句翻譯。只顯示正在唱的那一句，放在歌詞上方；切換後只重新燒錄，不會重新對時。`
+    : "歌詞還沒有翻譯：在歌詞編輯器每句下面填翻譯（或在每句下一行寫「> 翻譯」）。";
   $("#song-title").placeholder = fb.title;
   $("#song-artist").placeholder = fb.artist || "（未填）";
   const from = fb.from.startsWith("歌名") ? fb.from : `來自${fb.from}`;
@@ -1026,6 +1030,7 @@ $("#song-form").addEventListener("submit", async (event) => {
     artist: $("#song-artist").value.trim(),
     language: $("#song-language").value,
     note: $("#song-note").value.trim(),
+    translation: $("#song-translation").checked,
   };
   if (!item.url) body.link = $("#song-link").value.trim();   // 只有手動放入的影片可以改連結
   try {
@@ -1205,9 +1210,10 @@ const HINTS = {
     + "時間不對時，點右側的時間可以移動這句；整段偏掉請在播放畫面用「AI 重對這句及之後全部」。"
     + "台語 / 粵語歌（在歌曲「資訊」設定）每個漢字都可以點來標台羅 / 粵拼。",
   annotated: "含標註的完整原文：<code>[男]</code> <code>[女]</code> <code>[合]</code> 標註演唱者，"
+    + "每句下一行的 <code>&gt; 翻譯</code> 是中文翻譯，"
     + "每個漢字後面的 <code>{よみ}</code> 是讀音（自動判斷的也列出來，直接改就會變成手動指定；"
     + "也可以用 <code>{原字|よみ}</code>）；<code>#</code> 開頭為註解。歌名與演唱者請在歌曲「資訊」設定。",
-  plain: "只有歌詞本身，可以直接貼上或修改，一行一句。沒改到的句子會保留原本的演唱者與讀音；"
+  plain: "只有歌詞本身（和 <code>&gt; 翻譯</code> 行），可以直接貼上或修改，一行一句。沒改到的句子會保留原本的演唱者與讀音；"
     + "改過的句子保留演唱者，讀音重新自動判斷。<code>#</code> 開頭為註解。",
 };
 const TEXT_MODES = new Set(["annotated", "plain"]);
@@ -1344,7 +1350,13 @@ function renderLines() {
         title: "演唱者：點一下切換（Shift+點：套用到整段）",
         onclick: (e) => cycleSinger(index, e.shiftKey),
       }, line.singer || "—"),
-      el("div", { class: "line-text" }, text),
+      el("div", { class: "line-body" },
+        el("div", { class: "line-text" }, text),
+        el("input", {
+          class: "trans-input", value: line.translation || "", placeholder: "中文翻譯（選填）", spellcheck: "false",
+          "aria-label": "中文翻譯",
+          oninput: (e) => { editor.doc.lines[index].translation = e.target.value; markDirty(); },
+        })),
       check ? el("button", {
         type: "button", class: "qa-flag",
         title: `${check.status === "wrong" ? "可能不準" : "待確認"}：${check.reasons.join("；")}\n點一下跳到這句播放`,
@@ -1466,12 +1478,14 @@ async function applyTime() {
     const data = await api(`/api/items/${enc(editor.item.name)}/timing`, {
       method: "POST", body: { line: editor.time.index, delta, following },
     });
-    const count = following ? data.lines.length - editor.time.index : 1;
+    const pushed = data.pushed || [];
     closeTimePop();
     editor.timing = data.lines;
     editor.retimed = true;
     renderLines();
-    toast(`已移動 ${count} 句 ${delta > 0 ? "+" : ""}${delta} 秒。按「儲存並製作伴唱帶」重新燒錄後生效`);
+    toast(`已移動 ${delta > 0 ? "+" : ""}${delta} 秒`
+      + (pushed.length ? `（第 ${pushed.map((k) => k + 1).join("、")} 句跟著往後挪）` : "")
+      + "。按「儲存並製作伴唱帶」重新燒錄後生效");
     refresh();
   } catch (e) {
     toast(e.message, true);
@@ -1833,7 +1847,8 @@ function renderStudioLines() {
       title: "演唱者：點一下切換", onclick: (e) => { e.stopPropagation(); cycleStudioSinger(docIndex); },
     }, line.singer || "—"),
     el("div", { class: "studio-text", title: "點兩下修改歌詞", ondblclick: (e) => { e.stopPropagation(); editStudioText(index); } },
-      el("span", { class: "studio-words" }, line.text),
+      el("span", { class: "studio-words" }, line.text,
+        line.translation ? el("small", { class: "studio-trans" }, line.translation) : null),
       el("button", {
         type: "button", class: "edit-btn", title: "修改歌詞", "aria-label": "修改歌詞",
         onclick: (e) => { e.stopPropagation(); editStudioText(index); },
@@ -1937,8 +1952,9 @@ async function shiftStudioLine(index, delta) {
       const t = studio.timing[i];
       if (t) $(".studio-time", row).textContent = fmtClock(t.start);
     }
-    const count = following ? studio.timing.length - index : 1;
-    $("#studio-status").textContent = `第 ${index + 1} 句${count > 1 ? `起 ${count} 句` : ""} ${delta > 0 ? "+" : ""}${delta} 秒，已儲存`;
+    const pushed = data.pushed || [];
+    $("#studio-status").textContent = `第 ${index + 1} 句 ${delta > 0 ? "+" : ""}${delta} 秒`
+      + (pushed.length ? `，第 ${pushed.map((k) => k + 1).join("、")} 句跟著往後挪` : "") + "，已儲存";
     ensureLivePreview();
     return true;
   } catch (e) {
@@ -2126,10 +2142,14 @@ function studioTick() {
     if (next >= 0 && studio.timing[next].start - now <= SUB_PREVIEW) top = next;
   }
   const bottom = top >= 0 && top + 1 < studio.timing.length ? top + 1 : -1;
-  const key = `${top}|${bottom}`;
+  // 翻譯：只顯示正在唱的那一句（和燒進影片的一樣），歌曲設定不燒翻譯時不顯示
+  const transRow = show >= 0 && studio.item.translation !== false ? studio.lyricRows[show] : null;
+  const trans = transRow ? studio.doc.lines[transRow.docIndex].translation || "" : "";
+  const key = `${top}|${bottom}|${trans}`;
   if (key !== studio.subLine) {
     studio.subLine = key;
     $("#studio-sub").replaceChildren(
+      el("div", { class: "sub-row trans" }, trans),
       el("div", { class: "sub-row current" }, top >= 0 ? subWords(top) : null),
       el("div", { class: "sub-row next" }, bottom >= 0 ? subWords(bottom) : null));
   }

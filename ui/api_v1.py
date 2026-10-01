@@ -92,6 +92,7 @@ def build(srv) -> APIRouter:
             "folder": state["folder"],
             "order": state["order"],
             "note": state["note"],
+            "translation": {"burn": state["translation"], "lines": state["translation_lines"]},
             "custom": {"title": state["custom_title"], "artist": state["custom_artist"]},
             "source": {"url": state["url"], "link": state["link"] or None, "title": state["source_title"],
                        "duration": state["duration"], "uploader": state["uploader"], "mode": state["mode"]},
@@ -183,7 +184,7 @@ def build(srv) -> APIRouter:
         改歌詞），approval.status 會變成 stale。伴唱帶還沒做好時確認會回 409。
         """
         item = find(song_id)
-        kwargs = {k: getattr(body, k) for k in ("title", "artist", "language", "note") if k in body.model_fields_set}
+        kwargs = {k: getattr(body, k) for k in ("title", "artist", "language", "note", "translation") if k in body.model_fields_set}
         if "folder" in body.model_fields_set:
             kwargs["folder"] = body.folder
         if body.link is not None:

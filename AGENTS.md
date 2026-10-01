@@ -30,7 +30,7 @@
 | `songtool/qa.py` | 對時檢查（規則 + 分段聽寫比對；台語 / 粵語只做規則） |
 | `songtool/ass.py` | ASS 字幕產生（字寬用 Pillow 量、換算 libass 比例） |
 | `songtool/karaoke.py` | 串起對時 → 字幕 → 燒錄 → 檢查；手動平移時間 `shift_timing`、AI 重對 `retime` |
-| `songtool/catalog.py` | 曲庫（`output/library.json`）：巢狀資料夾、順序、手動歌名 / 演唱者 / 語言、已確認（成品字幕的 sha1，成品變了就失效）、手動放入影片補上的連結（`link`）、備註（`note`，標題畫面第三行） |
+| `songtool/catalog.py` | 曲庫（`output/library.json`）：巢狀資料夾、順序、手動歌名 / 演唱者 / 語言、已確認（成品字幕的 sha1，成品變了就失效）、手動放入影片補上的連結（`link`）、備註（`note`，標題畫面第三行）、是否燒上翻譯（`translation`） |
 | `songtool/titles.py` | 從 yt-dlp 資訊與影片標題猜歌名 / 演唱者（純規則，**不用 LLM**） |
 | `songtool/export.py` | 同步 `output/export/`（硬連結，只管自己放的檔案） |
 | `songtool/jobs.py` | 工作佇列：下載（2 條）與 AI 處理（1 條）分開；佇列清空時呼叫 `on_idle`；收尾工作 lane = `system` |
@@ -50,6 +50,7 @@
 ```text
 # title: 歌名              # 開頭：title / artist 是歌曲資訊，其他 # 開頭的行是註解
 [男] 歌詞一句              一行 = 畫面上一句；行首 [男] [女] [合] 標演唱者
+> 中文翻譯                 上一句的翻譯（不參與對時；燒進伴唱帶與否看曲庫的 translation 設定）
 漢字{よみ}                 讀音：標在前面連續的漢字上（羅馬字讀音依音節數只標最後幾個字）
 {原字|よみ}                明確指定範圍
 ```

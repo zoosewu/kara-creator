@@ -98,6 +98,16 @@ def approval(item: Download, song) -> str | None:
     return "approved" if record.get("ass_sha1") == song.approved else "stale"
 
 
+def burn_translations(item: Download, lyr: lyrics_mod.Lyrics, line_count: int) -> list[str]:
+    """要燒進伴唱帶的中文翻譯（每句一個，沒有翻譯的句子是空字串）。
+    歌曲設定不燒、歌詞沒有翻譯、或句數和對時結果對不上時回傳 []。"""
+    song = catalog.load().songs.get(catalog.song_key(item))
+    translations = lyr.translations
+    if (song and not song.translation) or not any(translations) or len(translations) != line_count:
+        return []
+    return translations
+
+
 def status(item: Download) -> str:
     """給 --list / UI 用的狀態：no_lyrics / pending / done / outdated。"""
     lyrics_path = lyrics_mod.find(item)
@@ -117,8 +127,12 @@ def status(item: Download) -> str:
     if fresh and "alignment_sha1" in record:
         alignment = manifest.read(out_dir / ALIGNMENT)
         fresh = bool(alignment) and record["alignment_sha1"] == _lines_sha1(alignment["lines"])
-    if fresh and ("title_card" in record or "language" in record):
+    if fresh:
         lyr = lyrics_mod.load(lyrics_path)
+        alignment = manifest.read(out_dir / ALIGNMENT)
+        count = len(alignment["lines"]) if alignment else 0
+        fresh = record.get("translations", []) == burn_translations(item, lyr, count)   # 切換了翻譯要重新燒錄
+    if fresh and ("title_card" in record or "language" in record):
         if "title_card" in record:
             fresh = record["title_card"] == title_card(item, lyr.meta)
         if fresh and record.get("language"):
@@ -205,10 +219,12 @@ def _make(item: Download, lyr: lyrics_mod.Lyrics, out_dir: Path,
     singers = lyr.singers if len(lyr.singers) == len(alignment["lines"]) else []
     lines_sha1 = _lines_sha1(alignment["lines"])
     retimed = record.get("alignment_sha1", lines_sha1) != lines_sha1   # 舊紀錄沒有這個欄位時不算
+    translations = burn_translations(item, lyr, len(alignment["lines"]))
     if retimed and not realigned:
         log("  . 時間已手動調整，重新產生字幕（會取代手動修改過的 .ass）")
     if (realigned or retimed or not ass_path.is_file() or record.get("style") != style.key()
-            or record.get("title_card", card) != card or record.get("singers", []) != singers):
+            or record.get("title_card", card) != card or record.get("singers", []) != singers
+            or record.get("translations", []) != translations):
         log(f"  . 產生字幕 -> {ass_path.name}")
         lines = [dict(line) for line in alignment["lines"]]
         for line, singer in zip(lines, singers):
@@ -216,7 +232,7 @@ def _make(item: Download, lyr: lyrics_mod.Lyrics, out_dir: Path,
         if language == "ja":
             _attach_furigana(lines, lyr)
         text = ass.build(lines, *size, style, title=card[0], artist=card[1] or None,
-                         note=card[2] if len(card) > 2 else None)
+                         note=card[2] if len(card) > 2 else None, translations=translations)
         ass_path.write_text(text, encoding="utf-8-sig")
         changed = True
     elif record.get("ass_sha1") != _sha1(ass_path):
@@ -260,6 +276,7 @@ def _make(item: Download, lyr: lyrics_mod.Lyrics, out_dir: Path,
         "style": style.key(),
         "title_card": card,
         "singers": singers,
+        "translations": translations,
         "alignment_sha1": lines_sha1,
         "ass": ass_path.name,
         "ass_sha1": ass_sha1,
@@ -296,10 +313,42 @@ def timing(item: Download) -> dict | None:
     }
 
 
+MIN_LINE = 0.3          # 一句至少要有的長度（秒）
+MIN_PER_WORD = 0.08     # 每個字至少要有的長度（秒）；一句的最短長度取兩者較大的
+
+
+def _min_length(line: dict) -> float:
+    return max(MIN_LINE, MIN_PER_WORD * len(line.get("words") or [None]))
+
+
+def _move(line: dict, delta: float) -> None:
+    line["start"] = round(line["start"] + delta, 3)
+    line["end"] = round(line["end"] + delta, 3)
+    for word in line.get("words", []):
+        word["start"] = round(word["start"] + delta, 3)
+        word["end"] = round(word["end"] + delta, 3)
+
+
+def _fit_before(line: dict, limit: float) -> None:
+    """這句唱到 limit（下一句開頭）之後的話，依比例壓縮每個字的時間，讓它在 limit 前唱完。"""
+    end = limit - 0.02
+    if line["end"] <= end or line["end"] <= line["start"]:
+        return
+    factor = (end - line["start"]) / (line["end"] - line["start"])
+    origin = line["start"]
+    for word in line.get("words", []):
+        word["start"] = round(origin + (word["start"] - origin) * factor, 3)
+        word["end"] = round(origin + (word["end"] - origin) * factor, 3)
+    line["end"] = round(end, 3)
+
+
 def shift_timing(item: Download, line: int, delta: float, following: bool = True) -> dict:
     """把第 line 句（following=True 時連同之後所有句子）整句平移 delta 秒。
 
-    句子之間的先後順序必須維持：往前移不能早於上一句開始，只移一句時往後移不能晚於下一句開始。
+    只移一句時不會被下一句擋住：移動後這句太短、或撞到下一句，就把下一句往後推到最近的合法位置
+    （再撞到下下一句就繼續往後推），這句唱不完的部分依比例壓縮到下一句開頭之前；
+    往前移時上一句的尾音同樣壓縮到這句開頭之前。往前不能早於上一句開頭加上它的最短長度。
+    回傳的時間資料多一個 pushed：一起被往後推的句子（從 0 起算）。
     改完之後伴唱帶顯示「需更新」，重新製作時只會重新產生字幕並燒錄，不必重新對時。
     """
     path = output_dir(item) / ALIGNMENT
@@ -314,25 +363,38 @@ def shift_timing(item: Download, line: int, delta: float, following: bool = True
         raise ValueError("移動量是 0")
     start = lines[line]["start"]
     new_start = start + delta
-    floor = lines[line - 1]["start"] + 0.01 if line > 0 else 0.0
+    floor = lines[line - 1]["start"] + _min_length(lines[line - 1]) if line > 0 else 0.0
     if new_start < floor:
         where = "上一句開始）；需要的話先調整上一句" if line > 0 else "歌曲開頭）"
         raise ValueError(f"最多只能往前移 {max(0.0, start - floor):.2f} 秒（不能早於{where}")
-    if not following and line + 1 < len(lines) and new_start >= lines[line + 1]["start"]:
-        raise ValueError("不能移到下一句的開頭之後；請先調整下一句，或用「AI 重對這句及之後全部」")
 
     _remember_baseline(item, lines)
-    last = len(lines) if following else line + 1
-    for target in lines[line:last]:
-        target["start"] = round(target["start"] + delta, 3)
-        target["end"] = round(target["end"] + delta, 3)
-        for word in target.get("words", []):
-            word["start"] = round(word["start"] + delta, 3)
-            word["end"] = round(word["end"] + delta, 3)
+    pushed: list[int] = []
+    if following:
+        for target in lines[line:]:
+            _move(target, delta)
+    else:
+        _move(lines[line], delta)
+        # 往後推：這句太短或撞到下一句時，下一句移到最近的合法位置，連鎖往後
+        k = line
+        while k + 1 < len(lines):
+            need = lines[k]["start"] + _min_length(lines[k])
+            if lines[k + 1]["start"] >= need:
+                break
+            _move(lines[k + 1], need - lines[k + 1]["start"])
+            pushed.append(k + 1)
+            k += 1
+        # 被移動的句子唱不完的部分壓縮到下一句開頭之前；上一句的尾音也不能蓋過這句
+        for k in [line, *pushed]:
+            if k + 1 < len(lines):
+                _fit_before(lines[k], lines[k + 1]["start"])
+        if line > 0:
+            _fit_before(lines[line - 1], lines[line]["start"])
     alignment.setdefault("adjustments", []).append(
-        {"line": line, "text": lines[line]["text"], "delta": delta, "following": following, "at": manifest.now()})
+        {"line": line, "text": lines[line]["text"], "delta": delta, "following": following,
+         "pushed": pushed, "at": manifest.now()})
     manifest.write(path, alignment)
-    return timing(item)
+    return {**timing(item), "pushed": pushed}
 
 
 def _remember_baseline(item: Download, lines: list[dict]) -> None:

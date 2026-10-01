@@ -130,7 +130,8 @@ def _item_state(item: Download, busy: dict, cat: catalog.Catalog,
 
     key = catalog.song_key(item)
     song = cat.songs[key]
-    meta = lyrics.load(lyrics_path).meta if lyrics_path else {}
+    lyr = lyrics.load(lyrics_path) if lyrics_path else None
+    meta = lyr.meta if lyr else {}
     title, artist = catalog.display_info(item, song, meta)
     auto = titles.guess(item.info)
     export_rel = Path(export_names[key])
@@ -178,6 +179,8 @@ def _item_state(item: Download, busy: dict, cat: catalog.Catalog,
         "url": item.info.get("url"),            # 下載時的影片連結（手動放入的檔案沒有）
         "link": song.link,                       # 手動放入的影片補上的連結
         "note": song.note,                       # 備註（開頭標題畫面第三行）
+        "translation": song.translation,         # 歌詞有中文翻譯時是否燒進伴唱帶
+        "translation_lines": sum(1 for t in lyr.translations if t) if lyr else 0,   # 有翻譯的句數
         "stages": {
             "download": "done",
             "separate": "done" if separated else ("outdated" if sep else "pending"),
@@ -285,6 +288,7 @@ class SongBody(BaseModel):
     language: str | None = None     # 空字串 = 依歌詞文字判斷；None = 不改
     link: str | None = None         # 手動放入的影片補上的原始連結；空字串 = 清除；None = 不改
     note: str | None = None         # 備註（開頭標題畫面第三行）；空字串 = 清除；None = 不改
+    translation: bool | None = None # 是否燒上中文翻譯；None = 不改
 
 
 def _catalog_call(fn):
@@ -374,7 +378,8 @@ def move_songs(body: MoveBody) -> dict:
 def update_song(key: str, body: SongBody) -> dict:
     _catalog_call(lambda cat: cat.update_song(key, folder=body.folder, number=body.number,
                                               title=body.title, artist=body.artist,
-                                              language=body.language, link=body.link, note=body.note))
+                                              language=body.language, link=body.link, note=body.note,
+                                              translation=body.translation))
     return {"key": key}
 
 
@@ -467,10 +472,12 @@ def _lyrics_views(doc: lyrics.Document, language: str | None = None) -> dict:
         if ln.kind == "lyric":
             rubies = [lyrics.Ruby(seg["start"], seg["end"], seg["ruby"])
                       for seg in reading.furigana(ln.text, language, ln.rubies) if seg["ruby"]]
-            full.lines.append(lyrics.Line("lyric", ln.text, ln.singer, rubies))
+            full.lines.append(lyrics.Line("lyric", ln.text, ln.singer, rubies, ln.translation))
         else:
             full.lines.append(ln)
-    plain = "\n".join("" if ln.kind == "blank" else ln.text for ln in doc.lines)
+    # 原始歌詞也帶著翻譯（「> 翻譯」行），方便整段貼上歌詞與翻譯
+    plain = "\n".join("" if ln.kind == "blank" else ln.text + (f"\n> {ln.translation}" if ln.translation else "")
+                      for ln in doc.lines)
     text = lyrics.serialize(doc)
     return {"doc": _editor_doc(doc, language), "text": text,
             # 寫在括號裡的讀音（日文歌），編輯器會提示可以轉成讀音標註
@@ -504,6 +511,8 @@ def _from_plain(text: str, base: lyrics.Document) -> lyrics.Document:
                 dst.singer = src.singer
             if not dst.rubies:
                 dst.rubies = [r for r in src.rubies if dst.text[r.start:r.end] == src.text[r.start:r.end]]
+            if not dst.translation and tag == "equal":
+                dst.translation = src.translation
     return doc
 
 

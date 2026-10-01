@@ -63,6 +63,11 @@ class ExportInfo(BaseModel):
     exists: bool = Field(description="成品是否已經輸出")
 
 
+class Translation(BaseModel):
+    burn: bool = Field(description="歌詞有中文翻譯時是否燒進伴唱帶")
+    lines: int = Field(description="有翻譯的句數（歌詞檔裡每句下一行的「> 翻譯」）")
+
+
 class Approval(BaseModel):
     status: Literal["approved", "stale"] | None = Field(
         description="approved：已確認成品沒問題；stale：確認後成品有變動，需重新確認；null：沒確認過")
@@ -78,6 +83,7 @@ class Song(BaseModel):
     folder: str | None = Field(description="所在資料夾 id；null = 最上層")
     order: int = Field(description="在資料夾裡的排列順序")
     note: str = Field(description="備註：顯示在開頭標題畫面的第三行（演唱者下面）；空字串 = 沒有")
+    translation: Translation
     custom: CustomInfo
     source: Source
     stages: Stages
@@ -117,6 +123,7 @@ class SongPatch(BaseModel):
     approved: bool | None = Field(None, description="true：確認目前的成品沒問題（伴唱帶要已完成）；false：取消確認")
     link: str | None = Field(None, description="手動放入的影片補上原始連結；空字串 = 清除。用網址下載的歌不能改（回 409）")
     note: str | None = Field(None, description="備註（開頭標題畫面第三行，例如「作詞：○○／作曲：○○」）；空字串 = 清除")
+    translation: bool | None = Field(None, description="是否把中文翻譯燒進伴唱帶（改了只重新燒錄，不重新對時）")
 
 
 # ---- 歌詞與時間 ----------------------------------------------------------------
@@ -128,7 +135,8 @@ class Lyrics(BaseModel):
 
 
 class LyricsBody(BaseModel):
-    text: str = Field(description="一行一句；[男] [女] [合] 標演唱者；漢字{よみ} 或 {原字|よみ} 標讀音")
+    text: str = Field(description="一行一句；[男] [女] [合] 標演唱者；漢字{よみ} 或 {原字|よみ} 標讀音；"
+                                  "下一行「> 翻譯」是這句的中文翻譯")
     format: LyricsFormat = Field("file", description="plain 會保留沒改到的句子原本的演唱者與讀音")
 
 

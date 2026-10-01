@@ -113,8 +113,15 @@ def _libass_scale(path: Path, index: int) -> float | None:
         return None
 
 
+# 中文翻譯：只顯示正在唱的那一句，置中放在兩行歌詞上方，不跟著變色。
+# 刻意不放進 Style（Style 的內容會用來判斷伴唱帶要不要更新）。
+TRANSLATION_COLOR = "#FFE08A"
+TRANSLATION_RATIO = 0.6      # 相對歌詞字級
+
+
 def build(lines: list[dict], width: int, height: int, style: Style,
-          title: str | None = None, artist: str | None = None, note: str | None = None) -> str:
+          title: str | None = None, artist: str | None = None, note: str | None = None,
+          translations: list[str] | None = None) -> str:
     """lines: [{"text", "start", "end", "words": [{"text", "start", "end"}],
                 "singer"?, "rubies"?: [(start, end, reading)]}]"""
     measure = _Measure(style.font)
@@ -123,6 +130,8 @@ def build(lines: list[dict], width: int, height: int, style: Style,
     avail = width - 2 * margin_x
     if not style.furigana:
         lines = [{k: v for k, v in ln.items() if k != "rubies"} for ln in lines]
+    # 翻譯以「原本的一句」為單位（長句被拆成兩行也只顯示一次），所以在拆句之前記下來。
+    originals = [(ln, tr) for ln, tr in zip(lines, translations or []) if ln.get("words")]
     lines = [part for ln in lines if ln.get("words") for part in _split_long(ln, fs, avail, measure)]
 
     has_ruby = any(ln.get("rubies") for ln in lines)
@@ -134,6 +143,19 @@ def build(lines: list[dict], width: int, height: int, style: Style,
     shadow = max(1, round(fs * 0.03))
 
     events = []
+    # 翻譯：從這句開始唱到下一句開始（最多唱完後 style.tail 秒），位置在上排歌詞（與它的假名）之上。
+    trans_y = upper_y - fs - (round(fs * style.ruby_ratio * 1.2) if has_ruby else 0) - round(fs * 0.3)
+    for k, (line, text) in enumerate(originals):
+        if not text:
+            continue
+        end = line["end"] + style.tail
+        if k + 1 < len(originals):
+            end = min(end, originals[k + 1][0]["start"] - 0.05)
+        size = round(fs * TRANSLATION_RATIO)
+        while size > 12 and measure.width(text, size) > avail:
+            size -= 1
+        events.append((max(0.0, line["start"] - 0.15), max(end, line["start"] + 0.5), "Trans",
+                       "{" + f"\\an2\\pos({width // 2},{trans_y})\\fs{size}\\fad(150,150)" + "}" + _escape(text)))
     appear, slots = _schedule(lines, style)
     for i, line in enumerate(lines):
         # 同一位置的下一句出現前要先消失。
@@ -183,6 +205,7 @@ YCbCr Matrix: TV.709
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: KTV,{style.font},{fs},{_color(style.sung)},{_color(style.unsung)},{_color(style.outline)},&H80000000,-1,0,0,0,100,100,0,0,1,{outline_w},{shadow},1,0,0,0,1
 Style: Ruby,{style.font},{rs},{_color(style.sung)},{_color(style.unsung)},{_color(style.outline)},&H80000000,-1,0,0,0,100,100,0,0,1,{max(1, round(outline_w * 0.6))},{max(1, round(shadow * 0.6))},2,0,0,0,1
+Style: Trans,{style.font},{round(fs * TRANSLATION_RATIO)},{_color(TRANSLATION_COLOR)},{_color(TRANSLATION_COLOR)},{_color(style.outline)},&H80000000,-1,0,0,0,100,100,0,0,1,{max(1, round(outline_w * 0.8))},{shadow},2,0,0,0,1
 Style: Title,{style.font},{round(fs * 1.2)},{_color(style.unsung)},{_color(style.unsung)},{_color(style.outline)},&H80000000,-1,0,0,0,100,100,0,0,1,{outline_w},{shadow},5,0,0,0,1
 
 [Events]

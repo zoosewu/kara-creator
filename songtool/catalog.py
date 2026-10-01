@@ -50,6 +50,8 @@ class Song:
     link: str = ""
     # 備註：顯示在開頭標題畫面的第三行（演唱者下面），例如「作詞：○○／作曲：○○」
     note: str = ""
+    # 歌詞有中文翻譯時是否燒進伴唱帶（每首歌各自切換；改了只重新燒錄，不重新對時）
+    translation: bool = True
 
 
 # 可以手動指定的演唱語言。台語、粵語的歌詞文字和國語分不出來，只能手動指定。
@@ -156,7 +158,7 @@ class Catalog:
         return self.songs[key]
 
     def update_song(self, key: str, *, folder=_UNSET, number=None, title=None, artist=None,
-                    language=None, approved=None, link=None, note=None) -> Song:
+                    language=None, approved=None, link=None, note=None, translation=None) -> Song:
         song = self.songs.get(key)
         if song is None:
             raise KeyError("曲庫裡沒有這首歌")
@@ -185,6 +187,8 @@ class Catalog:
             song.link = link
         if note is not None:
             song.note = " ".join(note.split())   # 標題畫面只有一行，換行與多餘空白收成一個空白
+        if translation is not None:
+            song.translation = bool(translation)
         self.dirty = True
         return song
 
@@ -247,7 +251,7 @@ class Catalog:
                    for f in data.get("folders", [])}
         songs = {k: Song(k, v.get("folder"), int(v.get("number", 1)), v.get("title", ""), v.get("artist", ""),
                          v.get("language", ""), v.get("approved", ""), v.get("approved_at", ""), v.get("link", ""),
-                         v.get("note", ""))
+                         v.get("note", ""), bool(v.get("translation", True)))
                  for k, v in data.get("songs", {}).items()}
         return cls(folders, songs)
 

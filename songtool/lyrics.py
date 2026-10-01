@@ -82,6 +82,7 @@ class Line:
     text: str = ""             # lyric：去掉標記後的純文字；comment：整行原文
     singer: str | None = None
     rubies: list[Ruby] = field(default_factory=list)
+    translation: str = ""      # 中文翻譯（歌詞檔裡下一行的「> 翻譯」）；不參與對時
 
 
 @dataclass
@@ -112,6 +113,11 @@ class Lyrics:
     @property
     def singers(self) -> list[str | None]:
         return [ln.singer for ln in self.doc.lyric_lines]
+
+    @property
+    def translations(self) -> list[str]:
+        """每句的中文翻譯（沒有翻譯的句子是空字串）。"""
+        return [ln.translation for ln in self.doc.lyric_lines]
 
     @property
     def meta(self) -> dict[str, str]:
@@ -189,6 +195,14 @@ def parse(text: str) -> Document:
             else:
                 doc.lines.append(Line("comment", line))
             continue
+        if line.startswith(">"):
+            # 「> 翻譯」：上一句歌詞的翻譯；前面不是歌詞的話當成註解保留下來
+            if doc.lines and doc.lines[-1].kind == "lyric":
+                # 同一句寫了好幾行翻譯就接在一起（顯示時只有一行）
+                doc.lines[-1].translation = " ".join((doc.lines[-1].translation + " " + line[1:]).split())
+            else:
+                doc.lines.append(Line("comment", line))
+            continue
         doc.lines.append(_parse_lyric(line))
     # 頭尾的空行沒有意義，去掉以免寫回時越積越多。
     while doc.lines and doc.lines[0].kind == "blank":
@@ -249,6 +263,8 @@ def serialize(doc: Document) -> str:
             out.append(line.text)
         else:
             out.append(_serialize_lyric(line))
+            if line.translation:
+                out.append(f"> {line.translation}")
     return "\n".join(out) + "\n"
 
 
@@ -281,6 +297,7 @@ def from_dict(data: dict) -> Document:
         rubies = [Ruby(int(r["start"]), int(r["end"]), str(r["reading"]))
                   for r in ln.get("rubies", []) if str(r.get("reading", "")).strip()]
         singer = ln.get("singer") if ln.get("singer") in SINGERS else None
-        lines.append(Line(ln.get("kind", "lyric"), ln.get("text", ""), singer, rubies))
+        lines.append(Line(ln.get("kind", "lyric"), ln.get("text", ""), singer, rubies,
+                          " ".join(str(ln.get("translation") or "").split())))
     meta = {k: v for k, v in (data.get("meta") or {}).items() if v}
     return Document(meta, lines)

@@ -1966,7 +1966,7 @@
           "text": {
             "type": "string",
             "title": "Text",
-            "description": "一行一句；[男] [女] [合] 標演唱者；漢字{よみ} 或 {原字|よみ} 標讀音"
+            "description": "一行一句；[男] [女] [合] 標演唱者；漢字{よみ} 或 {原字|よみ} 標讀音；下一行「> 翻譯」是這句的中文翻譯"
           },
           "format": {
             "type": "string",
@@ -2293,6 +2293,9 @@
             "title": "Note",
             "description": "備註：顯示在開頭標題畫面的第三行（演唱者下面）；空字串 = 沒有"
           },
+          "translation": {
+            "$ref": "#/components/schemas/Translation"
+          },
           "custom": {
             "$ref": "#/components/schemas/CustomInfo"
           },
@@ -2333,6 +2336,7 @@
           "folder",
           "order",
           "note",
+          "translation",
           "custom",
           "source",
           "stages",
@@ -2406,6 +2410,9 @@
             "title": "Note",
             "description": "備註：顯示在開頭標題畫面的第三行（演唱者下面）；空字串 = 沒有"
           },
+          "translation": {
+            "$ref": "#/components/schemas/Translation"
+          },
           "custom": {
             "$ref": "#/components/schemas/CustomInfo"
           },
@@ -2454,6 +2461,7 @@
           "folder",
           "order",
           "note",
+          "translation",
           "custom",
           "source",
           "stages",
@@ -2635,6 +2643,18 @@
             ],
             "title": "Note",
             "description": "備註（開頭標題畫面第三行，例如「作詞：○○／作曲：○○」）；空字串 = 清除"
+          },
+          "translation": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Translation",
+            "description": "是否把中文翻譯燒進伴唱帶（改了只重新燒錄，不重新對時）"
           }
         },
         "type": "object",
@@ -2849,6 +2869,26 @@
           "words"
         ],
         "title": "TimingLine"
+      },
+      "Translation": {
+        "properties": {
+          "burn": {
+            "type": "boolean",
+            "title": "Burn",
+            "description": "歌詞有中文翻譯時是否燒進伴唱帶"
+          },
+          "lines": {
+            "type": "integer",
+            "title": "Lines",
+            "description": "有翻譯的句數（歌詞檔裡每句下一行的「> 翻譯」）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "burn",
+          "lines"
+        ],
+        "title": "Translation"
       },
       "ValidationError": {
         "properties": {

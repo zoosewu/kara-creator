@@ -40,6 +40,7 @@ def apply_info(song: catalog.Song, entry: dict, folders: dict) -> None:
     song.title, song.artist = entry.get("title", ""), entry.get("artist", "")
     song.language, song.link = entry.get("language", ""), entry.get("link", "")
     song.note = entry.get("note", "")
+    song.translation = bool(entry.get("translation", True))
     # 確認紀錄是字幕的指紋：還原重做出來的字幕一樣，確認就仍然有效
     song.approved, song.approved_at = entry.get("approved", ""), entry.get("approved_at", "")
 
