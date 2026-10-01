@@ -48,6 +48,8 @@ class Song:
     approved_at: str = ""
     # 手動放入的影片可以補上原始影片連結（重做時用它重新下載）；用網址下載的歌不需要，連結在 download.json。
     link: str = ""
+    # 備註：顯示在開頭標題畫面的第三行（演唱者下面），例如「作詞：○○／作曲：○○」
+    note: str = ""
 
 
 # 可以手動指定的演唱語言。台語、粵語的歌詞文字和國語分不出來，只能手動指定。
@@ -154,7 +156,7 @@ class Catalog:
         return self.songs[key]
 
     def update_song(self, key: str, *, folder=_UNSET, number=None, title=None, artist=None,
-                    language=None, approved=None, link=None) -> Song:
+                    language=None, approved=None, link=None, note=None) -> Song:
         song = self.songs.get(key)
         if song is None:
             raise KeyError("曲庫裡沒有這首歌")
@@ -181,6 +183,8 @@ class Catalog:
             if link and not link.startswith(("http://", "https://")):
                 raise ValueError("影片連結要是 http:// 或 https:// 開頭的網址")
             song.link = link
+        if note is not None:
+            song.note = " ".join(note.split())   # 標題畫面只有一行，換行與多餘空白收成一個空白
         self.dirty = True
         return song
 
@@ -242,7 +246,8 @@ class Catalog:
         folders = {f["id"]: Folder(f["id"], f["name"], int(f["number"]), f.get("parent"))
                    for f in data.get("folders", [])}
         songs = {k: Song(k, v.get("folder"), int(v.get("number", 1)), v.get("title", ""), v.get("artist", ""),
-                         v.get("language", ""), v.get("approved", ""), v.get("approved_at", ""), v.get("link", ""))
+                         v.get("language", ""), v.get("approved", ""), v.get("approved_at", ""), v.get("link", ""),
+                         v.get("note", ""))
                  for k, v in data.get("songs", {}).items()}
         return cls(folders, songs)
 

@@ -321,7 +321,7 @@ function renderSong(item, depth) {
                 onSave: (value) => saveSongName(item, value),
               }),
             }, icon("edit"))),
-          el("div", { class: "song-meta ellipsis" }, meta.filter(Boolean).join(" · "))),
+          el("div", { class: "song-meta ellipsis", title: meta.filter(Boolean).join(" · ") }, meta.filter(Boolean).join(" · "))),
         badge),
       el("div", { class: "song-bottom" }, el("div", { class: "stages-wrap" }, stages, approvalChip(item), qaChip(item)),
         el("div", { class: "actions" }, run, run.length ? el("span", { class: "divider" }) : null, view))),
@@ -950,6 +950,7 @@ function openSongDialog(item) {
   fillFolderSelect($("#song-folder"), item.folder);
   $("#song-title").value = item.custom_title;
   $("#song-artist").value = item.custom_artist;
+  $("#song-note").value = item.note || "";
   $("#song-title").placeholder = fb.title;
   $("#song-artist").placeholder = fb.artist || "（未填）";
   const from = fb.from.startsWith("歌名") ? fb.from : `來自${fb.from}`;
@@ -1024,6 +1025,7 @@ $("#song-form").addEventListener("submit", async (event) => {
     title: $("#song-title").value.trim(),
     artist: $("#song-artist").value.trim(),
     language: $("#song-language").value,
+    note: $("#song-note").value.trim(),
   };
   if (!item.url) body.link = $("#song-link").value.trim();   // 只有手動放入的影片可以改連結
   try {

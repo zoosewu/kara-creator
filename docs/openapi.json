@@ -2288,6 +2288,11 @@
             "title": "Order",
             "description": "在資料夾裡的排列順序"
           },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "description": "備註：顯示在開頭標題畫面的第三行（演唱者下面）；空字串 = 沒有"
+          },
           "custom": {
             "$ref": "#/components/schemas/CustomInfo"
           },
@@ -2327,6 +2332,7 @@
           "language",
           "folder",
           "order",
+          "note",
           "custom",
           "source",
           "stages",
@@ -2395,6 +2401,11 @@
             "title": "Order",
             "description": "在資料夾裡的排列順序"
           },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "description": "備註：顯示在開頭標題畫面的第三行（演唱者下面）；空字串 = 沒有"
+          },
           "custom": {
             "$ref": "#/components/schemas/CustomInfo"
           },
@@ -2442,6 +2453,7 @@
           "language",
           "folder",
           "order",
+          "note",
           "custom",
           "source",
           "stages",
@@ -2611,6 +2623,18 @@
             ],
             "title": "Link",
             "description": "手動放入的影片補上原始連結；空字串 = 清除。用網址下載的歌不能改（回 409）"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "備註（開頭標題畫面第三行，例如「作詞：○○／作曲：○○」）；空字串 = 清除"
           }
         },
         "type": "object",

@@ -177,6 +177,7 @@ def _item_state(item: Download, busy: dict, cat: catalog.Catalog,
         "mode": item.info.get("mode", "video"),
         "url": item.info.get("url"),            # 下載時的影片連結（手動放入的檔案沒有）
         "link": song.link,                       # 手動放入的影片補上的連結
+        "note": song.note,                       # 備註（開頭標題畫面第三行）
         "stages": {
             "download": "done",
             "separate": "done" if separated else ("outdated" if sep else "pending"),
@@ -283,6 +284,7 @@ class SongBody(BaseModel):
     artist: str | None = None
     language: str | None = None     # 空字串 = 依歌詞文字判斷；None = 不改
     link: str | None = None         # 手動放入的影片補上的原始連結；空字串 = 清除；None = 不改
+    note: str | None = None         # 備註（開頭標題畫面第三行）；空字串 = 清除；None = 不改
 
 
 def _catalog_call(fn):
@@ -372,7 +374,7 @@ def move_songs(body: MoveBody) -> dict:
 def update_song(key: str, body: SongBody) -> dict:
     _catalog_call(lambda cat: cat.update_song(key, folder=body.folder, number=body.number,
                                               title=body.title, artist=body.artist,
-                                              language=body.language, link=body.link))
+                                              language=body.language, link=body.link, note=body.note))
     return {"key": key}
 
 

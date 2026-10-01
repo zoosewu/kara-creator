@@ -114,7 +114,7 @@ def _libass_scale(path: Path, index: int) -> float | None:
 
 
 def build(lines: list[dict], width: int, height: int, style: Style,
-          title: str | None = None, artist: str | None = None) -> str:
+          title: str | None = None, artist: str | None = None, note: str | None = None) -> str:
     """lines: [{"text", "start", "end", "words": [{"text", "start", "end"}],
                 "singer"?, "rubies"?: [(start, end, reading)]}]"""
     measure = _Measure(style.font)
@@ -162,6 +162,12 @@ def build(lines: list[dict], width: int, height: int, style: Style,
         card_end = min(appear[0] - 0.3, 8.0)
         if card_end - 0.5 >= 2.0:
             sub = f"\\N{{\\fs{round(fs * 0.7)}}}{_escape(artist)}" if artist else ""
+            if note:
+                # 備註在第三行，字比演唱者小；太長就縮小字級，不讓它超出畫面（標題畫面不自動換行）
+                note_size = round(fs * 0.5)
+                while note_size > 12 and measure.width(note, note_size) > width * 0.9:
+                    note_size -= 1
+                sub += f"\\N{{\\fs{note_size}}}{_escape(note)}"
             events.append((0.5, card_end, "Title", "{\\fad(400,400)}" + _escape(title) + sub))
 
     rs = round(fs * style.ruby_ratio)

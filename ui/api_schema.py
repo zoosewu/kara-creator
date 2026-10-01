@@ -77,6 +77,7 @@ class Song(BaseModel):
     language: Language | None = Field(description="手動指定的演唱語言；null = 依歌詞文字判斷")
     folder: str | None = Field(description="所在資料夾 id；null = 最上層")
     order: int = Field(description="在資料夾裡的排列順序")
+    note: str = Field(description="備註：顯示在開頭標題畫面的第三行（演唱者下面）；空字串 = 沒有")
     custom: CustomInfo
     source: Source
     stages: Stages
@@ -115,6 +116,7 @@ class SongPatch(BaseModel):
     folder: str | None = Field(None, description="資料夾 id；null = 最上層（有給這個欄位才會移動）")
     approved: bool | None = Field(None, description="true：確認目前的成品沒問題（伴唱帶要已完成）；false：取消確認")
     link: str | None = Field(None, description="手動放入的影片補上原始連結；空字串 = 清除。用網址下載的歌不能改（回 409）")
+    note: str | None = Field(None, description="備註（開頭標題畫面第三行，例如「作詞：○○／作曲：○○」）；空字串 = 清除")
 
 
 # ---- 歌詞與時間 ----------------------------------------------------------------

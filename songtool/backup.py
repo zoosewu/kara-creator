@@ -57,6 +57,7 @@ def snapshot(log: Callable[[str], None] = print) -> dict:
             "artist": song.artist if song else "",
             "language": song.language if song else "",
             "link": song.link if song else "",               # 手動放入的影片補上的原始連結
+            "note": song.note if song else "",               # 備註（開頭標題畫面第三行）
             "approved": song.approved if song else "",       # 確認過的成品指紋（字幕 sha1）
             "approved_at": song.approved_at if song else "",
             "display": {"title": title, "artist": artist},

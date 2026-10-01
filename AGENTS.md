@@ -30,7 +30,7 @@
 | `songtool/qa.py` | 對時檢查（規則 + 分段聽寫比對；台語 / 粵語只做規則） |
 | `songtool/ass.py` | ASS 字幕產生（字寬用 Pillow 量、換算 libass 比例） |
 | `songtool/karaoke.py` | 串起對時 → 字幕 → 燒錄 → 檢查；手動平移時間 `shift_timing`、AI 重對 `retime` |
-| `songtool/catalog.py` | 曲庫（`output/library.json`）：巢狀資料夾、順序、手動歌名 / 演唱者 / 語言、已確認（成品字幕的 sha1，成品變了就失效）、手動放入影片補上的連結（`link`） |
+| `songtool/catalog.py` | 曲庫（`output/library.json`）：巢狀資料夾、順序、手動歌名 / 演唱者 / 語言、已確認（成品字幕的 sha1，成品變了就失效）、手動放入影片補上的連結（`link`）、備註（`note`，標題畫面第三行） |
 | `songtool/titles.py` | 從 yt-dlp 資訊與影片標題猜歌名 / 演唱者（純規則，**不用 LLM**） |
 | `songtool/export.py` | 同步 `output/export/`（硬連結，只管自己放的檔案） |
 | `songtool/jobs.py` | 工作佇列：下載（2 條）與 AI 處理（1 條）分開；佇列清空時呼叫 `on_idle`；收尾工作 lane = `system` |
@@ -108,5 +108,6 @@
   改完執行 `python scripts/openapi.py` 更新 `docs/openapi.json`（`--check` 可檢查是否過期）
 - **改對時演算法**：`songtool/align.py`；先想清楚要不要調 `VERSION`（見上方規則）
 - **加語言**：`catalog.LANGUAGES`、`reading.split`、`ass.DEFAULT_FONTS`、前端 `LANGUAGE_NAMES`
+- **標題畫面**：`karaoke.title_card()` 回傳 [歌名, 演唱者]（有備註時才加第三項，避免舊紀錄全部變成需更新），`ass.build()` 產生
 - **改字幕樣式**：`songtool/ass.py` 的 `Style`；樣式 key 改變會讓伴唱帶顯示需更新
 - **待辦**：`TODO.md`；完成或新增功能後同步更新它與 README

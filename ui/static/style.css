@@ -278,7 +278,7 @@ body.is-dragging .lib-root { border-color: var(--accent); border-style: dashed; 
 .preview-more { width: 24px; border-left: 1px solid color-mix(in srgb, var(--accent) 25%, transparent) !important; }
 .preview-more svg { width: 12px; height: 12px; transform: rotate(90deg); }
 .preview-label { font-size: 11px; color: var(--muted); white-space: nowrap; }
-.song-main { min-width: 0; display: grid; gap: 8px; }
+.song-main { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }  /* 欄寬不被長標題撐開 */
 .song-top { display: flex; gap: 12px; align-items: flex-start; }
 .song-title { font-weight: 600; }
 .song-title .artist { font-weight: 400; color: var(--muted); margin-left: 8px; }

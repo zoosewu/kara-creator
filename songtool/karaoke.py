@@ -65,12 +65,15 @@ def output_dir(item: Download) -> Path:
 
 
 def title_card(item: Download, lyrics_meta: dict) -> list:
-    """前奏標題畫面的 [歌名, 演唱者]，來源同 catalog.display_info。
-    自動辨識不出格式、只能用整個影片標題時不顯示（[None, None]），避免整串 YouTube 標題上畫面。"""
+    """前奏標題畫面的 [歌名, 演唱者]（有備註時再加第三項 [歌名, 演唱者, 備註]），來源同 catalog.display_info。
+    自動辨識不出格式、只能用整個影片標題時不顯示（[None, None]），避免整串 YouTube 標題上畫面。
+    沒有備註時維持兩項，舊的紀錄才不會全部變成需更新。"""
     song = catalog.load().songs.get(catalog.song_key(item))
     title, artist = catalog.display_info(item, song, lyrics_meta)
     known = (song and song.title) or lyrics_meta.get("title") or titles.guess(item.info).source != "fallback"
-    return [title, artist] if known else [None, None]
+    if not known:
+        return [None, None]
+    return [title, artist] + ([song.note] if song and song.note else [])
 
 
 def language_of(item: Download, lyr: lyrics_mod.Lyrics) -> str | None:
@@ -212,7 +215,8 @@ def _make(item: Download, lyr: lyrics_mod.Lyrics, out_dir: Path,
             line["singer"] = singer
         if language == "ja":
             _attach_furigana(lines, lyr)
-        text = ass.build(lines, *size, style, title=card[0], artist=card[1] or None)
+        text = ass.build(lines, *size, style, title=card[0], artist=card[1] or None,
+                         note=card[2] if len(card) > 2 else None)
         ass_path.write_text(text, encoding="utf-8-sig")
         changed = True
     elif record.get("ass_sha1") != _sha1(ass_path):
