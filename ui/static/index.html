@@ -18,6 +18,7 @@
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor"/></symbol>
   <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="2.8" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
   <symbol id="i-lyrics" viewBox="0 0 24 24"><path d="M5 6h14M5 11h14M5 16h9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
@@ -85,6 +86,8 @@
           <button type="button" class="run-btn" data-batch="check" title="只檢查還沒檢查過、或對時有變動的歌"><svg width="14" height="14"><use href="#i-play"/></svg>檢查對時</button>
           <button type="button" class="view-link" id="batch-redo" aria-haspopup="menu" title="重新處理（已完成的也會重做）"><svg width="14" height="14"><use href="#i-more"/></svg>重新處理</button>
           <span class="divider"></span>
+          <button type="button" class="view-link" id="batch-approve" title="把選取的歌標成「已確認成品沒問題」（只對已完成的伴唱帶有效）"><svg width="14" height="14"><use href="#i-check"/></svg>標記已確認</button>
+          <button type="button" class="view-link" id="batch-unapprove">取消確認</button>
           <button type="button" class="view-link" id="batch-move" aria-haspopup="menu" title="移到其他資料夾；也可以直接拖曳任一首勾選的歌"><svg width="14" height="14"><use href="#i-folder"/></svg>移動到…</button>
           <button type="button" class="view-link" id="batch-clear">取消選取</button>
         </div>
@@ -201,6 +204,13 @@
         </select>
       </label>
       <p class="hint" id="song-language-hint"></p>
+      <label class="field">影片連結
+        <span class="link-row">
+          <input id="song-link" type="url" autocomplete="off" spellcheck="false">
+          <button type="button" class="btn small" id="song-link-copy" title="複製連結">複製</button>
+        </span>
+      </label>
+      <p class="hint" id="song-link-hint"></p>
       <dl class="facts">
         <dt>輸出檔名</dt><dd id="song-export" class="mono"></dd>
         <dt>原始標題</dt><dd id="song-source"></dd>
@@ -243,6 +253,8 @@
         <h2 id="studio-heading">播放</h2>
         <div id="studio-song" class="muted ellipsis"></div>
       </div>
+      <button type="button" class="btn small" id="studio-approve" title="確認目前這一版伴唱帶沒問題；之後成品有變會自動變回需重新確認">
+        <svg width="14" height="14"><use href="#i-check"/></svg><span>確認沒問題</span></button>
       <button type="button" class="btn small" id="studio-lyrics" title="開啟歌詞編輯器：標註、標註原文（含演唱者與讀音）、原始歌詞">
         <svg width="14" height="14"><use href="#i-lyrics"/></svg>完整歌詞</button>
       <div id="studio-tabs" class="seg-toggle" title="播放的版本（不影響成品）"></div>

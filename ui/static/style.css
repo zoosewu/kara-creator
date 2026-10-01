@@ -663,3 +663,21 @@ ruby.slot rt { color: var(--border); }
   display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 8px 10px; border-radius: 8px;
   font-size: 12.5px; background: var(--accent-soft);
 }
+
+/* 已確認成品沒問題 */
+.approval-chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; cursor: pointer;
+  font-size: 12px; border: 1px solid color-mix(in srgb, var(--ok) 45%, var(--border));
+  background: color-mix(in srgb, var(--ok) 12%, transparent); color: var(--ok);
+}
+.approval-chip svg { width: 12px; height: 12px; }
+.approval-chip.stale {
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--border));
+  background: color-mix(in srgb, var(--warn) 10%, transparent); color: var(--warn);
+}
+#studio-approve.approved { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, var(--border)); }
+
+/* 資訊對話框：影片連結 + 複製 */
+.link-row { display: flex; gap: 6px; align-items: center; }
+.link-row input { flex: 1; }
+.link-row input[readonly] { background: var(--surface-2); color: var(--muted); }

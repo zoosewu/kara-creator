@@ -79,6 +79,22 @@ def language_of(item: Download, lyr: lyrics_mod.Lyrics) -> str | None:
     return (song.language if song else "") or lyr.language
 
 
+def product_sha1(item: Download) -> str | None:
+    """成品的指紋（字幕內容的 sha1），給「已確認」標記用；伴唱帶還沒做好時回傳 None。
+    字幕由對時、歌詞、樣式決定，重新燒錄或從備份還原重做時，內容一樣指紋就一樣。"""
+    if status(item) != "done":
+        return None
+    return (manifest.read(output_dir(item) / RECORD) or {}).get("ass_sha1")
+
+
+def approval(item: Download, song) -> str | None:
+    """approved（確認過、成品沒變）/ stale（確認後成品變了，需重新確認）/ None（沒確認過）。"""
+    if not song or not song.approved:
+        return None
+    record = manifest.read(output_dir(item) / RECORD) or {}
+    return "approved" if record.get("ass_sha1") == song.approved else "stale"
+
+
 def status(item: Download) -> str:
     """給 --list / UI 用的狀態：no_lyrics / pending / done / outdated。"""
     lyrics_path = lyrics_mod.find(item)

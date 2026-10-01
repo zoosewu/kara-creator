@@ -1,0 +1,2925 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "kara-creator API",
+    "description": "kara-creator 的 REST API：管理曲庫、下載新歌、修改歌詞與時間、排處理工作、接收即時事件。\n\n**慣例**\n\n- 一首歌只有一個 id：影片 id（YouTube 的 11 碼），手動放入的檔案是 `local-xxxxxxxx`\n- GET 讀取、POST 建立、PATCH 只改有給的欄位、PUT 整個取代、DELETE 刪除 / 取消\n- 會花時間的處理都是「工作」：建立時回 `202` 與 `Location: /api/v1/jobs/{id}`，之後用 `GET /api/v1/jobs/{id}` 或 `GET /api/v1/events` 追蹤\n- 錯誤一律回 `{\"detail\": \"說明\"}`\n- 伺服器設了環境變數 `SONG_API_TOKEN` 時，所有端點都要帶 `Authorization: Bearer <token>`（右上角 Authorize 可以輸入）\n\n規格由程式碼產生（`ui/api_v1.py` 端點、`ui/api_schema.py` 資料模型），檔案版在 repo 的 `docs/openapi.json`。\n",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/songs": {
+      "get": {
+        "tags": [
+          "歌曲"
+        ],
+        "summary": "歌曲列表",
+        "description": "依曲庫順序（資料夾、再依資料夾內順序）列出所有歌。",
+        "operationId": "list_songs_api_v1_songs_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "folder",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "只列這個資料夾（id）裡的歌",
+              "title": "Folder"
+            },
+            "description": "只列這個資料夾（id）裡的歌"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "在歌名、演唱者、原始標題裡搜尋",
+              "title": "Q"
+            },
+            "description": "在歌名、演唱者、原始標題裡搜尋"
+          },
+          {
+            "name": "stage",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "done",
+                    "pending",
+                    "outdated",
+                    "missing",
+                    "no_lyrics"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "依伴唱帶狀態篩選",
+              "title": "Stage"
+            },
+            "description": "依伴唱帶狀態篩選"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Song"
+                  },
+                  "title": "Response List Songs Api V1 Songs Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "設了 SONG_API_TOKEN，但沒帶或帶錯 Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "歌曲"
+        ],
+        "summary": "下載新歌",
+        "description": "建立下載工作（make=true 時下載後接著去人聲並製作伴唱帶）。回 202 與 Location: /api/v1/jobs/{id}；\n下載完成前工作的 song 為 null。",
+        "operationId": "create_song_api_v1_songs_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewSong"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "設了 SONG_API_TOKEN，但沒帶或帶錯 Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "參數不合理（例如時間移過頭）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/songs/{song_id}": {
+      "get": {
+        "tags": [
+          "歌曲"
+        ],
+        "summary": "單首歌",
+        "description": "包含可以播放 / 下載的檔案（media）。",
+        "operationId": "get_song_api_v1_songs__song_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "song_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Song Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SongDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "設了 SONG_API_TOKEN，但沒帶或帶錯 Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "找不到這個資源",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "歌曲"
+        ],
+        "summary": "修改歌曲",
+        "description": "只修改有給的欄位。approved=true 確認「目前這一版」成品沒問題；之後成品有變動（重新製作、調整時間、\n改歌詞），approval.status 會變成 stale。伴唱帶還沒做好時確認會回 409。",
+        "operationId": "patch_song_api_v1_songs__song_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "song_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Song Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SongPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SongDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "設了 SONG_API_TOKEN，但沒帶或帶錯 Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "找不到這個資源",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "目前的狀態不允許（例如歌正在處理中、伴唱帶還沒做好）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/songs/{song_id}/lyrics": {
+      "get": {
+        "tags": [
+          "歌詞與時間"
+        ],
+        "summary": "讀取歌詞",
+        "description": "- file：存檔格式，只含手動指定的讀音\n- annotated：標註原文，含演唱者標籤與每個漢字的讀音（自動判斷的也列出）\n- plain：只有歌詞本身",
+        "operationId": "get_song_lyrics_api_v1_songs__song_id__lyrics_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "song_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Song Id"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "file",
+                "annotated",
+                "plain"
+              ],
+              "type": "string",
+              "description": "歌詞格式",
+              "default": "file",
+              "title": "Format"
+            },
+            "description": "歌詞格式"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Lyrics"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "設了 SONG_API_TOKEN，但沒帶或帶錯 Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "找不到這個資源",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "歌詞與時間"
+        ],
+        "summary": "取代歌詞",
+        "description": "歌詞文字改變後，下次製作伴唱帶會整首重新對時（手動調整的時間會被取代）。\nformat=plain 時，沒改到的句子保留原本的演唱者與讀音。",
+        "operationId": "put_song_lyrics_api_v1_songs__song_id__lyrics_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "song_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Song Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LyricsBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Lyrics"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "設了 SONG_API_TOKEN，但沒帶或帶錯 Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "找不到這個資源",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/songs/{song_id}/timing": {
+      "get": {
+        "tags": [
+          "歌詞與時間"
+        ],
+        "summary": "讀取時間",
+        "description": "每句與每個字的開始 / 結束時間。還沒對時過回 404。",
+        "operationId": "get_timing_api_v1_songs__song_id__timing_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "song_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Song Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Timing"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "設了 SONG_API_TOKEN，但沒帶或帶錯 Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "找不到這個資源",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/songs/{song_id}/timing/lines/{line}": {
+      "patch": {
+        "tags": [
+          "歌詞與時間"
+        ],
+        "summary": "移動一句的開始時間",
+        "description": "只移這一句（不能早於上一句開頭、不能晚於下一句開頭）。修改後伴唱帶顯示需更新，\n重新製作時只重產字幕與燒錄、不會重新對時。整段偏掉請改用 retime 工作。",
+        "operationId": "patch_line_api_v1_songs__song_id__timing_lines__line__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "song_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Song Id"
+            }
+          },
+          {
+            "name": "line",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Line"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinePatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Timing"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "設了 SONG_API_TOKEN，但沒帶或帶錯 Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "參數不合理（例如時間移過頭）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "找不到這個資源",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/songs/{song_id}/qa": {
+      "get": {
+        "tags": [
+          "歌詞與時間"
+        ],
+        "summary": "對時檢查結果",
+        "description": "只列出有疑慮的句子。對時之後有變動的話 checked 為 false（要重新檢查）。",
+        "operationId": "get_song_qa_api_v1_songs__song_id__qa_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "song_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Song Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QaResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "設了 SONG_API_TOKEN，但沒帶或帶錯 Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "找不到這個資源",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/songs/{song_id}/media": {
+      "get": {
+        "tags": [
+          "歌詞與時間"
+        ],
+        "summary": "可以播放 / 下載的檔案",
+        "description": "第一個是最終成品（伴唱帶做好時）。url 是相對於伺服器的網址，支援 HTTP Range（可以拖曳播放）。",
+        "operationId": "get_media_api_v1_songs__song_id__media_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "song_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Song Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Media"
+                  },
+                  "title": "Response Get Media Api V1 Songs  Song Id  Media Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "設了 SONG_API_TOKEN，但沒帶或帶錯 Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "找不到這個資源",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/songs/{song_id}/jobs": {
+      "post": {
+        "tags": [
+          "工作"
+        ],
+        "summary": "對一首歌排處理",
+        "description": "steps 依序執行；已完成的步驟會略過（除非 force）。retime 以第 line 句目前的開頭為準讓 AI 重新對時：\nmode=from 這句及之後全部、mode=line 只重對這句。回 202 與 Location: /api/v1/jobs/{id}。",
+        "operationId": "create_song_job_api_v1_songs__song_id__jobs_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "song_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Song Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SongJob"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "設了 SONG_API_TOKEN，但沒帶或帶錯 Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "參數不合理（例如時間移過頭）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "找不到這個資源",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "目前的狀態不允許（例如歌正在處理中、伴唱帶還沒做好）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs": {
+      "get": {
+        "tags": [
+          "工作"
+        ],
+        "summary": "工作列表",
+        "description": "新的在前。伺服器重新啟動後會清空（處理結果都已存在檔案裡）。",
+        "operationId": "list_jobs_api_v1_jobs_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "queued",
+                    "running",
+                    "done",
+                    "failed",
+                    "cancelled"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "依狀態篩選",
+              "title": "Status"
+            },
+            "description": "依狀態篩選"
+          },
+          {
+            "name": "song",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "只列這首歌（id）的工作",
+              "title": "Song"
+            },
+            "description": "只列這首歌（id）的工作"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Job"
+                  },
+                  "title": "Response List Jobs Api V1 Jobs Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "設了 SONG_API_TOKEN，但沒帶或帶錯 Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "工作"
+        ],
+        "summary": "單件工作",
+        "description": "單件工作",
+        "operationId": "get_job_api_v1_jobs__job_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "設了 SONG_API_TOKEN，但沒帶或帶錯 Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "找不到這個資源",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "工作"
+        ],
+        "summary": "取消工作",
+        "description": "排隊中的直接移除；處理中的在下一個安全點停下（對時進行中會等對時完成）。收尾工作不能取消。",
+        "operationId": "cancel_job_api_v1_jobs__job_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "設了 SONG_API_TOKEN，但沒帶或帶錯 Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "找不到這個資源",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "目前的狀態不允許（例如歌正在處理中、伴唱帶還沒做好）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/{job_id}/log": {
+      "get": {
+        "tags": [
+          "工作"
+        ],
+        "summary": "工作紀錄",
+        "description": "工作紀錄",
+        "operationId": "get_job_log_api_v1_jobs__job_id__log_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "從第幾行開始（上次回應的 next）",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "從第幾行開始（上次回應的 next）"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobLog"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "設了 SONG_API_TOKEN，但沒帶或帶錯 Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "找不到這個資源",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/folders": {
+      "get": {
+        "tags": [
+          "資料夾"
+        ],
+        "summary": "資料夾列表",
+        "description": "資料夾列表",
+        "operationId": "list_folders_api_v1_folders_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Folder"
+                  },
+                  "type": "array",
+                  "title": "Response List Folders Api V1 Folders Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "設了 SONG_API_TOKEN，但沒帶或帶錯 Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "資料夾"
+        ],
+        "summary": "新增資料夾",
+        "description": "新增資料夾",
+        "operationId": "create_folder_api_v1_folders_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewFolder"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Folder"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "設了 SONG_API_TOKEN，但沒帶或帶錯 Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "找不到這個資源",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/folders/{folder_id}": {
+      "patch": {
+        "tags": [
+          "資料夾"
+        ],
+        "summary": "修改資料夾",
+        "description": "改名或移動（有給 parent 欄位才會移動；不能移進自己的子資料夾）。",
+        "operationId": "patch_folder_api_v1_folders__folder_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "folder_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Folder Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FolderPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Folder"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "設了 SONG_API_TOKEN，但沒帶或帶錯 Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "參數不合理（例如時間移過頭）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "找不到這個資源",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "資料夾"
+        ],
+        "summary": "刪除資料夾",
+        "description": "裡面的歌與子資料夾移到上一層，不會刪除任何檔案。",
+        "operationId": "delete_folder_api_v1_folders__folder_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "folder_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Folder Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "設了 SONG_API_TOKEN，但沒帶或帶錯 Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "找不到這個資源",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events": {
+      "get": {
+        "tags": [
+          "事件"
+        ],
+        "summary": "即時事件（Server-Sent Events）",
+        "description": "- `job`：工作的狀態、步驟或進度有變化（data 是 Job）\n- `idle`：兩條佇列都清空了（data 為 {}）\n- `library`：曲庫、歌詞或時間有變動（data 是 {\"version\": 變動次數}）\n\n每 15 秒送一個註解行保持連線。",
+        "operationId": "events_api_v1_events_get",
+        "responses": {
+          "200": {
+            "description": "text/event-stream",
+            "content": {
+              "text/event-stream": {
+                "example": "event: job\ndata: {\"id\": \"3f2a9c1d\", \"status\": \"running\", ...}\n\nevent: idle\ndata: {}\n\nevent: library\ndata: {\"version\": 12}\n\n"
+              }
+            }
+          },
+          "401": {
+            "description": "設了 SONG_API_TOKEN，但沒帶或帶錯 Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Approval": {
+        "properties": {
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "approved",
+                  "stale"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status",
+            "description": "approved：已確認成品沒問題；stale：確認後成品有變動，需重新確認；null：沒確認過"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "確認時間（ISO 8601）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "at"
+        ],
+        "title": "Approval"
+      },
+      "CustomInfo": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "手動設定的歌名；空字串 = 自動辨識"
+          },
+          "artist": {
+            "type": "string",
+            "title": "Artist",
+            "description": "手動設定的演唱者；空字串 = 自動辨識"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "artist"
+        ],
+        "title": "CustomInfo"
+      },
+      "Error": {
+        "properties": {
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "description": "給人看的錯誤說明（繁體中文）",
+            "examples": [
+              "找不到歌曲：abc"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "Error",
+        "description": "錯誤回應。"
+      },
+      "ExportInfo": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "成品在輸出資料夾裡的相對路徑",
+            "examples": [
+              "日文/緑黄色社会 - 花になって.mp4"
+            ]
+          },
+          "exists": {
+            "type": "boolean",
+            "title": "Exists",
+            "description": "成品是否已經輸出"
+          }
+        },
+        "type": "object",
+        "required": [
+          "path",
+          "exists"
+        ],
+        "title": "ExportInfo"
+      },
+      "Folder": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "上層資料夾 id；null = 最上層"
+          },
+          "order": {
+            "type": "integer",
+            "title": "Order"
+          },
+          "path": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Path",
+            "description": "從最上層到自己的資料夾 id"
+          },
+          "path_label": {
+            "type": "string",
+            "title": "Path Label",
+            "examples": [
+              "日文 › 動畫"
+            ]
+          },
+          "songs": {
+            "type": "integer",
+            "title": "Songs",
+            "description": "直接放在這裡的歌數"
+          },
+          "folders": {
+            "type": "integer",
+            "title": "Folders",
+            "description": "子資料夾數"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "parent",
+          "order",
+          "path",
+          "path_label",
+          "songs",
+          "folders"
+        ],
+        "title": "Folder"
+      },
+      "FolderPatch": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "上層資料夾 id；null = 最上層（有給這個欄位才會移動）"
+          }
+        },
+        "type": "object",
+        "title": "FolderPatch"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Job": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "examples": [
+              "3f2a9c1d"
+            ]
+          },
+          "song": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Song",
+            "description": "對應的歌曲 id（下載完成前為 null）"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Steps",
+            "examples": [
+              [
+                "download",
+                "separate",
+                "karaoke"
+              ]
+            ]
+          },
+          "lane": {
+            "type": "string",
+            "enum": [
+              "download",
+              "process",
+              "system"
+            ],
+            "title": "Lane",
+            "description": "所在佇列：download 下載 / process AI 處理 / system 收尾"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "failed",
+              "cancelled"
+            ],
+            "title": "Status"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage",
+            "description": "目前在做的步驟（給人看的）"
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Progress",
+            "description": "0–1；無法估計時為 null"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "created": {
+            "type": "number",
+            "title": "Created",
+            "description": "建立時間（Unix 秒）"
+          },
+          "started": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started"
+          },
+          "finished": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "song",
+          "title",
+          "steps",
+          "lane",
+          "status",
+          "stage",
+          "progress",
+          "error",
+          "url",
+          "created",
+          "started",
+          "finished"
+        ],
+        "title": "Job",
+        "description": "一件背景工作（下載、去人聲、製作伴唱帶、檢查對時、AI 重對，或收尾）。"
+      },
+      "JobLog": {
+        "properties": {
+          "lines": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Lines"
+          },
+          "next": {
+            "type": "integer",
+            "title": "Next",
+            "description": "下次從這個 offset 繼續讀"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lines",
+          "next"
+        ],
+        "title": "JobLog"
+      },
+      "LinePatch": {
+        "properties": {
+          "start": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start",
+            "description": "新的開始時間（秒）"
+          },
+          "delta": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta",
+            "description": "移動量（秒，負數往前）"
+          }
+        },
+        "type": "object",
+        "title": "LinePatch",
+        "description": "start 與 delta 擇一。只移這一句；整段偏掉請用 retime 工作。",
+        "examples": [
+          {
+            "delta": -0.3
+          },
+          {
+            "start": 12.5
+          }
+        ]
+      },
+      "Lyrics": {
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "file",
+              "annotated",
+              "plain"
+            ],
+            "title": "Format",
+            "description": "file：存檔格式（只含手動讀音）/ annotated：含所有讀音的標註原文 / plain：只有歌詞"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "examples": [
+              "# title: 春の約束\n[女] 窓の外に 小さな花が咲いた\n"
+            ]
+          },
+          "exists": {
+            "type": "boolean",
+            "title": "Exists",
+            "description": "歌詞檔是否存在"
+          }
+        },
+        "type": "object",
+        "required": [
+          "format",
+          "text",
+          "exists"
+        ],
+        "title": "Lyrics"
+      },
+      "LyricsBody": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "一行一句；[男] [女] [合] 標演唱者；漢字{よみ} 或 {原字|よみ} 標讀音"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "file",
+              "annotated",
+              "plain"
+            ],
+            "title": "Format",
+            "description": "plain 會保留沒改到的句子原本的演唱者與讀音",
+            "default": "file"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "LyricsBody"
+      },
+      "Media": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "enum": [
+              "karaoke",
+              "karaoke_original",
+              "source",
+              "instrumental",
+              "vocals"
+            ],
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "examples": [
+              "伴唱帶"
+            ]
+          },
+          "desc": {
+            "type": "string",
+            "title": "Desc"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "檔案網址（相對於伺服器）",
+            "examples": [
+              "/media/karaoke/..._karaoke.mp4"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "desc",
+          "url"
+        ],
+        "title": "Media"
+      },
+      "NewFolder": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "上層資料夾 id；null = 最上層"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "NewFolder"
+      },
+      "NewSong": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "影片網址（YouTube 等 yt-dlp 支援的網站）",
+            "examples": [
+              "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+            ]
+          },
+          "folder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder",
+            "description": "放進哪個資料夾；null = 最上層"
+          },
+          "audio_only": {
+            "type": "boolean",
+            "title": "Audio Only",
+            "description": "只下載音訊",
+            "default": false
+          },
+          "lyrics": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lyrics",
+            "description": "歌詞（存檔格式），下載後存起來"
+          },
+          "make": {
+            "type": "boolean",
+            "title": "Make",
+            "description": "true：下載後接著去人聲並製作伴唱帶；false：只下載",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "NewSong"
+      },
+      "QaLine": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "start": {
+            "type": "number",
+            "title": "Start"
+          },
+          "end": {
+            "type": "number",
+            "title": "End"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "wrong",
+              "suspect"
+            ],
+            "title": "Status",
+            "description": "wrong 可能不準 / suspect 待確認"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reasons",
+            "description": "原因說明"
+          },
+          "offset": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offset",
+            "description": "和獨立聽寫的時間差（秒）"
+          },
+          "match": {
+            "type": "number",
+            "title": "Match",
+            "description": "和聽寫對上的比例"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "text",
+          "start",
+          "end",
+          "status",
+          "reasons",
+          "offset",
+          "match"
+        ],
+        "title": "QaLine"
+      },
+      "QaResult": {
+        "properties": {
+          "checked": {
+            "type": "boolean",
+            "title": "Checked"
+          },
+          "checked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked At"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/QaLine"
+            },
+            "type": "array",
+            "title": "Lines",
+            "description": "只列出有疑慮的句子"
+          }
+        },
+        "type": "object",
+        "required": [
+          "checked",
+          "lines"
+        ],
+        "title": "QaResult"
+      },
+      "QaSummary": {
+        "properties": {
+          "checked": {
+            "type": "boolean",
+            "title": "Checked",
+            "description": "是否做過對時檢查（且對時之後沒有變動）"
+          },
+          "wrong": {
+            "type": "integer",
+            "title": "Wrong",
+            "description": "可能不準的句數"
+          },
+          "suspect": {
+            "type": "integer",
+            "title": "Suspect",
+            "description": "待確認的句數"
+          }
+        },
+        "type": "object",
+        "required": [
+          "checked",
+          "wrong",
+          "suspect"
+        ],
+        "title": "QaSummary"
+      },
+      "Song": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "歌曲 id：影片 id（YouTube 的 11 碼），手動放入的檔案是 local-xxxxxxxx",
+            "examples": [
+              "jNQXAC9IVRw"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "實際使用的歌名（手動設定 > 歌詞檔 > 自動辨識）"
+          },
+          "artist": {
+            "type": "string",
+            "title": "Artist",
+            "description": "實際使用的演唱者"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "",
+                  "zh",
+                  "nan",
+                  "yue",
+                  "ja",
+                  "en"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "手動指定的演唱語言；null = 依歌詞文字判斷"
+          },
+          "folder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder",
+            "description": "所在資料夾 id；null = 最上層"
+          },
+          "order": {
+            "type": "integer",
+            "title": "Order",
+            "description": "在資料夾裡的排列順序"
+          },
+          "custom": {
+            "$ref": "#/components/schemas/CustomInfo"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          },
+          "stages": {
+            "$ref": "#/components/schemas/Stages"
+          },
+          "qa": {
+            "$ref": "#/components/schemas/QaSummary"
+          },
+          "export": {
+            "$ref": "#/components/schemas/ExportInfo"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job",
+            "description": "正在處理這首歌的工作 id"
+          },
+          "approval": {
+            "$ref": "#/components/schemas/Approval"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "artist",
+          "language",
+          "folder",
+          "order",
+          "custom",
+          "source",
+          "stages",
+          "qa",
+          "export",
+          "job",
+          "approval"
+        ],
+        "title": "Song",
+        "description": "一首歌。"
+      },
+      "SongDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "歌曲 id：影片 id（YouTube 的 11 碼），手動放入的檔案是 local-xxxxxxxx",
+            "examples": [
+              "jNQXAC9IVRw"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "實際使用的歌名（手動設定 > 歌詞檔 > 自動辨識）"
+          },
+          "artist": {
+            "type": "string",
+            "title": "Artist",
+            "description": "實際使用的演唱者"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "",
+                  "zh",
+                  "nan",
+                  "yue",
+                  "ja",
+                  "en"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "手動指定的演唱語言；null = 依歌詞文字判斷"
+          },
+          "folder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder",
+            "description": "所在資料夾 id；null = 最上層"
+          },
+          "order": {
+            "type": "integer",
+            "title": "Order",
+            "description": "在資料夾裡的排列順序"
+          },
+          "custom": {
+            "$ref": "#/components/schemas/CustomInfo"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          },
+          "stages": {
+            "$ref": "#/components/schemas/Stages"
+          },
+          "qa": {
+            "$ref": "#/components/schemas/QaSummary"
+          },
+          "export": {
+            "$ref": "#/components/schemas/ExportInfo"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job",
+            "description": "正在處理這首歌的工作 id"
+          },
+          "approval": {
+            "$ref": "#/components/schemas/Approval"
+          },
+          "media": {
+            "items": {
+              "$ref": "#/components/schemas/Media"
+            },
+            "type": "array",
+            "title": "Media",
+            "description": "可以播放 / 下載的檔案，第一個是最終成品"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "artist",
+          "language",
+          "folder",
+          "order",
+          "custom",
+          "source",
+          "stages",
+          "qa",
+          "export",
+          "job",
+          "approval",
+          "media"
+        ],
+        "title": "SongDetail"
+      },
+      "SongJob": {
+        "properties": {
+          "steps": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "separate",
+                "karaoke",
+                "check",
+                "retime"
+              ]
+            },
+            "type": "array",
+            "title": "Steps",
+            "description": "separate 去人聲 / karaoke 製作伴唱帶 / check 檢查對時 / retime AI 重對"
+          },
+          "force": {
+            "type": "boolean",
+            "title": "Force",
+            "description": "已完成的也重做（去人聲重新分離、整首重新對時並覆蓋手動改過的字幕）",
+            "default": false
+          },
+          "realign": {
+            "type": "boolean",
+            "title": "Realign",
+            "description": "製作伴唱帶時重新對時",
+            "default": false
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line",
+            "description": "retime：以第幾句（從 0 起算）目前的開頭為準"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "from",
+                  "line"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode",
+            "description": "retime：from 這句及之後全部 / line 只重對這句"
+          }
+        },
+        "type": "object",
+        "required": [
+          "steps"
+        ],
+        "title": "SongJob",
+        "examples": [
+          {
+            "steps": [
+              "karaoke"
+            ]
+          },
+          {
+            "line": 12,
+            "mode": "from",
+            "steps": [
+              "retime"
+            ]
+          }
+        ]
+      },
+      "SongPatch": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "空字串 = 還原自動辨識"
+          },
+          "artist": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artist",
+            "description": "空字串 = 還原自動辨識"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "",
+                  "zh",
+                  "nan",
+                  "yue",
+                  "ja",
+                  "en"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "空字串 = 依歌詞文字判斷；nan 台語、yue 粵語用 CTC 對時"
+          },
+          "folder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder",
+            "description": "資料夾 id；null = 最上層（有給這個欄位才會移動）"
+          },
+          "approved": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved",
+            "description": "true：確認目前的成品沒問題（伴唱帶要已完成）；false：取消確認"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link",
+            "description": "手動放入的影片補上原始連結；空字串 = 清除。用網址下載的歌不能改（回 409）"
+          }
+        },
+        "type": "object",
+        "title": "SongPatch",
+        "description": "只會修改有給的欄位。",
+        "examples": [
+          {
+            "artist": "緑黄色社会",
+            "title": "花になって"
+          },
+          {
+            "approved": true
+          }
+        ]
+      },
+      "Source": {
+        "properties": {
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "下載時的影片連結；手動放入的檔案為 null"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link",
+            "description": "手動放入的影片補上的原始連結（重做時用它重新下載）"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "原始影片標題"
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration",
+            "description": "長度（秒）"
+          },
+          "uploader": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uploader",
+            "description": "上傳者 / 頻道"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "video",
+              "audio"
+            ],
+            "title": "Mode",
+            "description": "影片或純音訊"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "link",
+          "title",
+          "duration",
+          "uploader",
+          "mode"
+        ],
+        "title": "Source"
+      },
+      "Stages": {
+        "properties": {
+          "download": {
+            "type": "string",
+            "enum": [
+              "done",
+              "pending",
+              "outdated",
+              "missing",
+              "no_lyrics"
+            ],
+            "title": "Download"
+          },
+          "separate": {
+            "type": "string",
+            "enum": [
+              "done",
+              "pending",
+              "outdated",
+              "missing",
+              "no_lyrics"
+            ],
+            "title": "Separate",
+            "description": "去人聲"
+          },
+          "lyrics": {
+            "type": "string",
+            "enum": [
+              "done",
+              "pending",
+              "outdated",
+              "missing",
+              "no_lyrics"
+            ],
+            "title": "Lyrics",
+            "description": "歌詞：done 已有 / missing 沒有"
+          },
+          "karaoke": {
+            "type": "string",
+            "enum": [
+              "done",
+              "pending",
+              "outdated",
+              "missing",
+              "no_lyrics"
+            ],
+            "title": "Karaoke",
+            "description": "伴唱帶：done 最新 / outdated 需更新 / pending 未製作 / no_lyrics 缺歌詞"
+          }
+        },
+        "type": "object",
+        "required": [
+          "download",
+          "separate",
+          "lyrics",
+          "karaoke"
+        ],
+        "title": "Stages",
+        "description": "各處理步驟的狀態。"
+      },
+      "Timing": {
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/TimingLine"
+            },
+            "type": "array",
+            "title": "Lines"
+          },
+          "adjustments": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Adjustments",
+            "description": "手動調整與 AI 重對的紀錄"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lines",
+          "adjustments"
+        ],
+        "title": "Timing"
+      },
+      "TimingLine": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index",
+            "description": "第幾句（從 0 起算）"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "start": {
+            "type": "number",
+            "title": "Start"
+          },
+          "end": {
+            "type": "number",
+            "title": "End"
+          },
+          "words": {
+            "items": {
+              "$ref": "#/components/schemas/Word"
+            },
+            "type": "array",
+            "title": "Words",
+            "description": "逐字（日文為音拍、中文為字、英文為單字）的時間"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "text",
+          "start",
+          "end",
+          "words"
+        ],
+        "title": "TimingLine"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "Word": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "start": {
+            "type": "number",
+            "title": "Start",
+            "description": "開始（秒）"
+          },
+          "end": {
+            "type": "number",
+            "title": "End",
+            "description": "結束（秒）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "start",
+          "end"
+        ],
+        "title": "Word"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "description": "只有設了環境變數 SONG_API_TOKEN 時才需要",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "歌曲",
+      "description": "曲庫裡的歌：查詢、下載新歌、修改歌名 / 演唱者 / 語言 / 資料夾、標記已確認"
+    },
+    {
+      "name": "歌詞與時間",
+      "description": "歌詞（三種格式）、逐字時間、對時檢查結果、可播放的檔案"
+    },
+    {
+      "name": "工作",
+      "description": "背景處理：去人聲、製作伴唱帶、檢查對時、AI 重對。建立後回 202，用 GET 或事件追蹤"
+    },
+    {
+      "name": "資料夾",
+      "description": "曲庫的巢狀資料夾（只是整理結構，不會搬動檔案）"
+    },
+    {
+      "name": "事件",
+      "description": "Server-Sent Events 即時通知"
+    }
+  ]
+}

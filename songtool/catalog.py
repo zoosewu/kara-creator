@@ -42,6 +42,12 @@ class Song:
     title: str = ""       # 空字串代表沿用歌詞檔的 # title，再沒有就用影片標題
     artist: str = ""
     language: str = ""    # 演唱語言（LANGUAGES 的鍵）；空字串代表依歌詞文字判斷
+    # 使用者確認過成品沒問題：記下當時字幕的指紋（karaoke.json 的 ass_sha1）。
+    # 成品之後有變（重新製作、調整時間、改歌詞）指紋就對不上，顯示「需重新確認」。
+    approved: str = ""
+    approved_at: str = ""
+    # 手動放入的影片可以補上原始影片連結（重做時用它重新下載）；用網址下載的歌不需要，連結在 download.json。
+    link: str = ""
 
 
 # 可以手動指定的演唱語言。台語、粵語的歌詞文字和國語分不出來，只能手動指定。
@@ -148,7 +154,7 @@ class Catalog:
         return self.songs[key]
 
     def update_song(self, key: str, *, folder=_UNSET, number=None, title=None, artist=None,
-                    language=None) -> Song:
+                    language=None, approved=None, link=None) -> Song:
         song = self.songs.get(key)
         if song is None:
             raise KeyError("曲庫裡沒有這首歌")
@@ -167,6 +173,14 @@ class Catalog:
             if language and language not in LANGUAGES:
                 raise ValueError(f"不支援的語言：{language}")
             song.language = language
+        if approved is not None:
+            # approved：確認的成品指紋；空字串 = 取消確認
+            song.approved, song.approved_at = approved, (manifest.now() if approved else "")
+        if link is not None:
+            link = link.strip()
+            if link and not link.startswith(("http://", "https://")):
+                raise ValueError("影片連結要是 http:// 或 https:// 開頭的網址")
+            song.link = link
         self.dirty = True
         return song
 
@@ -228,7 +242,7 @@ class Catalog:
         folders = {f["id"]: Folder(f["id"], f["name"], int(f["number"]), f.get("parent"))
                    for f in data.get("folders", [])}
         songs = {k: Song(k, v.get("folder"), int(v.get("number", 1)), v.get("title", ""), v.get("artist", ""),
-                         v.get("language", ""))
+                         v.get("language", ""), v.get("approved", ""), v.get("approved_at", ""), v.get("link", ""))
                  for k, v in data.get("songs", {}).items()}
         return cls(folders, songs)
 

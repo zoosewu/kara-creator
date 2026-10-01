@@ -165,7 +165,10 @@ function toggleFolder(id) {
 }
 
 function renderLibrary() {
-  $("#lib-count").textContent = state.items.length ? `${state.items.length} 首` : "";
+  const made = state.items.filter((i) => i.stages.karaoke === "done" || i.approval).length;
+  const approved = state.items.filter((i) => i.approval === "approved").length;
+  $("#lib-count").textContent = state.items.length
+    ? `${state.items.length} 首` + (made ? ` · 已確認 ${approved} / ${made}` : "") : "";
   $("#lib-root").classList.toggle("selected", state.folder === null);
   const current = folderById(state.folder);
   $("#target-folder").textContent = `新歌存入：${current ? current.path_label : "曲庫最上層"}`;
@@ -320,7 +323,7 @@ function renderSong(item, depth) {
             }, icon("edit"))),
           el("div", { class: "song-meta ellipsis" }, meta.filter(Boolean).join(" · "))),
         badge),
-      el("div", { class: "song-bottom" }, el("div", { class: "stages-wrap" }, stages, qaChip(item)),
+      el("div", { class: "song-bottom" }, el("div", { class: "stages-wrap" }, stages, approvalChip(item), qaChip(item)),
         el("div", { class: "actions" }, run, run.length ? el("span", { class: "divider" }) : null, view))),
     renderPreview(item));
   makeDraggable(row, { type: "song", id: item.key, parent: item.folder });
@@ -441,6 +444,27 @@ async function runBatch(name) {
   await loadState();
 }
 
+async function batchApproval(approved) {
+  const songs = pickedSongs();
+  const todo = approved ? songs.filter((i) => i.stages.karaoke === "done" && i.approval !== "approved")
+    : songs.filter((i) => i.approval);
+  const skipped = songs.length - todo.length;
+  let done = 0;
+  for (const item of todo) {
+    try {
+      await setApproval(item, approved);
+      done += 1;
+    } catch (e) {
+      toast(`${item.title}：${e.message}`, true);
+    }
+  }
+  const why = approved ? "已確認或伴唱帶還沒做好" : "原本就沒確認";
+  toast(`${approved ? "已標記確認" : "已取消確認"} ${done} 首` + (skipped ? `（略過 ${skipped} 首：${why}）` : ""));
+  await refresh();
+}
+
+$("#batch-approve").addEventListener("click", () => batchApproval(true));
+$("#batch-unapprove").addEventListener("click", () => batchApproval(false));
 $("#pick-all").addEventListener("click", (e) => pickSongs(state.items, e.currentTarget.checked));
 $("#batch-clear").addEventListener("click", () => { state.selected.clear(); rerender(); });
 for (const button of document.querySelectorAll("[data-batch]")) {
@@ -736,6 +760,22 @@ $("#collapse-all").addEventListener("click", () => {
   rerender();
 });
 
+/** 手動確認過成品沒問題：已確認（綠）/ 確認後成品變了，需重新確認（橘）。點了開啟播放畫面。 */
+function approvalChip(item) {
+  if (!item.approval) return null;
+  const ok = item.approval === "approved";
+  const when = item.approved_at ? item.approved_at.slice(0, 16).replace("T", " ") : "";
+  return el("button", {
+    type: "button", class: "approval-chip" + (ok ? "" : " stale"),
+    title: ok ? `已確認成品沒問題（${when}）` : `確認後成品有變動（重新製作、調整時間或改歌詞），請重新看過再確認`,
+    onclick: () => openStudio(item),
+  }, icon("check"), ok ? "已確認" : "需重新確認");
+}
+
+async function setApproval(item, approved) {
+  await api(`/api/items/${enc(item.name)}/approval`, { method: "PUT", body: { approved } });
+}
+
 /** 對時檢查有標出句子時，在狀態旁顯示提醒；點了直接從第一個有疑慮的句子開始播放。 */
 function qaChip(item) {
   const { checked, wrong, suspect } = item.qa || {};
@@ -917,6 +957,15 @@ function openSongDialog(item) {
   $("#song-source").textContent = item.source_title;
   $("#song-language").value = item.language || "";
   updateLanguageHint();
+  // 用網址下載的歌：連結唯讀（可以複製）；手動放入的影片：可以補上原始連結，重做時用它重新下載。
+  const downloaded = Boolean(item.url);
+  $("#song-link").value = item.url || item.link || "";
+  $("#song-link").readOnly = downloaded;
+  $("#song-link").placeholder = downloaded ? "" : "https://www.youtube.com/watch?v=…";
+  $("#song-link-hint").textContent = downloaded
+    ? "這首歌是從這個連結下載的（唯讀）。"
+    : "手動放入的影片：可以補上原始影片的連結，從資料備份重做時會用它重新下載（換了來源會重新對時）。";
+  updateLinkCopy();
   updateSongPreview();
   $("#song-dialog").hidden = false;
   $("#song-title").focus();
@@ -942,6 +991,28 @@ function updateLanguageHint() {
 }
 
 $("#song-language").addEventListener("change", updateLanguageHint);
+
+function updateLinkCopy() {
+  $("#song-link-copy").disabled = !$("#song-link").value.trim();
+}
+
+$("#song-link").addEventListener("input", updateLinkCopy);
+$("#song-link-copy").addEventListener("click", async () => {
+  const input = $("#song-link");
+  const text = input.value.trim();
+  try {
+    await navigator.clipboard.writeText(text);   // 只有本機或 https 才能用
+  } catch {
+    // 區域網路（http）時退回舊做法：選取後複製
+    const readOnly = input.readOnly;
+    input.readOnly = false;
+    input.select();
+    document.execCommand("copy");
+    input.readOnly = readOnly;
+    input.setSelectionRange(0, 0);
+  }
+  toast("已複製連結");
+});
 $("#song-folder").addEventListener("change", updateSongPreview);
 for (const id of ["#song-title", "#song-artist"]) $(id).addEventListener("input", updateSongPreview);
 
@@ -954,6 +1025,7 @@ $("#song-form").addEventListener("submit", async (event) => {
     artist: $("#song-artist").value.trim(),
     language: $("#song-language").value,
   };
+  if (!item.url) body.link = $("#song-link").value.trim();   // 只有手動放入的影片可以改連結
   try {
     await api(`/api/songs/${enc(item.key)}`, { method: "PUT", body });
     closeDialog("#song-dialog");
@@ -1620,6 +1692,7 @@ async function openStudio(item, { key = null, at = null, line = null, jumpToQa =
   }, m.label)));
   $("#studio-status").textContent = "";
   $("#studio-run").textContent = item.stages.karaoke === "pending" || item.stages.karaoke === "no_lyrics" ? "製作伴唱帶" : "更新伴唱帶";
+  renderApproveButton();
   $("#studio-run").disabled = item.stages.lyrics !== "done";
   $("#studio").hidden = false;
   renderStudioLines();
@@ -1638,6 +1711,36 @@ async function openStudio(item, { key = null, at = null, line = null, jumpToQa =
   cancelAnimationFrame(studio.raf);
   studio.raf = requestAnimationFrame(studioTick);
 }
+
+/** 播放畫面的「確認沒問題」：伴唱帶完成且沒有尚未套用的調整才能確認。 */
+function renderApproveButton() {
+  const item = studio.item;
+  const btn = $("#studio-approve");
+  const approved = item.approval === "approved";
+  const pending = studio.retimed || studio.textChanged;
+  btn.classList.toggle("approved", approved && !pending);
+  // 有尚未套用的調整時不能確認（要先重新製作），也不能取消（避免按鈕文字和動作對不上）
+  btn.disabled = pending || (!approved && item.stages.karaoke !== "done");
+  $("span", btn).textContent = approved && !pending ? "已確認（取消）" : "確認沒問題";
+  btn.title = approved && !pending ? "已確認這一版沒問題；點一下取消確認"
+    : pending ? "有尚未套用的調整：請先按「更新伴唱帶」，做好後再確認"
+      : item.stages.karaoke !== "done" ? "伴唱帶還沒做好或需要更新，做好後才能確認"
+        : "確認目前這一版伴唱帶沒問題；之後成品有變會自動變回需重新確認";
+}
+
+$("#studio-approve").addEventListener("click", async () => {
+  const item = studio.item;
+  const approve = item.approval !== "approved";
+  try {
+    await setApproval(item, approve);
+    item.approval = approve ? "approved" : null;
+    renderApproveButton();
+    toast(approve ? "已確認這一版伴唱帶沒問題" : "已取消確認");
+    refresh();
+  } catch (e) {
+    toast(e.message, true);
+  }
+});
 
 function closeStudio() {
   const video = studioVideo();
@@ -1826,6 +1929,7 @@ async function shiftStudioLine(index, delta) {
     });
     studio.timing = data.lines;
     studio.retimed = true;
+    renderApproveButton();
     studio.subLine = null;   // 重畫字幕
     for (const [i, { row }] of studio.lyricRows.entries()) {
       const t = studio.timing[i];
@@ -1886,6 +1990,7 @@ async function watchStudioJob(jobs) {
     const data = await api(`/api/items/${enc(p.item)}/timing`);
     studio.timing = data.lines;
     studio.retimed = true;
+    renderApproveButton();
     studio.subLine = null;
     renderStudioLines();
     updateStudioWarn();
@@ -1920,6 +2025,7 @@ async function cycleStudioSinger(docIndex) {
     await saveStudioLyrics();   // 演唱者只影響顏色，不會重新對時
     studio.subLine = null;
     studio.retimed = true;      // 伴唱帶的顏色要重新製作才會更新
+    renderApproveButton();
     renderStudioLines();
     ensureLivePreview();
   } catch (e) {
@@ -1944,6 +2050,7 @@ function editStudioText(index) {
       try {
         await saveStudioLyrics();
         studio.textChanged = true;
+        renderApproveButton();
         $("#studio-status").textContent = `第 ${index + 1} 句歌詞已儲存`;
       } catch (e) {
         toast(e.message, true);

@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from fastapi import FastAPI, HTTPException, Request  # noqa: E402
+from fastapi.routing import APIRoute  # noqa: E402
 from fastapi.responses import FileResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
@@ -161,6 +162,8 @@ def _item_state(item: Download, busy: dict, cat: catalog.Catalog,
         "custom_title": song.title,
         "custom_artist": song.artist,
         "language": song.language,           # 手動指定的演唱語言（空字串 = 依歌詞文字判斷）
+        "approval": karaoke.approval(item, song),   # 已確認成品沒問題：approved / stale / None
+        "approved_at": song.approved_at,
         "auto_title": auto.title,
         "auto_artist": auto.artist,
         "auto_source": auto.source,
@@ -172,7 +175,8 @@ def _item_state(item: Download, busy: dict, cat: catalog.Catalog,
         "uploader": item.info.get("uploader"),
         "duration": item.info.get("duration"),
         "mode": item.info.get("mode", "video"),
-        "url": item.info.get("url"),
+        "url": item.info.get("url"),            # 下載時的影片連結（手動放入的檔案沒有）
+        "link": song.link,                       # 手動放入的影片補上的連結
         "stages": {
             "download": "done",
             "separate": "done" if separated else ("outdated" if sep else "pending"),
@@ -278,6 +282,7 @@ class SongBody(BaseModel):
     title: str | None = None
     artist: str | None = None
     language: str | None = None     # 空字串 = 依歌詞文字判斷；None = 不改
+    link: str | None = None         # 手動放入的影片補上的原始連結；空字串 = 清除；None = 不改
 
 
 def _catalog_call(fn):
@@ -367,8 +372,26 @@ def move_songs(body: MoveBody) -> dict:
 def update_song(key: str, body: SongBody) -> dict:
     _catalog_call(lambda cat: cat.update_song(key, folder=body.folder, number=body.number,
                                               title=body.title, artist=body.artist,
-                                              language=body.language))
+                                              language=body.language, link=body.link))
     return {"key": key}
+
+
+class ApprovalBody(BaseModel):
+    approved: bool
+
+
+def set_approval(item: Download, approved: bool) -> None:
+    """標記（或取消）「已確認成品沒問題」。只能確認已經做好、而且是最新的伴唱帶。"""
+    sha = karaoke.product_sha1(item) if approved else ""
+    if approved and not sha:
+        raise HTTPException(409, "伴唱帶還沒做好或需要更新，請先製作完成再確認")
+    _catalog_call(lambda cat: cat.update_song(catalog.song_key(item), approved=sha))
+
+
+@app.put("/api/items/{name}/approval")
+def put_approval(name: str, body: ApprovalBody) -> dict:
+    set_approval(_get_item(name), body.approved)
+    return {"approved": body.approved}
 
 
 @app.post("/api/export/open")
@@ -568,6 +591,15 @@ def index() -> FileResponse:
 import api_v1  # noqa: E402
 
 app.include_router(api_v1.build(sys.modules[__name__]))
+
+# OpenAPI（Swagger）規格由程式碼產生：只公開 /api/v1；網頁 UI 用的內部端點不放進規格。
+app.title = "kara-creator API"
+app.version = api_v1.API_VERSION
+app.description = api_v1.DESCRIPTION
+app.openapi_tags = api_v1.TAGS
+for _route in app.routes:
+    if isinstance(_route, APIRoute) and not _route.path.startswith("/api/v1"):
+        _route.include_in_schema = False
 
 
 def _startup() -> None:

@@ -51,10 +51,14 @@ def snapshot(log: Callable[[str], None] = print) -> dict:
             "key": catalog.song_key(item),
             "folder": song.folder if song else None,
             "order": song.number if song else 0,
-            # 手動設定的欄位（空字串 = 自動）；display 是實際使用的歌名與演唱者，方便人看
+            # 手動設定的欄位（空字串 = 自動）；display 是實際使用的歌名與演唱者。
+            # 連結失效時可以靠 display 與 source.title（原始影片標題）、source.duration 找替代影片。
             "title": song.title if song else "",
             "artist": song.artist if song else "",
             "language": song.language if song else "",
+            "link": song.link if song else "",               # 手動放入的影片補上的原始連結
+            "approved": song.approved if song else "",       # 確認過的成品指紋（字幕 sha1）
+            "approved_at": song.approved_at if song else "",
             "display": {"title": title, "artist": artist},
             "source": _source(item),
             "lyrics": None,

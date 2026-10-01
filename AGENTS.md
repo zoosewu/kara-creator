@@ -30,14 +30,16 @@
 | `songtool/qa.py` | 對時檢查（規則 + 分段聽寫比對；台語 / 粵語只做規則） |
 | `songtool/ass.py` | ASS 字幕產生（字寬用 Pillow 量、換算 libass 比例） |
 | `songtool/karaoke.py` | 串起對時 → 字幕 → 燒錄 → 檢查；手動平移時間 `shift_timing`、AI 重對 `retime` |
-| `songtool/catalog.py` | 曲庫（`output/library.json`）：巢狀資料夾、順序、手動歌名 / 演唱者 / 語言 |
+| `songtool/catalog.py` | 曲庫（`output/library.json`）：巢狀資料夾、順序、手動歌名 / 演唱者 / 語言、已確認（成品字幕的 sha1，成品變了就失效）、手動放入影片補上的連結（`link`） |
 | `songtool/titles.py` | 從 yt-dlp 資訊與影片標題猜歌名 / 演唱者（純規則，**不用 LLM**） |
 | `songtool/export.py` | 同步 `output/export/`（硬連結，只管自己放的檔案） |
 | `songtool/jobs.py` | 工作佇列：下載（2 條）與 AI 處理（1 條）分開；佇列清空時呼叫 `on_idle`；收尾工作 lane = `system` |
 | `songtool/backup.py` | 資料備份到 `data/`（songs.json、lyrics、timing），commit + push |
 | `songtool/hooks.py` | 收尾 hook（`hooks/on_idle.ps1`）、變動後延遲觸發的 Debouncer |
 | `ui/server.py` | FastAPI：網頁 UI 用的 `/api/*`、媒體檔、收尾流程、變動追蹤 middleware |
-| `ui/api_v1.py` | REST API v1（給外部服務）：端點總覽在檔案開頭 |
+| `ui/api_v1.py` | REST API v1（給外部服務）的端點；docstring 第一行是規格裡的摘要、其餘是說明 |
+| `ui/api_schema.py` | REST API v1 的資料模型（規格的資料結構；欄位說明與範例會進規格） |
+| `docs/openapi.json` | 由 `scripts/openapi.py` 從程式碼產生的 OpenAPI 規格，**不要手改** |
 | `ui/static/` | 前端，原生 HTML / CSS / JS，不需打包 |
 | `scripts/*.py` + `*.ps1` | CLI：download / separate / karaoke / backup / restore |
 
@@ -100,7 +102,10 @@
 
 ## 常見工作
 
-- **加新的 API**：網頁 UI 用的放 `ui/server.py`；給外部服務的放 `ui/api_v1.py`（一首歌一個 id、PATCH 部分更新、長時間處理回 202 + 工作）
+- **加新的 API**：網頁 UI 用的放 `ui/server.py`（不會出現在規格）；給外部服務的放 `ui/api_v1.py`，
+  回應一定要有 `response_model`（在 `ui/api_schema.py` 定義，欄位寫 description）、可能的錯誤寫進 `responses`、
+  docstring 寫摘要與說明（一首歌一個 id、PATCH 部分更新、長時間處理回 202 + Location）。
+  改完執行 `python scripts/openapi.py` 更新 `docs/openapi.json`（`--check` 可檢查是否過期）
 - **改對時演算法**：`songtool/align.py`；先想清楚要不要調 `VERSION`（見上方規則）
 - **加語言**：`catalog.LANGUAGES`、`reading.split`、`ass.DEFAULT_FONTS`、前端 `LANGUAGE_NAMES`
 - **改字幕樣式**：`songtool/ass.py` 的 `Style`；樣式 key 改變會讓伴唱帶顯示需更新
