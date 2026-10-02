@@ -102,7 +102,7 @@ def check(lines: list[dict], texts: list[str], rubies: list, vocals: Path, langu
                     reasons.append(f"與獨立聽寫差 {abs(offset):.1f} 秒")
                 else:
                     reasons.append("聽寫聽不出句首這個字，無法確認")
-        checks.append({"index": i, "text": line["text"], "start": line["start"], "end": line["end"],
+        checks.append({"index": i, "text": "".join(w["text"] for w in line["words"]) or line["text"], "start": line["start"], "end": line["end"],
                        "status": status, "reasons": reasons,
                        "offset": None if offset is None else round(offset, 2), "match": round(match, 2)})
     return {"key": key_of(lines), "lines": checks}

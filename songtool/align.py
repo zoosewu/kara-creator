@@ -54,10 +54,19 @@ def align(vocals: Path, lyr: Lyrics, *, model_name: str, language: str | None,
         log(f"  . CTC 精修完成 {done}/{len(lines)} 句")
     else:
         log(f"  [!] 歌詞 {len(lyr.lines)} 行，對時結果 {len(lines)} 行，略過 CTC 精修，請檢查字幕")
-    for line in lines:
+    _finalize(lines, lyr.lines)
+    return lines
+
+
+def _finalize(lines: list[dict], texts: list[str]) -> None:
+    """補救零長度的字、更新句子的起訖；句數和歌詞一樣時，整句文字直接用歌詞原文
+    （Whisper 的分段文字有時會把句子邊界切歪）。"""
+    same = len(lines) == len(texts)
+    for i, line in enumerate(lines):
         _fix_zero(line["words"])
         line["start"], line["end"] = line["words"][0]["start"], line["words"][-1]["end"]
-    return lines
+        if same:
+            line["text"] = texts[i]
 
 
 def align_from(vocals: Path, lyr: Lyrics, first: int, anchor: float, *, model_name: str,
@@ -92,9 +101,7 @@ def align_from(vocals: Path, lyr: Lyrics, first: int, anchor: float, *, model_na
     done = refine_ctc(lines, texts, audio, language, device, rubies, voiced)
     log(f"  . CTC 精修完成 {done}/{len(lines)} 句")
     _pin_start(lines[0], anchor - t0)
-    for line in lines:
-        _fix_zero(line["words"])
-        line["start"], line["end"] = line["words"][0]["start"], line["words"][-1]["end"]
+    _finalize(lines, texts)
     _offset(lines, t0)
     return lines
 

@@ -98,6 +98,14 @@ def approval(item: Download, song) -> str | None:
     return "approved" if record.get("ass_sha1") == song.approved else "stale"
 
 
+def line_text(line: dict) -> str:
+    """一句實際的文字：以逐字的內容為準。
+    Whisper 有時會把句子邊界切歪，對時檔裡整句的 text 和歌詞不同（例如把上一句結尾併進來），
+    但逐字的內容是照歌詞切的，一定正確。"""
+    words = line.get("words")
+    return "".join(w["text"] for w in words) if words else line.get("text", "")
+
+
 def subtitle_ratio() -> float:
     """字幕字高佔畫面高度的比例：預設樣式 × 全域設定的字幕大小。
     設定是 100% 時和原本的樣式完全相同，已經做好的伴唱帶不會變成需更新。"""
@@ -240,7 +248,7 @@ def _make(item: Download, lyr: lyrics_mod.Lyrics, out_dir: Path,
             or record.get("translations", []) != translations
             or record.get("translation_layout") != (ass.TRANSLATION_LAYOUT if translations else None)):
         log(f"  . 產生字幕 -> {ass_path.name}")
-        lines = [dict(line) for line in alignment["lines"]]
+        lines = [dict(line, text=line_text(line)) for line in alignment["lines"]]
         for line, singer in zip(lines, singers):
             line["singer"] = singer
         if language == "ja":
@@ -321,7 +329,7 @@ def timing(item: Download) -> dict | None:
     if not alignment:
         return None
     return {
-        "lines": [{"index": i, "text": line["text"], "start": line["start"], "end": line["end"],
+        "lines": [{"index": i, "text": line_text(line), "start": line["start"], "end": line["end"],
                    "words": [{"text": w["text"], "start": w["start"], "end": w["end"]} for w in line.get("words", [])]}
                   for i, line in enumerate(alignment["lines"])],
         "adjustments": alignment.get("adjustments", []),
@@ -360,10 +368,11 @@ def _fit_before(line: dict, limit: float) -> None:
 def shift_timing(item: Download, line: int, delta: float, following: bool = True) -> dict:
     """把第 line 句（following=True 時連同之後所有句子）整句平移 delta 秒。
 
-    只移一句時不會被下一句擋住：移動後這句太短、或撞到下一句，就把下一句往後推到最近的合法位置
-    （再撞到下下一句就繼續往後推），這句唱不完的部分依比例壓縮到下一句開頭之前；
-    往前移時上一句的尾音同樣壓縮到這句開頭之前。往前不能早於上一句開頭加上它的最短長度。
-    回傳的時間資料多一個 pushed：一起被往後推的句子（從 0 起算）。
+    只移一句時不會被前後的句子擋住（AI 整段對歪好幾句時，「設為現在」也能直接用）：
+    - 往後移：這句太短或撞到下一句，就把下一句往後推到最近的合法位置，再撞到就繼續往後推
+    - 往前移：撞到上一句（上一句剩下的長度不夠），就把上一句往前推到最近的合法位置，再撞到就繼續往前推
+    被推動的句子唱不完的部分依比例壓縮到下一句開頭之前。只有推到歌曲開頭都放不下時才會拒絕。
+    回傳的時間資料多一個 pushed：一起被推動的句子（從 0 起算）。
     改完之後伴唱帶顯示「需更新」，重新製作時只會重新產生字幕並燒錄，不必重新對時。
     """
     path = output_dir(item) / ALIGNMENT
@@ -378,10 +387,13 @@ def shift_timing(item: Download, line: int, delta: float, following: bool = True
         raise ValueError("移動量是 0")
     start = lines[line]["start"]
     new_start = start + delta
-    floor = lines[line - 1]["start"] + _min_length(lines[line - 1]) if line > 0 else 0.0
+    # 往前最多推到：前面每一句都只剩最短長度、第一句從 0 秒開始（只移一句時）
+    floor = sum(_min_length(ln) for ln in lines[:line]) if not following else 0.0
+    if following and line > 0:
+        floor = lines[line - 1]["start"] + _min_length(lines[line - 1])
     if new_start < floor:
-        where = "上一句開始）；需要的話先調整上一句" if line > 0 else "歌曲開頭）"
-        raise ValueError(f"最多只能往前移 {max(0.0, start - floor):.2f} 秒（不能早於{where}")
+        where = "上一句開始" if following and line > 0 else "歌曲開頭（前面的句子都已經擠到最短）"
+        raise ValueError(f"最多只能往前移 {max(0.0, start - floor):.2f} 秒（不能早於{where}）")
 
     _remember_baseline(item, lines)
     pushed: list[int] = []
@@ -399,12 +411,20 @@ def shift_timing(item: Download, line: int, delta: float, following: bool = True
             _move(lines[k + 1], need - lines[k + 1]["start"])
             pushed.append(k + 1)
             k += 1
-        # 被移動的句子唱不完的部分壓縮到下一句開頭之前；上一句的尾音也不能蓋過這句
-        for k in [line, *pushed]:
+        # 往前推：撞到上一句（上一句剩下的長度不夠）時，上一句往前移到最近的合法位置，連鎖往前
+        k = line
+        while k > 0:
+            latest = lines[k]["start"] - _min_length(lines[k - 1])
+            if lines[k - 1]["start"] <= latest:
+                break
+            _move(lines[k - 1], latest - lines[k - 1]["start"])
+            pushed.append(k - 1)
+            k -= 1
+        # 被移動的句子（和它的上一句）唱不完的部分壓縮到下一句開頭之前
+        moved = sorted({line, *pushed})
+        for k in sorted({*moved, *(m - 1 for m in moved if m > 0)}):
             if k + 1 < len(lines):
                 _fit_before(lines[k], lines[k + 1]["start"])
-        if line > 0:
-            _fit_before(lines[line - 1], lines[line]["start"])
     alignment.setdefault("adjustments", []).append(
         {"line": line, "text": lines[line]["text"], "delta": delta, "following": following,
          "pushed": pushed, "at": manifest.now()})
@@ -442,8 +462,9 @@ def retime(item: Download, line: int, mode: str, *, log: Callable[[str], None] =
         raise RuntimeError("還沒有對時結果，請先製作伴唱帶")
     lyr = lyrics_mod.load(lyrics_path)
     lines = alignment["lines"]
-    same = len(lines) == len(lyr.lines) and all(
-        "".join(a["text"].split()) == "".join(b.split()) for a, b in zip(lines, lyr.lines))
+    # 對時之後歌詞（文字與讀音）有沒有改過：比對對時當下記下的歌詞指紋，不逐句比文字
+    # （對時檔裡整句的文字可能被 Whisper 切歪，見 line_text）。
+    same = len(lines) == len(lyr.lines) and alignment["key"].get("lyrics_sha1") == lyr.align_sha1
     if not same:
         raise RuntimeError("歌詞改過，和目前的對時結果對不上：請先按「更新伴唱帶」（會整首重新對時）再調整")
     if not 0 <= line < len(lines):

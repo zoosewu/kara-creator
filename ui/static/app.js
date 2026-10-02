@@ -1516,12 +1516,13 @@ async function applyTime() {
       method: "POST", body: { line: editor.time.index, delta, following },
     });
     const pushed = data.pushed || [];
+    const moved = editor.time.index;
     closeTimePop();
     editor.timing = data.lines;
     editor.retimed = true;
     renderLines();
     toast(`已移動 ${delta > 0 ? "+" : ""}${delta} 秒`
-      + (pushed.length ? `（第 ${pushed.map((k) => k + 1).join("、")} 句跟著往後挪）` : "")
+      + (pushed.length ? `（${pushedNote(pushed, moved)}）` : "")
       + "。按「儲存並製作伴唱帶」重新燒錄後生效");
     refresh();
   } catch (e) {
@@ -1736,8 +1737,9 @@ async function openStudio(item, { key = null, at = null, line = null, jumpToQa =
   }
   Object.assign(studio, {
     item, doc: lyricsData.doc, timing: timingData.lines, qa: new Map(qaData.lines.map((c) => [c.index, c])),
-    selected: 0, playing: -1, subLine: null, textChanged: false, retimed: false, pending: null,
+    selected: 0, playing: -1, subLine: null, textChanged: false, retimed: false, pending: null, follow: true,
   });
+  $("#studio-follow").checked = true;
   $("#studio-song").textContent = item.artist ? `${item.artist} - ${item.title}` : item.title;
   $("#studio-tabs").replaceChildren(...media.map((m) => el("button", {
     type: "button", dataset: { key: m.key }, title: m.desc || "",
@@ -1755,10 +1757,10 @@ async function openStudio(item, { key = null, at = null, line = null, jumpToQa =
   let start = at ?? 0;
   if (line != null && studio.timing[line]) {
     start = Math.max(0, studio.timing[line].start - 1.5);
-    selectStudioLine(line, { seek: false });
+    selectStudioLine(line, { manual: false });
   } else {
     const near = studio.timing.findIndex((t) => t.end >= start);
-    selectStudioLine(near >= 0 ? near : 0, { seek: false });
+    selectStudioLine(near >= 0 ? near : 0, { manual: false });
   }
   setStudioSource(media.find((m) => m.key === key) || media[0], start, true);
   cancelAnimationFrame(studio.raf);
@@ -1978,18 +1980,32 @@ function openRetimeMenu(anchor, index) {
   ]);
 }
 
-function selectStudioLine(index, { seek = true } = {}) {
+/**
+ * 選取一句（展開它和前後各一句的工具列）。預設不改播放位置：AI 對歪時，那句記錄的時間是錯的，
+ * 跳過去反而找不到真正在唱的地方。seek=true 時從那句前 1.5 秒播放（「播這句」）。
+ * 手動選取（manual）會關掉「選取跟著播放走」，選取才不會被播放時間拉走。
+ */
+function selectStudioLine(index, { seek = false, manual = true } = {}) {
   const count = studio.lyricRows.length;
   if (!count) return;
   studio.selected = Math.max(0, Math.min(count - 1, index));
+  if (manual) setStudioFollow(false);
   markStudioRows();
   studio.lyricRows[studio.selected].row.scrollIntoView({ block: "nearest" });
   const t = studio.timing[studio.selected];
   if (seek && t) studioVideo().currentTime = Math.max(0, t.start - 1.5);
 }
 
+function setStudioFollow(on) {
+  studio.follow = on;
+  $("#studio-follow").checked = on;
+  if (on && studio.playing >= 0) selectStudioLine(studio.playing, { manual: false });
+}
+
+$("#studio-follow").addEventListener("change", (e) => setStudioFollow(e.target.checked));
+
 function playStudioLine(index) {
-  selectStudioLine(index);
+  selectStudioLine(index, { seek: true });
   studioVideo().play().catch(() => {});
 }
 
@@ -2011,13 +2027,19 @@ async function shiftStudioLine(index, delta) {
     }
     const pushed = data.pushed || [];
     $("#studio-status").textContent = `第 ${index + 1} 句 ${delta > 0 ? "+" : ""}${delta} 秒`
-      + (pushed.length ? `，第 ${pushed.map((k) => k + 1).join("、")} 句跟著往後挪` : "") + "，已儲存";
+      + (pushed.length ? `，${pushedNote(pushed, index)}` : "") + "，已儲存";
     ensureLivePreview();
     return true;
   } catch (e) {
     toast(e.message, true);
     return false;
   }
+}
+
+/** 移動一句時一起被推動的句子：「第 3、2 句跟著往前挪」。 */
+function pushedNote(pushed, index) {
+  const lines = [...pushed].sort((a, b) => a - b).map((k) => k + 1).join("、");
+  return `第 ${lines} 句跟著往${pushed[0] < index ? "前" : "後"}挪`;
 }
 
 /** 以第 index 句目前的開頭為準讓 AI 重新對時（排進 AI 處理佇列，完成後自動更新畫面）。 */
@@ -2186,11 +2208,12 @@ function studioTick() {
   const playing = current >= 0 && now <= studio.timing[current].end + 0.3 ? current : -1;
   if (playing !== studio.playing) {
     studio.playing = playing;
-    if (playing >= 0 && !video.paused && (playing > studio.selected || playing < studio.selected - 1)) {
-      studio.selected = playing;
-    }
+    // 「選取跟著播放走」開著才跟；手動選了某一句後就停在那句，不會被（可能對歪的）播放時間拉走
+    if (studio.follow && playing >= 0) studio.selected = playing;
     markStudioRows();
-    if (playing >= 0 && !video.paused) studio.lyricRows[playing]?.row.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    if (studio.follow && playing >= 0 && !video.paused) {
+      studio.lyricRows[playing]?.row.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
   }
   // 上排：正在唱的句子；前奏、間奏時預先顯示幾秒內要唱的句子。下排：再下一句。
   let top = show;
