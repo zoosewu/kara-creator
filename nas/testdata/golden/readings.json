@@ -1,0 +1,1869 @@
+[
+ {
+  "language": "ja",
+  "text": "# title: 編的歌\n[女] 空を見上げて歩いた日々\n> 抬頭看著天空走過的日子\n君の声{こえ}は私{わたし}の灯り\n{本気|マジ}で笑った\n# 副歌\n\n明日{あした}へ 走り出す\n",
+  "auto": {
+   "空を見上げて歩いた日々": [
+    [
+     0,
+     1,
+     "そら"
+    ],
+    [
+     2,
+     4,
+     "みあ"
+    ],
+    [
+     6,
+     7,
+     "ある"
+    ],
+    [
+     9,
+     11,
+     "ひび"
+    ]
+   ],
+   "君の声は私の灯り": [
+    [
+     0,
+     1,
+     "きみ"
+    ],
+    [
+     2,
+     3,
+     "こえ"
+    ],
+    [
+     4,
+     5,
+     "わたくし"
+    ],
+    [
+     6,
+     7,
+     "あか"
+    ]
+   ],
+   "本気で笑った": [
+    [
+     0,
+     2,
+     "ほんき"
+    ],
+    [
+     3,
+     4,
+     "わら"
+    ]
+   ],
+   "明日へ 走り出す": [
+    [
+     0,
+     2,
+     "あす"
+    ],
+    [
+     4,
+     5,
+     "はし"
+    ],
+    [
+     6,
+     7,
+     "だ"
+    ]
+   ]
+  },
+  "views": {
+   "doc": {
+    "meta": {
+     "title": "編的歌"
+    },
+    "lines": [
+     {
+      "kind": "lyric",
+      "text": "空を見上げて歩いた日々",
+      "singer": "女",
+      "rubies": [],
+      "translation": "抬頭看著天空走過的日子",
+      "segments": [
+       {
+        "text": "空",
+        "start": 0,
+        "end": 1,
+        "ruby": "そら",
+        "manual": false
+       },
+       {
+        "text": "を",
+        "start": 1,
+        "end": 2,
+        "ruby": null,
+        "manual": false
+       },
+       {
+        "text": "見上",
+        "start": 2,
+        "end": 4,
+        "ruby": "みあ",
+        "manual": false
+       },
+       {
+        "text": "げて",
+        "start": 4,
+        "end": 6,
+        "ruby": null,
+        "manual": false
+       },
+       {
+        "text": "歩",
+        "start": 6,
+        "end": 7,
+        "ruby": "ある",
+        "manual": false
+       },
+       {
+        "text": "いた",
+        "start": 7,
+        "end": 9,
+        "ruby": null,
+        "manual": false
+       },
+       {
+        "text": "日々",
+        "start": 9,
+        "end": 11,
+        "ruby": "ひび",
+        "manual": false
+       }
+      ]
+     },
+     {
+      "kind": "lyric",
+      "text": "君の声は私の灯り",
+      "singer": null,
+      "rubies": [
+       {
+        "start": 2,
+        "end": 3,
+        "reading": "こえ"
+       },
+       {
+        "start": 4,
+        "end": 5,
+        "reading": "わたし"
+       }
+      ],
+      "translation": "",
+      "segments": [
+       {
+        "text": "君",
+        "start": 0,
+        "end": 1,
+        "ruby": "きみ",
+        "manual": false
+       },
+       {
+        "text": "の",
+        "start": 1,
+        "end": 2,
+        "ruby": null,
+        "manual": false
+       },
+       {
+        "text": "声",
+        "start": 2,
+        "end": 3,
+        "ruby": "こえ",
+        "manual": true
+       },
+       {
+        "text": "は",
+        "start": 3,
+        "end": 4,
+        "ruby": null,
+        "manual": false
+       },
+       {
+        "text": "私",
+        "start": 4,
+        "end": 5,
+        "ruby": "わたし",
+        "manual": true
+       },
+       {
+        "text": "の",
+        "start": 5,
+        "end": 6,
+        "ruby": null,
+        "manual": false
+       },
+       {
+        "text": "灯",
+        "start": 6,
+        "end": 7,
+        "ruby": "あか",
+        "manual": false
+       },
+       {
+        "text": "り",
+        "start": 7,
+        "end": 8,
+        "ruby": null,
+        "manual": false
+       }
+      ]
+     },
+     {
+      "kind": "lyric",
+      "text": "本気で笑った",
+      "singer": null,
+      "rubies": [
+       {
+        "start": 0,
+        "end": 2,
+        "reading": "マジ"
+       }
+      ],
+      "translation": "",
+      "segments": [
+       {
+        "text": "本気",
+        "start": 0,
+        "end": 2,
+        "ruby": "マジ",
+        "manual": true
+       },
+       {
+        "text": "で",
+        "start": 2,
+        "end": 3,
+        "ruby": null,
+        "manual": false
+       },
+       {
+        "text": "笑",
+        "start": 3,
+        "end": 4,
+        "ruby": "わら",
+        "manual": false
+       },
+       {
+        "text": "った",
+        "start": 4,
+        "end": 6,
+        "ruby": null,
+        "manual": false
+       }
+      ]
+     },
+     {
+      "kind": "comment",
+      "text": "# 副歌",
+      "singer": null,
+      "rubies": [],
+      "translation": ""
+     },
+     {
+      "kind": "blank",
+      "text": "",
+      "singer": null,
+      "rubies": [],
+      "translation": ""
+     },
+     {
+      "kind": "lyric",
+      "text": "明日へ 走り出す",
+      "singer": null,
+      "rubies": [
+       {
+        "start": 0,
+        "end": 2,
+        "reading": "あした"
+       }
+      ],
+      "translation": "",
+      "segments": [
+       {
+        "text": "明日",
+        "start": 0,
+        "end": 2,
+        "ruby": "あした",
+        "manual": true
+       },
+       {
+        "text": "へ ",
+        "start": 2,
+        "end": 4,
+        "ruby": null,
+        "manual": false
+       },
+       {
+        "text": "走",
+        "start": 4,
+        "end": 5,
+        "ruby": "はし",
+        "manual": false
+       },
+       {
+        "text": "り",
+        "start": 5,
+        "end": 6,
+        "ruby": null,
+        "manual": false
+       },
+       {
+        "text": "出",
+        "start": 6,
+        "end": 7,
+        "ruby": "だ",
+        "manual": false
+       },
+       {
+        "text": "す",
+        "start": 7,
+        "end": 8,
+        "ruby": null,
+        "manual": false
+       }
+      ]
+     }
+    ],
+    "language": "ja"
+   },
+   "text": "# title: 編的歌\n[女] 空を見上げて歩いた日々\n> 抬頭看著天空走過的日子\n君の声{こえ}は私{わたし}の灯り\n本気{マジ}で笑った\n# 副歌\n\n明日{あした}へ 走り出す\n",
+   "paren": [],
+   "annotated": "# title: 編的歌\n[女] 空{そら}を見上{みあ}げて歩{ある}いた日々{ひび}\n> 抬頭看著天空走過的日子\n君{きみ}の声{こえ}は私{わたし}の灯{あか}り\n本気{マジ}で笑{わら}った\n# 副歌\n\n明日{あした}へ 走{はし}り出{だ}す\n",
+   "plain": "空を見上げて歩いた日々\n> 抬頭看著天空走過的日子\n君の声は私の灯り\n本気で笑った\n# 副歌\n\n明日へ 走り出す\n"
+  },
+  "annotated": "# title: 編的歌\n[女] 空{そら}を見上{みあ}げて歩{ある}いた日々{ひび}\n> 抬頭看著天空走過的日子\n君{きみ}の声{こえ}は私{わたし}の灯{あか}り\n本気{マジ}で笑{わら}った\n# 副歌\n\n明日{あした}へ 走{はし}り出{だ}す\n",
+  "from_annotated": {
+   "meta": {
+    "title": "編的歌"
+   },
+   "lines": [
+    {
+     "kind": "lyric",
+     "text": "空を見上げて歩いた日々",
+     "singer": "女",
+     "rubies": [],
+     "translation": "抬頭看著天空走過的日子"
+    },
+    {
+     "kind": "lyric",
+     "text": "君の声は私の灯り",
+     "singer": null,
+     "rubies": [
+      {
+       "start": 4,
+       "end": 5,
+       "reading": "わたし"
+      }
+     ],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "本気で笑った",
+     "singer": null,
+     "rubies": [
+      {
+       "start": 0,
+       "end": 2,
+       "reading": "マジ"
+      }
+     ],
+     "translation": ""
+    },
+    {
+     "kind": "comment",
+     "text": "# 副歌",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    },
+    {
+     "kind": "blank",
+     "text": "",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "明日へ 走り出す",
+     "singer": null,
+     "rubies": [
+      {
+       "start": 0,
+       "end": 2,
+       "reading": "あした"
+      }
+     ],
+     "translation": ""
+    }
+   ]
+  },
+  "edited": "# title: 編的歌\n[女] 空{くう}を見上{みあ}げて歩{ある}いた日々{ひび}\n> 抬頭看著天空走過的日子\n君{きみ}の声{こえ}は私{わたし}の灯{あか}り\n本気{マジ}で笑{わら}った\n# 副歌\n\n明日{あした}へ 走{はし}り出{だ}す\n",
+  "from_edited": {
+   "meta": {
+    "title": "編的歌"
+   },
+   "lines": [
+    {
+     "kind": "lyric",
+     "text": "空を見上げて歩いた日々",
+     "singer": "女",
+     "rubies": [
+      {
+       "start": 0,
+       "end": 1,
+       "reading": "くう"
+      }
+     ],
+     "translation": "抬頭看著天空走過的日子"
+    },
+    {
+     "kind": "lyric",
+     "text": "君の声は私の灯り",
+     "singer": null,
+     "rubies": [
+      {
+       "start": 4,
+       "end": 5,
+       "reading": "わたし"
+      }
+     ],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "本気で笑った",
+     "singer": null,
+     "rubies": [
+      {
+       "start": 0,
+       "end": 2,
+       "reading": "マジ"
+      }
+     ],
+     "translation": ""
+    },
+    {
+     "kind": "comment",
+     "text": "# 副歌",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    },
+    {
+     "kind": "blank",
+     "text": "",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "明日へ 走り出す",
+     "singer": null,
+     "rubies": [
+      {
+       "start": 0,
+       "end": 2,
+       "reading": "あした"
+      }
+     ],
+     "translation": ""
+    }
+   ]
+  }
+ },
+ {
+  "language": "ja",
+  "text": "運命(さだめ)を信じて\n今日も明日も\n",
+  "auto": {
+   "運命(さだめ)を信じて": [
+    [
+     0,
+     2,
+     "うんめい"
+    ],
+    [
+     8,
+     9,
+     "しん"
+    ]
+   ],
+   "今日も明日も": [
+    [
+     0,
+     2,
+     "きょう"
+    ],
+    [
+     3,
+     5,
+     "あす"
+    ]
+   ]
+  },
+  "views": {
+   "doc": {
+    "meta": {},
+    "lines": [
+     {
+      "kind": "lyric",
+      "text": "運命(さだめ)を信じて",
+      "singer": null,
+      "rubies": [],
+      "translation": "",
+      "segments": [
+       {
+        "text": "運命",
+        "start": 0,
+        "end": 2,
+        "ruby": "うんめい",
+        "manual": false
+       },
+       {
+        "text": "(さだめ)を",
+        "start": 2,
+        "end": 8,
+        "ruby": null,
+        "manual": false
+       },
+       {
+        "text": "信",
+        "start": 8,
+        "end": 9,
+        "ruby": "しん",
+        "manual": false
+       },
+       {
+        "text": "じて",
+        "start": 9,
+        "end": 11,
+        "ruby": null,
+        "manual": false
+       }
+      ]
+     },
+     {
+      "kind": "lyric",
+      "text": "今日も明日も",
+      "singer": null,
+      "rubies": [],
+      "translation": "",
+      "segments": [
+       {
+        "text": "今日",
+        "start": 0,
+        "end": 2,
+        "ruby": "きょう",
+        "manual": false
+       },
+       {
+        "text": "も",
+        "start": 2,
+        "end": 3,
+        "ruby": null,
+        "manual": false
+       },
+       {
+        "text": "明日",
+        "start": 3,
+        "end": 5,
+        "ruby": "あす",
+        "manual": false
+       },
+       {
+        "text": "も",
+        "start": 5,
+        "end": 6,
+        "ruby": null,
+        "manual": false
+       }
+      ]
+     }
+    ],
+    "language": "ja"
+   },
+   "text": "運命(さだめ)を信じて\n今日も明日も\n",
+   "paren": [
+    "運命(さだめ)"
+   ],
+   "annotated": "運命{うんめい}(さだめ)を信{しん}じて\n今日{きょう}も明日{あす}も\n",
+   "plain": "運命(さだめ)を信じて\n今日も明日も\n"
+  },
+  "annotated": "運命{うんめい}(さだめ)を信{しん}じて\n今日{きょう}も明日{あす}も\n",
+  "from_annotated": {
+   "meta": {},
+   "lines": [
+    {
+     "kind": "lyric",
+     "text": "運命(さだめ)を信じて",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "今日も明日も",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    }
+   ]
+  },
+  "edited": "運命{うんめい}(さだめ)を信{しん}じて\n今日{きょう}も明日{あす}も\n",
+  "from_edited": {
+   "meta": {},
+   "lines": [
+    {
+     "kind": "lyric",
+     "text": "運命(さだめ)を信じて",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "今日も明日も",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    }
+   ]
+  }
+ },
+ {
+  "language": "",
+  "text": "風が吹く丘の上で\n花{はな}が咲いた\n",
+  "auto": {
+   "風が吹く丘の上で": [
+    [
+     0,
+     1,
+     "かぜ"
+    ],
+    [
+     2,
+     3,
+     "ふ"
+    ],
+    [
+     4,
+     5,
+     "おか"
+    ],
+    [
+     6,
+     7,
+     "うえ"
+    ]
+   ],
+   "花が咲いた": [
+    [
+     0,
+     1,
+     "はな"
+    ],
+    [
+     2,
+     3,
+     "さ"
+    ]
+   ]
+  },
+  "views": {
+   "doc": {
+    "meta": {},
+    "lines": [
+     {
+      "kind": "lyric",
+      "text": "風が吹く丘の上で",
+      "singer": null,
+      "rubies": [],
+      "translation": "",
+      "segments": [
+       {
+        "text": "風",
+        "start": 0,
+        "end": 1,
+        "ruby": "かぜ",
+        "manual": false
+       },
+       {
+        "text": "が",
+        "start": 1,
+        "end": 2,
+        "ruby": null,
+        "manual": false
+       },
+       {
+        "text": "吹",
+        "start": 2,
+        "end": 3,
+        "ruby": "ふ",
+        "manual": false
+       },
+       {
+        "text": "く",
+        "start": 3,
+        "end": 4,
+        "ruby": null,
+        "manual": false
+       },
+       {
+        "text": "丘",
+        "start": 4,
+        "end": 5,
+        "ruby": "おか",
+        "manual": false
+       },
+       {
+        "text": "の",
+        "start": 5,
+        "end": 6,
+        "ruby": null,
+        "manual": false
+       },
+       {
+        "text": "上",
+        "start": 6,
+        "end": 7,
+        "ruby": "うえ",
+        "manual": false
+       },
+       {
+        "text": "で",
+        "start": 7,
+        "end": 8,
+        "ruby": null,
+        "manual": false
+       }
+      ]
+     },
+     {
+      "kind": "lyric",
+      "text": "花が咲いた",
+      "singer": null,
+      "rubies": [
+       {
+        "start": 0,
+        "end": 1,
+        "reading": "はな"
+       }
+      ],
+      "translation": "",
+      "segments": [
+       {
+        "text": "花",
+        "start": 0,
+        "end": 1,
+        "ruby": "はな",
+        "manual": true
+       },
+       {
+        "text": "が",
+        "start": 1,
+        "end": 2,
+        "ruby": null,
+        "manual": false
+       },
+       {
+        "text": "咲",
+        "start": 2,
+        "end": 3,
+        "ruby": "さ",
+        "manual": false
+       },
+       {
+        "text": "いた",
+        "start": 3,
+        "end": 5,
+        "ruby": null,
+        "manual": false
+       }
+      ]
+     }
+    ],
+    "language": "ja"
+   },
+   "text": "風が吹く丘の上で\n花{はな}が咲いた\n",
+   "paren": [],
+   "annotated": "風{かぜ}が吹{ふ}く丘{おか}の上{うえ}で\n花{はな}が咲{さ}いた\n",
+   "plain": "風が吹く丘の上で\n花が咲いた\n"
+  },
+  "annotated": "風{かぜ}が吹{ふ}く丘{おか}の上{うえ}で\n花{はな}が咲{さ}いた\n",
+  "from_annotated": {
+   "meta": {},
+   "lines": [
+    {
+     "kind": "lyric",
+     "text": "風が吹く丘の上で",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "花が咲いた",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    }
+   ]
+  },
+  "edited": "風{かぜ}が吹{ふ}く丘{おか}の上{うえ}で\n花{はな}が咲{さ}いた\n",
+  "from_edited": {
+   "meta": {},
+   "lines": [
+    {
+     "kind": "lyric",
+     "text": "風が吹く丘の上で",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "花が咲いた",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    }
+   ]
+  }
+ },
+ {
+  "language": "",
+  "text": "自己編的中文歌詞\n第二句\n> 翻譯\n",
+  "auto": {
+   "自己編的中文歌詞": [
+    [
+     0,
+     2,
+     "じこ"
+    ],
+    [
+     2,
+     3,
+     "へん"
+    ],
+    [
+     3,
+     5,
+     "てきちゅう"
+    ],
+    [
+     5,
+     6,
+     "ぶん"
+    ],
+    [
+     6,
+     8,
+     "かし"
+    ]
+   ],
+   "第二句": [
+    [
+     0,
+     1,
+     "だい"
+    ],
+    [
+     1,
+     2,
+     "に"
+    ],
+    [
+     2,
+     3,
+     "く"
+    ]
+   ]
+  },
+  "views": {
+   "doc": {
+    "meta": {},
+    "lines": [
+     {
+      "kind": "lyric",
+      "text": "自己編的中文歌詞",
+      "singer": null,
+      "rubies": [],
+      "translation": "",
+      "segments": [
+       {
+        "text": "自己編的中文歌詞",
+        "start": 0,
+        "end": 8,
+        "ruby": null,
+        "manual": false
+       }
+      ]
+     },
+     {
+      "kind": "lyric",
+      "text": "第二句",
+      "singer": null,
+      "rubies": [],
+      "translation": "翻譯",
+      "segments": [
+       {
+        "text": "第二句",
+        "start": 0,
+        "end": 3,
+        "ruby": null,
+        "manual": false
+       }
+      ]
+     }
+    ],
+    "language": "zh"
+   },
+   "text": "自己編的中文歌詞\n第二句\n> 翻譯\n",
+   "paren": [],
+   "annotated": "自己編的中文歌詞\n第二句\n> 翻譯\n",
+   "plain": "自己編的中文歌詞\n第二句\n> 翻譯\n"
+  },
+  "annotated": "自己編的中文歌詞\n第二句\n> 翻譯\n",
+  "from_annotated": {
+   "meta": {},
+   "lines": [
+    {
+     "kind": "lyric",
+     "text": "自己編的中文歌詞",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "第二句",
+     "singer": null,
+     "rubies": [],
+     "translation": "翻譯"
+    }
+   ]
+  },
+  "edited": "自己編的中文歌詞\n第二句\n> 翻譯\n",
+  "from_edited": {
+   "meta": {},
+   "lines": [
+    {
+     "kind": "lyric",
+     "text": "自己編的中文歌詞",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "第二句",
+     "singer": null,
+     "rubies": [],
+     "translation": "翻譯"
+    }
+   ]
+  }
+ },
+ {
+  "language": "nan",
+  "text": "[男] 你佇{tī}遮\n[女] 阮{gún}佇遐\n心肝{sim-kuann}寶貝\n",
+  "auto": {
+   "你佇遮": [
+    [
+     2,
+     3,
+     "しゃ"
+    ]
+   ],
+   "阮佇遐": [
+    [
+     0,
+     1,
+     "げん"
+    ],
+    [
+     1,
+     2,
+     "たたずまい"
+    ]
+   ],
+   "心肝寶貝": [
+    [
+     0,
+     2,
+     "しんかん"
+    ],
+    [
+     2,
+     4,
+     "ほうばい"
+    ]
+   ]
+  },
+  "views": {
+   "doc": {
+    "meta": {},
+    "lines": [
+     {
+      "kind": "lyric",
+      "text": "你佇遮",
+      "singer": "男",
+      "rubies": [
+       {
+        "start": 1,
+        "end": 2,
+        "reading": "tī"
+       }
+      ],
+      "translation": "",
+      "segments": [
+       {
+        "text": "你",
+        "start": 0,
+        "end": 1,
+        "ruby": null,
+        "manual": false,
+        "slot": true
+       },
+       {
+        "text": "佇",
+        "start": 1,
+        "end": 2,
+        "ruby": "tī",
+        "manual": true
+       },
+       {
+        "text": "遮",
+        "start": 2,
+        "end": 3,
+        "ruby": null,
+        "manual": false,
+        "slot": true
+       }
+      ]
+     },
+     {
+      "kind": "lyric",
+      "text": "阮佇遐",
+      "singer": "女",
+      "rubies": [
+       {
+        "start": 0,
+        "end": 1,
+        "reading": "gún"
+       }
+      ],
+      "translation": "",
+      "segments": [
+       {
+        "text": "阮",
+        "start": 0,
+        "end": 1,
+        "ruby": "gún",
+        "manual": true
+       },
+       {
+        "text": "佇",
+        "start": 1,
+        "end": 2,
+        "ruby": null,
+        "manual": false,
+        "slot": true
+       },
+       {
+        "text": "遐",
+        "start": 2,
+        "end": 3,
+        "ruby": null,
+        "manual": false,
+        "slot": true
+       }
+      ]
+     },
+     {
+      "kind": "lyric",
+      "text": "心肝寶貝",
+      "singer": null,
+      "rubies": [
+       {
+        "start": 0,
+        "end": 2,
+        "reading": "sim-kuann"
+       }
+      ],
+      "translation": "",
+      "segments": [
+       {
+        "text": "心肝",
+        "start": 0,
+        "end": 2,
+        "ruby": "sim-kuann",
+        "manual": true
+       },
+       {
+        "text": "寶",
+        "start": 2,
+        "end": 3,
+        "ruby": null,
+        "manual": false,
+        "slot": true
+       },
+       {
+        "text": "貝",
+        "start": 3,
+        "end": 4,
+        "ruby": null,
+        "manual": false,
+        "slot": true
+       }
+      ]
+     }
+    ],
+    "language": "nan"
+   },
+   "text": "[男] 你佇{tī}遮\n[女] 阮{gún}佇遐\n心肝{sim-kuann}寶貝\n",
+   "paren": [],
+   "annotated": "[男] 你佇{tī}遮\n[女] 阮{gún}佇遐\n心肝{sim-kuann}寶貝\n",
+   "plain": "你佇遮\n阮佇遐\n心肝寶貝\n"
+  },
+  "annotated": "[男] 你佇{tī}遮\n[女] 阮{gún}佇遐\n心肝{sim-kuann}寶貝\n",
+  "from_annotated": {
+   "meta": {},
+   "lines": [
+    {
+     "kind": "lyric",
+     "text": "你佇遮",
+     "singer": "男",
+     "rubies": [
+      {
+       "start": 1,
+       "end": 2,
+       "reading": "tī"
+      }
+     ],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "阮佇遐",
+     "singer": "女",
+     "rubies": [
+      {
+       "start": 0,
+       "end": 1,
+       "reading": "gún"
+      }
+     ],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "心肝寶貝",
+     "singer": null,
+     "rubies": [
+      {
+       "start": 0,
+       "end": 2,
+       "reading": "sim-kuann"
+      }
+     ],
+     "translation": ""
+    }
+   ]
+  },
+  "edited": "[男] 你佇{tī}遮\n[女] 阮{gún}佇遐\n心肝{sim-kuann}寶貝\n",
+  "from_edited": {
+   "meta": {},
+   "lines": [
+    {
+     "kind": "lyric",
+     "text": "你佇遮",
+     "singer": "男",
+     "rubies": [
+      {
+       "start": 1,
+       "end": 2,
+       "reading": "tī"
+      }
+     ],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "阮佇遐",
+     "singer": "女",
+     "rubies": [
+      {
+       "start": 0,
+       "end": 1,
+       "reading": "gún"
+      }
+     ],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "心肝寶貝",
+     "singer": null,
+     "rubies": [
+      {
+       "start": 0,
+       "end": 2,
+       "reading": "sim-kuann"
+      }
+     ],
+     "translation": ""
+    }
+   ]
+  }
+ },
+ {
+  "language": "yue",
+  "text": "我哋一齊{jat1 cai4}行\n",
+  "auto": {
+   "我哋一齊行": [
+    [
+     0,
+     1,
+     "わが"
+    ],
+    [
+     3,
+     4,
+     "ひとし"
+    ],
+    [
+     4,
+     5,
+     "いき"
+    ]
+   ]
+  },
+  "views": {
+   "doc": {
+    "meta": {},
+    "lines": [
+     {
+      "kind": "lyric",
+      "text": "我哋一齊行",
+      "singer": null,
+      "rubies": [
+       {
+        "start": 2,
+        "end": 4,
+        "reading": "jat1 cai4"
+       }
+      ],
+      "translation": "",
+      "segments": [
+       {
+        "text": "我",
+        "start": 0,
+        "end": 1,
+        "ruby": null,
+        "manual": false,
+        "slot": true
+       },
+       {
+        "text": "哋",
+        "start": 1,
+        "end": 2,
+        "ruby": null,
+        "manual": false,
+        "slot": true
+       },
+       {
+        "text": "一齊",
+        "start": 2,
+        "end": 4,
+        "ruby": "jat1 cai4",
+        "manual": true
+       },
+       {
+        "text": "行",
+        "start": 4,
+        "end": 5,
+        "ruby": null,
+        "manual": false,
+        "slot": true
+       }
+      ]
+     }
+    ],
+    "language": "yue"
+   },
+   "text": "我哋一齊{jat1 cai4}行\n",
+   "paren": [],
+   "annotated": "我哋一齊{jat1 cai4}行\n",
+   "plain": "我哋一齊行\n"
+  },
+  "annotated": "我哋一齊{jat1 cai4}行\n",
+  "from_annotated": {
+   "meta": {},
+   "lines": [
+    {
+     "kind": "lyric",
+     "text": "我哋一齊行",
+     "singer": null,
+     "rubies": [
+      {
+       "start": 2,
+       "end": 4,
+       "reading": "jat1 cai4"
+      }
+     ],
+     "translation": ""
+    }
+   ]
+  },
+  "edited": "我哋一齊{jat1 cai4}行\n",
+  "from_edited": {
+   "meta": {},
+   "lines": [
+    {
+     "kind": "lyric",
+     "text": "我哋一齊行",
+     "singer": null,
+     "rubies": [
+      {
+       "start": 2,
+       "end": 4,
+       "reading": "jat1 cai4"
+      }
+     ],
+     "translation": ""
+    }
+   ]
+  }
+ },
+ {
+  "language": "en",
+  "text": "Made up English line\nanother line\n",
+  "auto": {
+   "Made up English line": [],
+   "another line": []
+  },
+  "views": {
+   "doc": {
+    "meta": {},
+    "lines": [
+     {
+      "kind": "lyric",
+      "text": "Made up English line",
+      "singer": null,
+      "rubies": [],
+      "translation": "",
+      "segments": [
+       {
+        "text": "Made up English line",
+        "start": 0,
+        "end": 20,
+        "ruby": null,
+        "manual": false
+       }
+      ]
+     },
+     {
+      "kind": "lyric",
+      "text": "another line",
+      "singer": null,
+      "rubies": [],
+      "translation": "",
+      "segments": [
+       {
+        "text": "another line",
+        "start": 0,
+        "end": 12,
+        "ruby": null,
+        "manual": false
+       }
+      ]
+     }
+    ],
+    "language": "en"
+   },
+   "text": "Made up English line\nanother line\n",
+   "paren": [],
+   "annotated": "Made up English line\nanother line\n",
+   "plain": "Made up English line\nanother line\n"
+  },
+  "annotated": "Made up English line\nanother line\n",
+  "from_annotated": {
+   "meta": {},
+   "lines": [
+    {
+     "kind": "lyric",
+     "text": "Made up English line",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "another line",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    }
+   ]
+  },
+  "edited": "Made up English line\nanother line\n",
+  "from_edited": {
+   "meta": {},
+   "lines": [
+    {
+     "kind": "lyric",
+     "text": "Made up English line",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "another line",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    }
+   ]
+  }
+ },
+ {
+  "language": "ja",
+  "text": "",
+  "auto": {},
+  "views": {
+   "doc": {
+    "meta": {},
+    "lines": [],
+    "language": "ja"
+   },
+   "text": "\n",
+   "paren": [],
+   "annotated": "\n",
+   "plain": ""
+  },
+  "annotated": "\n",
+  "from_annotated": {
+   "meta": {},
+   "lines": []
+  },
+  "edited": "\n",
+  "from_edited": {
+   "meta": {},
+   "lines": []
+  }
+ },
+ {
+  "language": "ja",
+  "text": "全部ひらがなのうた\nカタカナモアル\n漢字だけ\n",
+  "auto": {
+   "全部ひらがなのうた": [
+    [
+     0,
+     2,
+     "ぜんぶ"
+    ]
+   ],
+   "カタカナモアル": [],
+   "漢字だけ": [
+    [
+     0,
+     2,
+     "かんじ"
+    ]
+   ]
+  },
+  "views": {
+   "doc": {
+    "meta": {},
+    "lines": [
+     {
+      "kind": "lyric",
+      "text": "全部ひらがなのうた",
+      "singer": null,
+      "rubies": [],
+      "translation": "",
+      "segments": [
+       {
+        "text": "全部",
+        "start": 0,
+        "end": 2,
+        "ruby": "ぜんぶ",
+        "manual": false
+       },
+       {
+        "text": "ひらがなのうた",
+        "start": 2,
+        "end": 9,
+        "ruby": null,
+        "manual": false
+       }
+      ]
+     },
+     {
+      "kind": "lyric",
+      "text": "カタカナモアル",
+      "singer": null,
+      "rubies": [],
+      "translation": "",
+      "segments": [
+       {
+        "text": "カタカナモアル",
+        "start": 0,
+        "end": 7,
+        "ruby": null,
+        "manual": false
+       }
+      ]
+     },
+     {
+      "kind": "lyric",
+      "text": "漢字だけ",
+      "singer": null,
+      "rubies": [],
+      "translation": "",
+      "segments": [
+       {
+        "text": "漢字",
+        "start": 0,
+        "end": 2,
+        "ruby": "かんじ",
+        "manual": false
+       },
+       {
+        "text": "だけ",
+        "start": 2,
+        "end": 4,
+        "ruby": null,
+        "manual": false
+       }
+      ]
+     }
+    ],
+    "language": "ja"
+   },
+   "text": "全部ひらがなのうた\nカタカナモアル\n漢字だけ\n",
+   "paren": [],
+   "annotated": "全部{ぜんぶ}ひらがなのうた\nカタカナモアル\n漢字{かんじ}だけ\n",
+   "plain": "全部ひらがなのうた\nカタカナモアル\n漢字だけ\n"
+  },
+  "annotated": "全部{ぜんぶ}ひらがなのうた\nカタカナモアル\n漢字{かんじ}だけ\n",
+  "from_annotated": {
+   "meta": {},
+   "lines": [
+    {
+     "kind": "lyric",
+     "text": "全部ひらがなのうた",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "カタカナモアル",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "漢字だけ",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    }
+   ]
+  },
+  "edited": "全部{ぜんぶ}ひらがなのうた\nカタカナモアル\n漢字{かんじ}だけ\n",
+  "from_edited": {
+   "meta": {},
+   "lines": [
+    {
+     "kind": "lyric",
+     "text": "全部ひらがなのうた",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "カタカナモアル",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "漢字だけ",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    }
+   ]
+  }
+ },
+ {
+  "language": "ja",
+  "text": "空{から}っぽの部屋\n空{そら}と海\n{見上|みあ}げる\n見上{みあ}げる\n",
+  "auto": {
+   "空っぽの部屋": [
+    [
+     0,
+     1,
+     "から"
+    ],
+    [
+     4,
+     6,
+     "へや"
+    ]
+   ],
+   "空と海": [
+    [
+     0,
+     1,
+     "そら"
+    ],
+    [
+     2,
+     3,
+     "うみ"
+    ]
+   ],
+   "見上げる": [
+    [
+     0,
+     2,
+     "みあ"
+    ]
+   ]
+  },
+  "views": {
+   "doc": {
+    "meta": {},
+    "lines": [
+     {
+      "kind": "lyric",
+      "text": "空っぽの部屋",
+      "singer": null,
+      "rubies": [
+       {
+        "start": 0,
+        "end": 1,
+        "reading": "から"
+       }
+      ],
+      "translation": "",
+      "segments": [
+       {
+        "text": "空",
+        "start": 0,
+        "end": 1,
+        "ruby": "から",
+        "manual": true
+       },
+       {
+        "text": "っぽの",
+        "start": 1,
+        "end": 4,
+        "ruby": null,
+        "manual": false
+       },
+       {
+        "text": "部屋",
+        "start": 4,
+        "end": 6,
+        "ruby": "へや",
+        "manual": false
+       }
+      ]
+     },
+     {
+      "kind": "lyric",
+      "text": "空と海",
+      "singer": null,
+      "rubies": [
+       {
+        "start": 0,
+        "end": 1,
+        "reading": "そら"
+       }
+      ],
+      "translation": "",
+      "segments": [
+       {
+        "text": "空",
+        "start": 0,
+        "end": 1,
+        "ruby": "そら",
+        "manual": true
+       },
+       {
+        "text": "と",
+        "start": 1,
+        "end": 2,
+        "ruby": null,
+        "manual": false
+       },
+       {
+        "text": "海",
+        "start": 2,
+        "end": 3,
+        "ruby": "うみ",
+        "manual": false
+       }
+      ]
+     },
+     {
+      "kind": "lyric",
+      "text": "見上げる",
+      "singer": null,
+      "rubies": [
+       {
+        "start": 0,
+        "end": 2,
+        "reading": "みあ"
+       }
+      ],
+      "translation": "",
+      "segments": [
+       {
+        "text": "見上",
+        "start": 0,
+        "end": 2,
+        "ruby": "みあ",
+        "manual": true
+       },
+       {
+        "text": "げる",
+        "start": 2,
+        "end": 4,
+        "ruby": null,
+        "manual": false
+       }
+      ]
+     },
+     {
+      "kind": "lyric",
+      "text": "見上げる",
+      "singer": null,
+      "rubies": [
+       {
+        "start": 0,
+        "end": 2,
+        "reading": "みあ"
+       }
+      ],
+      "translation": "",
+      "segments": [
+       {
+        "text": "見上",
+        "start": 0,
+        "end": 2,
+        "ruby": "みあ",
+        "manual": true
+       },
+       {
+        "text": "げる",
+        "start": 2,
+        "end": 4,
+        "ruby": null,
+        "manual": false
+       }
+      ]
+     }
+    ],
+    "language": "ja"
+   },
+   "text": "空{から}っぽの部屋\n空{そら}と海\n見上{みあ}げる\n見上{みあ}げる\n",
+   "paren": [],
+   "annotated": "空{から}っぽの部屋{へや}\n空{そら}と海{うみ}\n見上{みあ}げる\n見上{みあ}げる\n",
+   "plain": "空っぽの部屋\n空と海\n見上げる\n見上げる\n"
+  },
+  "annotated": "空{から}っぽの部屋{へや}\n空{そら}と海{うみ}\n見上{みあ}げる\n見上{みあ}げる\n",
+  "from_annotated": {
+   "meta": {},
+   "lines": [
+    {
+     "kind": "lyric",
+     "text": "空っぽの部屋",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "空と海",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "見上げる",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "見上げる",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    }
+   ]
+  },
+  "edited": "空{から}っぽの部屋{へや}\n空{くう}と海{うみ}\n見上{みあ}げる\n見上{みあ}げる\n",
+  "from_edited": {
+   "meta": {},
+   "lines": [
+    {
+     "kind": "lyric",
+     "text": "空っぽの部屋",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "空と海",
+     "singer": null,
+     "rubies": [
+      {
+       "start": 0,
+       "end": 1,
+       "reading": "くう"
+      }
+     ],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "見上げる",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "見上げる",
+     "singer": null,
+     "rubies": [],
+     "translation": ""
+    }
+   ]
+  }
+ }
+]

@@ -214,12 +214,13 @@ container 透過 bind mount 存取 APFS，clone 和硬連結能不能用要在 M
 `cache/readings.jsonl`，每行一筆：
 
 ```json
-{"k": "<sha256(language \x1f 句子 \x1f versions.reading)>", "spans": [{"start": 0, "end": 2, "ruby": "きょう"}]}
+{"k": "<sha256(language \x1f 句子 \x1f versions.reading)>", "v": 1, "spans": [{"start": 0, "end": 2, "ruby": "きょう"}]}
 ```
 
 - 值是 AI `reading` 任務對一句的回傳：只有自動讀音（見 worker-protocol.md）；手動讀音在 NAS 合併
 - 啟動時全部讀進記憶體（量很小：上千句也只有幾百 KB）；新增時附加一行
-- `versions.reading` 變了，舊的自然對不上，過一陣子用不到的會在壓縮時丟掉（檔案超過一定大小時重寫，只留最近用過的）
+- `v` 是當時的 `versions.reading`：改版後啟動時丟掉舊版的行並重寫檔案（寫到一半的行也一併丟掉）
+- 目前只有日文有自動讀音；台語、粵語全部手動標，中文、英文不顯示讀音
 
 ## 資料備份（data/ git repo）
 

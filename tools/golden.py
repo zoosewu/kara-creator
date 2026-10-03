@@ -30,7 +30,7 @@ for _name in ("SONG_OUTPUT_DIR", "SONG_LYRICS_DIR", "SONG_DATA_DIR", "SONG_HOOKS
     os.environ[_name] = str(_tmp / _name.lower())
 sys.path.insert(0, str(ROOT / "ui"))
 
-from songtool import catalog, karaoke, lyrics, manifest, titles  # noqa: E402
+from songtool import catalog, karaoke, lyrics, manifest, reading, titles  # noqa: E402
 import server as v1_server  # noqa: E402
 from migrate import fingerprint  # noqa: E402
 
@@ -376,6 +376,39 @@ def gen_shift_timing() -> list[dict]:
     return cases
 
 
+READING_CASES = [
+    ("ja", "# title: 編的歌\n[女] 空を見上げて歩いた日々\n> 抬頭看著天空走過的日子\n君の声{こえ}は私{わたし}の灯り\n{本気|マジ}で笑った\n# 副歌\n\n明日{あした}へ 走り出す\n"),
+    ("ja", "運命(さだめ)を信じて\n今日も明日も\n"),
+    ("", "風が吹く丘の上で\n花{はな}が咲いた\n"),
+    ("", "自己編的中文歌詞\n第二句\n> 翻譯\n"),
+    ("nan", "[男] 你佇{tī}遮\n[女] 阮{gún}佇遐\n心肝{sim-kuann}寶貝\n"),
+    ("yue", "我哋一齊{jat1 cai4}行\n"),
+    ("en", "Made up English line\nanother line\n"),
+    ("ja", ""),
+    ("ja", "全部ひらがなのうた\nカタカナモアル\n漢字だけ\n"),
+    ("ja", "空{から}っぽの部屋\n空{そら}と海\n{見上|みあ}げる\n見上{みあ}げる\n"),
+]
+
+
+def gen_readings() -> list[dict]:
+    out = []
+    for language, text in READING_CASES:
+        doc = lyrics.parse(text)
+        auto = {ln.text: [list(sp) for sp in reading._auto_furigana(ln.text)] for ln in doc.lyric_lines}
+        views = v1_server._lyrics_views(doc, language or None)
+        annotated = views["annotated"]
+        # 標註原文改一個讀音再轉回來：和自動讀音相同的不算手動
+        edited = annotated.replace("{そら}", "{くう}", 1)
+        back = v1_server._from_annotated(annotated, language or None)
+        back_edited = v1_server._from_annotated(edited, language or None)
+        for ln in lyrics.parse(edited).lyric_lines + lyrics.parse(annotated).lyric_lines:
+            auto.setdefault(ln.text, [list(sp) for sp in reading._auto_furigana(ln.text)])
+        out.append({"language": language, "text": text, "auto": auto, "views": views,
+                    "annotated": annotated, "from_annotated": lyrics.to_dict(back),
+                    "edited": edited, "from_edited": lyrics.to_dict(back_edited)})
+    return out
+
+
 GENERATORS = {
     "lyrics_parse": gen_lyrics_parse,
     "paren": gen_paren,
@@ -386,6 +419,7 @@ GENERATORS = {
     "fingerprint": gen_fingerprint,
     "catalog": gen_catalog,
     "shift_timing": gen_shift_timing,
+    "readings": gen_readings,
 }
 
 
