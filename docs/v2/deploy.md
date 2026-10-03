@@ -79,7 +79,18 @@ go run ./nas/cmd/kara-nas --library <暫存曲庫> --listen 127.0.0.1:8766 &
 go run ./nas/cmd/fakeworker --nas http://127.0.0.1:8766 --delay 2s
 ```
 
-container 通常沒有 GPU：worker 的整合測試用 CPU 跑短的測試音訊（慢但可以），真的 GPU 驗證留給使用者的 PC（見下）。
+開發 container 是 DooD（Docker outside of Docker，主機是使用者 PC 上的 Docker Desktop + WSL2），**可以直接建立 container，
+而且主機有 nvidia runtime（RTX 4070 Ti SUPER）**：GPU 驗證可以在這裡做。
+
+- repo 在 docker volume `zoo_volume`（掛在 `/workspace`），其他 container 用 `-v zoo_volume:/workspace` 拿到同一份程式
+- 開發 container 在預設的 bridge 網路（172.17.0.2）：NAS 監聽 `0.0.0.0:<port>`，worker container 連 `http://172.17.0.2:<port>`
+- 開發用的 worker 映像：沿用主機上已有的 `yanwk/comfyui-boot:cu130-megapak-pt211`（Python 3.13 + PyTorch 2.11 cu130 + ffmpeg/NVENC），
+  只補裝 demucs、stable-ts 等小套件；模型放 volume `kara-models`、快取放 `kara-ai-cache`
+  ```sh
+  docker run -d --name kara-ai-dev --gpus all -v zoo_volume:/workspace -v kara-models:/models -v kara-ai-cache:/cache \
+    -w /workspace/kara-creator kara-ai-dev ai/worker.py --nas http://172.17.0.2:8799 --name gpu-4070
+  ```
+- 網路：GitHub 下載很慢（約 0.5 MB/s），Whisper 模型（Azure）、PyPI 快；YouTube 需要 JavaScript runtime（沒有 deno 時用 node）
 
 ## 測試策略
 
