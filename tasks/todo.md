@@ -55,3 +55,17 @@
   - `go.mod` 放在 repo 根目錄（go:embed 不能讀上層目錄的 versions.json）
   - `reading` 任務只回傳自動讀音、不收手動讀音（快取 key 才能和手動讀音無關），手動讀音由 NAS 合併
 
+
+### 階段 1（2026-10-03，進行中：剩 restore）
+
+- 驗證：25 個套件的測試全部通過（`go test -race ./...`）；黃金測試涵蓋歌詞、括號讀音、語言、difflib、原始歌詞對應、
+  標題辨識、指紋（Go ↔ Python）、拖曳排序、shift_timing、讀音合併與編輯器檢視、匯出檔名；
+  端對端測試 `api.TestEndToEnd`：假的 yt-dlp + 假的 worker 跑完下載 → 去人聲 → 對時 → 燒錄 → 檢查 → 匯出 → 備份；
+  實際執行檔冒煙測試（--init 檢查、worker 連線、API 文件）
+- 和規格不同、已寫回 docs/v2 的地方：
+  - 成品指紋多了 `reading`（日文假名由 worker 燒錄時算）；字型用 id = sha256:index（.ttc 一個檔案有好幾個字型）
+  - render 的樣式參數只傳字幕大小；RenderStage 多記 `content`（判斷手改的 ASS 還能不能沿用）
+  - alignment.json 多記 lyrics / language / method / model（AI 重對前檢查歌詞、資料備份還原用）
+  - 新歌的人聲是無損 FLAC，對時輸入和 v1 不同（搬遷過來的歌不受影響）
+  - 正在處理的歌不能手動調時間或改歌詞（409），避免處理完蓋掉
+- 踩到的坑記在 tasks/lessons.md（xh 的 stdin、寫檔工具的 \u 跳脫、PyInstaller 子程序）
