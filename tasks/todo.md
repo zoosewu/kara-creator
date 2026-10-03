@@ -28,8 +28,8 @@
 - [x] `difflib`：移植 Python `SequenceMatcher(autojunk=False).get_opcodes()` + `_from_plain`
 - [x] `titles`：標題辨識
 - [x] `fingerprint`：data.md 的指紋（Python 版也要，搬遷工具用）
-- [ ] `store`：`song.json`、`library.json`、原子寫入、`--init`、外接硬碟沒掛上時拒絕啟動
-- [ ] `library`：資料夾、順序（v1 `catalog.place`）、display_info
+- [x] `store`：`song.json`、`library.json`、原子寫入、`--init`、外接硬碟沒掛上時拒絕啟動
+- [x] `library`：資料夾、順序（v1 `catalog.place`）、display_info
 - [ ] `media`：ffprobe / ffmpeg 包裝（抽音軌、封裝、speech.wav、vocals.flac）
 - [ ] `timing`：`shift_timing`、AI 重對結果的套用
 - [ ] `readings`：讀音快取 + 手動 / 自動讀音合併（v1 `reading.furigana`）

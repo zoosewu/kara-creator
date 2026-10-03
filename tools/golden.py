@@ -30,7 +30,7 @@ for _name in ("SONG_OUTPUT_DIR", "SONG_LYRICS_DIR", "SONG_DATA_DIR", "SONG_HOOKS
     os.environ[_name] = str(_tmp / _name.lower())
 sys.path.insert(0, str(ROOT / "ui"))
 
-from songtool import lyrics, titles  # noqa: E402
+from songtool import catalog, lyrics, titles  # noqa: E402
 import server as v1_server  # noqa: E402
 from migrate import fingerprint  # noqa: E402
 
@@ -270,6 +270,77 @@ def gen_fingerprint() -> dict:
     return {"lyrics": lyric_cases, "alignment": align_cases, "ms": ms_cases, "items": items_cases, "stages": stage_cases}
 
 
+def gen_catalog() -> list[dict]:
+    """隨機的曲庫操作序列。v1 每次修改都重新讀檔（catalog.edit），所以每一步都存檔再讀回，同號時的順序才和 v1 相同。"""
+    rng = random.Random(7)
+    counter = iter(range(10**9))
+
+    class _Hex:
+        def __init__(self):
+            self.hex = f"{next(counter):08x}" + "0" * 24
+
+    catalog.uuid.uuid4 = _Hex
+    names = ["日文", "中文", "  空白  名稱 ", "", "a", "A", "b", "新資料夾", "子"]
+    sequences = []
+    for _ in range(60):
+        cat = catalog.Catalog()
+        steps = []
+        for _ in range(rng.randint(5, 40)):
+            folders = list(cat.folders)
+            songs = list(cat.songs)
+            fid = lambda: rng.choice(folders + [None, "missing"]) if rng.random() < 0.9 else None  # noqa: E731
+            sid = lambda: rng.choice(songs + ["missing"]) if songs else "missing"  # noqa: E731
+            kind = rng.choice(["add_folder", "add_folder", "update_folder", "delete_folder", "ensure_song", "ensure_song",
+                               "ensure_song", "update_song", "place", "place", "place", "place"])
+            if kind == "add_folder":
+                op = {"op": kind, "name": rng.choice(names), "parent": fid(), "number": rng.choice([None, None, 1, 2, 5])}
+            elif kind == "update_folder":
+                op = {"op": kind, "id": fid(), "name": rng.choice([None, rng.choice(names)]),
+                      "number": rng.choice([None, None, 0, 1, 3]), "set_parent": rng.random() < 0.5, "parent": fid()}
+            elif kind == "delete_folder":
+                op = {"op": kind, "id": fid()}
+            elif kind == "ensure_song":
+                op = {"op": kind, "key": f"song{rng.randint(0, 15):02d}", "folder": fid()}
+            elif kind == "update_song":
+                op = {"op": kind, "key": sid(), "set_folder": rng.random() < 0.6, "folder": fid(),
+                      "number": rng.choice([None, None, 1, 2, 4, -1])}
+            else:
+                which = rng.choice(["folder", "song"])
+                item = fid() if which == "folder" else sid()
+                pool = folders if which == "folder" else songs
+                op = {"op": kind, "kind": which, "id": item, "parent": fid(),
+                      "before": rng.choice([None] + pool + ["missing"]) if pool else None}
+            error = None
+            try:
+                if op["op"] == "add_folder":
+                    op["new_id"] = cat.add_folder(op["name"], op["parent"], op["number"]).id
+                elif op["op"] == "update_folder":
+                    kw = {"name": op["name"], "number": op["number"]}
+                    if op["set_parent"]:
+                        kw["parent"] = op["parent"]
+                    cat.update_folder(op["id"], **kw)
+                elif op["op"] == "delete_folder":
+                    cat.delete_folder(op["id"])
+                elif op["op"] == "ensure_song":
+                    cat.ensure_song(op["key"], op["folder"])
+                elif op["op"] == "update_song":
+                    kw = {"number": op["number"]}
+                    if op["set_folder"]:
+                        kw["folder"] = op["folder"]
+                    cat.update_song(op["key"], **kw)
+                else:
+                    cat.place(op["kind"], op["id"], op["parent"], op["before"])
+            except (KeyError, ValueError) as exc:
+                error = exc.args[0]
+            state = cat.to_dict()
+            cat = catalog.Catalog.from_dict(state)
+            steps.append({"op": op, "error": error,
+                          "folders": state["folders"],
+                          "songs": {k: {"folder": v["folder"], "number": v["number"]} for k, v in state["songs"].items()}})
+        sequences.append(steps)
+    return sequences
+
+
 GENERATORS = {
     "lyrics_parse": gen_lyrics_parse,
     "paren": gen_paren,
@@ -278,6 +349,7 @@ GENERATORS = {
     "lyrics_plain": gen_lyrics_plain,
     "titles": gen_titles,
     "fingerprint": gen_fingerprint,
+    "catalog": gen_catalog,
 }
 
 

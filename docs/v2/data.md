@@ -46,7 +46,8 @@ id 決定資料夾名稱，之後不會改變。歌名、資料夾、順序都�
 
 ## song.json
 
-所有寫入都用「寫暫存檔再改名」（v1 `manifest.write` 的做法）。欄位：
+所有寫入都用「寫暫存檔再改名」（v1 `manifest.write` 的做法）。檔案一律記 `{name, size, mtime_ns, sha256}`：
+大小與修改時間都沒變就沿用 sha256，否則重算（修改時間只用來省掉重算，不進指紋）。欄位：
 
 ```jsonc
 {
@@ -54,18 +55,16 @@ id 決定資料夾名稱，之後不會改變。歌名、資料夾、順序都�
   "id": "dQw4w9WgXcQ",
   "source": {
     "kind": "url",                    // url | local
-    "url": "https://www.youtube.com/watch?v=…",   // local 時為 null
+    "url": "https://www.youtube.com/watch?v=…",   // local 時省略
     "extractor": "Youtube",
     "video_id": "dQw4w9WgXcQ",
-    "title": "影片原始標題",
+    "title": "影片原始標題",           // local 時是檔名（不含副檔名）
     "uploader": "…", "channel": "…", "track": "…", "artists": ["…"],   // 標題辨識用（v1 download.json 的欄位）
     "duration": 213.4,
     "mode": "video",                  // video | audio
-    "file": "source.mp4",
     "original_name": "手動放入時的原始檔名.mp4",   // 只有 local
-    "size": 12345678,
-    "sha256": "…",                    // 檔案內容；size 或修改時間變了才重算（修改時間只用來決定要不要重算，不進指紋）
-    "width": 1920, "height": 1080,    // ffprobe；純音訊為 null
+    "file": { "name": "source.mp4", "size": 12345678, "mtime_ns": 0, "sha256": "…" },
+    "width": 1920, "height": 1080,    // ffprobe；純音訊時省略
     "added_at": "2026-10-03T12:00:00+08:00",
     "meta_version": 1
   },
@@ -81,8 +80,8 @@ id 決定資料夾名稱，之後不會改變。歌名、資料夾、順序都�
   "stages": {
     "separate": {
       "key": "…",                     // 指紋，見下
-      "instrumental": { "file": "instrumental.mp4", "size": 0, "sha256": "…" },
-      "vocals":       { "file": "vocals.flac",      "size": 0, "sha256": "…" },
+      "instrumental": { "name": "instrumental.mp4", "size": 0, "mtime_ns": 0, "sha256": "…" },
+      "vocals":       { "name": "vocals.flac",      "size": 0, "mtime_ns": 0, "sha256": "…" },
       "worker": "pc-4070", "done_at": "…"
     },
     "align": {                        // 對時本身存在 alignment.json；這裡只記狀態
@@ -91,8 +90,8 @@ id 決定資料夾名稱，之後不會改變。歌名、資料夾、順序都�
     "render": {
       "instrumental": {               // 每個 target 一份
         "key": "…",
-        "ass": { "file": "karaoke.ass", "sha256": "…", "manual": false },
-        "video": { "file": "karaoke.mp4", "size": 0, "sha256": "…" },
+        "ass": { "name": "karaoke.ass", "size": 0, "mtime_ns": 0, "sha256": "…", "manual": false },
+        "video": { "name": "karaoke.mp4", "size": 0, "mtime_ns": 0, "sha256": "…" },
         "worker": "…", "done_at": "…"
       }
     },

@@ -15,6 +15,7 @@ import (
 
 	"github.com/zoosewu/kara-creator/nas/internal/api"
 	"github.com/zoosewu/kara-creator/nas/internal/config"
+	"github.com/zoosewu/kara-creator/nas/internal/store"
 )
 
 func main() {
@@ -32,13 +33,19 @@ func main() {
 }
 
 func run(cfg config.Config) error {
+	st, err := store.Open(cfg.Library, cfg.Init)
+	if err != nil {
+		return err
+	}
+	log.Printf("曲庫：%s（%d 首歌）", st.Root(), len(st.SongIDs()))
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	srv := &http.Server{Addr: cfg.Listen, Handler: api.Handler(), ReadHeaderTimeout: 10 * time.Second}
 	errc := make(chan error, 1)
 	go func() { errc <- srv.ListenAndServe() }()
-	log.Printf("NAS 伺服器啟動：%s（曲庫 %s）", cfg.Listen, cfg.Library)
+	log.Printf("NAS 伺服器啟動：%s", cfg.Listen)
 
 	select {
 	case err := <-errc:
