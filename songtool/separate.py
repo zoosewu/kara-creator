@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-from . import config, manifest
+from . import ai, config, manifest
 from .media import VIDEO_EXTS, Cancelled, extract_wav, has_video_stream, mux
 
 _PERCENT = re.compile(r"(\d+)%\|")
@@ -155,7 +155,10 @@ def _separate(src: Path, out_dir: Path, opts: SeparateOptions,
         log("  . 抽取音軌...")
         extract_wav(src, wav)
 
-        stem_dir = _run_demucs(wav, tmp / "demucs", opts, log, progress, should_stop)
+        # Demucs 交給 AI 伺服器（或 local 模式時在這個行程）執行，這裡只負責抽音軌與封裝。
+        stem_dir = ai.separate(wav, tmp / "demucs", stems=opts.stems, model=opts.model, device=opts.device,
+                               shifts=opts.shifts, jobs=opts.jobs, log=log, progress=progress,
+                               should_stop=should_stop)
 
         for stem_file in sorted(stem_dir.glob("*.wav")):
             label = STEM_LABELS.get(stem_file.stem, stem_file.stem)

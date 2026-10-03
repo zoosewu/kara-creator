@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""本機網頁 UI。預設只監聽 127.0.0.1（--lan 開放區域網路），所有處理都透過 songtool 完成。
+"""歌曲伺服器（網頁 UI）。預設只監聽 127.0.0.1（--lan 開放區域網路），所有處理都透過 songtool 完成。
+用到 AI 模型的步驟（去人聲、對時、對時檢查）交給 AI 伺服器（ai/server.py），見 songtool/ai.py。
 
     python ui/server.py              # 啟動並開啟瀏覽器
     python ui/server.py --port 9000 --no-browser
     python ui/server.py --lan        # 開放同一個區域網路的其他裝置連線
+    python ui/server.py --ai http://192.168.1.20:8770   # AI 伺服器在另一台電腦
 """
 from __future__ import annotations
 
@@ -28,8 +30,8 @@ from fastapi.responses import FileResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
-from songtool import (backup, catalog, config, export, hooks, karaoke, lyrics, manifest, qa, reading,  # noqa: E402
-                      settings, titles)
+from songtool import (ai, backup, catalog, config, export, hooks, karaoke, lyrics, manifest, net, qa,  # noqa: E402
+                      reading, settings, titles)
 from songtool.download import refresh_metadata  # noqa: E402
 from songtool.local import import_local  # noqa: E402
 from songtool.download import Download, list_downloads  # noqa: E402
@@ -225,6 +227,7 @@ def state() -> dict:
         "jobs": jobs.list(),
         "export_dir": str(config.EXPORT_DIR),
         "settings": {**settings.load(), "subtitle_ratio": karaoke.subtitle_ratio()},
+        "ai": ai.status(),     # AI 伺服器的連線狀態
     }
 
 
@@ -659,27 +662,6 @@ class _QuietShutdown(logging.Filter):
                     or "timeout graceful shutdown exceeded" in text)
 
 
-def _lan_addresses() -> list[str]:
-    """這台電腦在區域網路上的 IPv4 位址（給其他裝置連線用）。"""
-    import socket
-    found = []
-    try:
-        # 不會真的送出封包，只是讓系統挑出對外的網路介面。
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-            sock.connect(("10.255.255.255", 1))
-            found.append(sock.getsockname()[0])
-    except OSError:
-        pass
-    try:
-        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
-            ip = info[4][0]
-            if not ip.startswith("127.") and ip not in found:
-                found.append(ip)
-    except OSError:
-        pass
-    return found
-
-
 def main() -> None:
     import uvicorn
 
@@ -688,12 +670,20 @@ def main() -> None:
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--lan", action="store_true",
                         help="開放區域網路裡的其他裝置連線（預設只有本機能開）")
+    parser.add_argument("--ai", default=os.environ.get("SONG_AI_URL") or ai.DEFAULT_URL,
+                        help=f"AI 伺服器（ai.ps1）的網址，預設 {ai.DEFAULT_URL}；local = 在這個行程裡直接執行"
+                             "（也可以用環境變數 SONG_AI_URL）")
+    parser.add_argument("--ai-token", default=os.environ.get("SONG_AI_TOKEN"),
+                        help="AI 伺服器的連線密碼（AI 伺服器的 --token；也可以用環境變數 SONG_AI_TOKEN）")
     args = parser.parse_args()
+    backend = ai.configure(args.ai, args.ai_token)
 
     url = f"http://127.0.0.1:{args.port}/"
     print(f"song UI：{url}（Ctrl+C 結束）", flush=True)
+    print(f"  AI 伺服器：{backend.url}" + ("（在這個行程裡執行）" if backend.url == "local" else
+                                       "（去人聲、對時、檢查交給它；還沒啟動的話請執行 ai.ps1）"), flush=True)
     if args.lan:
-        for ip in _lan_addresses():
+        for ip in net.lan_addresses():
             print(f"  區域網路：http://{ip}:{args.port}/", flush=True)
         print("  注意：同一個網路裡的人都能操作曲庫、修改歌詞與排入處理；"
               "第一次開放時 Windows 防火牆會詢問，請只允許「私人網路」。", flush=True)

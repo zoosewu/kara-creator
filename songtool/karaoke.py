@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-from . import align, ass, catalog, config, lyrics as lyrics_mod, manifest, qa, reading, settings, titles
+from . import ai, align, ass, catalog, config, lyrics as lyrics_mod, manifest, qa, reading, settings, titles
 from .download import Download
 from .config import FFMPEG
 from .media import Cancelled, run_cancellable, video_size
@@ -165,7 +165,7 @@ def make(item: Download, opts: KaraokeOptions | None = None, *,
          log: Callable[[str], None] = print,
          should_stop: Callable[[], bool] | None = None) -> KaraokeResult:
     """should_stop() 為真時在下一個安全點中斷並拋出 media.Cancelled。
-    對時本身無法中途打斷，會在對時完成後才停下（對時結果仍會保存，下次可沿用）。"""
+    對時交給 AI 伺服器，取消時不必等它做完（AI 伺服器做完這一步後會丟掉結果）。"""
     opts = opts or KaraokeOptions()
     out_dir = output_dir(item)
     lyrics_path = lyrics_mod.find(item)
@@ -222,8 +222,8 @@ def _make(item: Download, lyr: lyrics_mod.Lyrics, out_dir: Path,
             log(f"  . 逐字對時中（CTC，{catalog.LANGUAGES.get(language, language)}）...")
         else:
             log(f"  . 逐字對時中（whisper {opts.whisper_model}, 語言 {language or '自動'}）...")
-        lines = align.align(vocals, lyr, model_name=opts.whisper_model, language=language,
-                            device=opts.device, log=log)
+        lines = ai.align_song(vocals, lyr.lines, lyr.rubies, model_name=opts.whisper_model, language=language,
+                              device=opts.device, log=log, should_stop=should_stop)
         alignment = {"key": align_key, "lines": lines}
         manifest.write(out_dir / ALIGNMENT, alignment)
         changed = True
@@ -283,7 +283,8 @@ def _make(item: Download, lyr: lyrics_mod.Lyrics, out_dir: Path,
 
     # 對時品質檢查（本機獨立聽寫比對）；對時沒變且已檢查過就略過。檢查失敗不影響成品。
     check()
-    _run_qa(item, lyr, alignment, vocals, language, opts.whisper_model, opts.device, out_dir, log)
+    _run_qa(item, lyr, alignment, vocals, language, opts.whisper_model, opts.device, out_dir, log,
+            should_stop=should_stop)
 
     # 這次沒要求的舊成品一併移除，避免留下過期檔案。
     for target, old in record.get("videos", {}).items():
@@ -478,8 +479,8 @@ def retime(item: Download, line: int, mode: str, *, log: Callable[[str], None] =
     log(f"  . {RETIME_MODES[mode]}：第 {line + 1} 句，從 {anchor:.2f}s 開始")
     _remember_baseline(item, lines)
     if mode == "from":
-        new = align.align_from(vocals, lyr, line, anchor, model_name=key.get("model", "large-v3"),
-                               language=key.get("language"), device="auto", log=log)
+        new = ai.align_from(vocals, lyr.lines, lyr.rubies, line, anchor, model_name=key.get("model", "large-v3"),
+                            language=key.get("language"), log=log, should_stop=should_stop)
         if line:
             # 上一句的尾音不能拖過新的起點。
             prev = lines[line - 1]
@@ -489,8 +490,8 @@ def retime(item: Download, line: int, mode: str, *, log: Callable[[str], None] =
         lines[line:] = new
     else:
         nxt = lines[line + 1]["start"] if line + 1 < len(lines) else None
-        lines[line] = align.align_line(vocals, lyr.lines[line], lyr.rubies[line], anchor, nxt,
-                                       language=key.get("language"), device="auto")
+        lines[line] = ai.align_line(vocals, lyr.lines[line], lyr.rubies[line], anchor, nxt,
+                                    language=key.get("language"), log=log, should_stop=should_stop)
     alignment.setdefault("adjustments", []).append(
         {"line": line, "text": lines[line]["text"], "retime": mode, "anchor": anchor, "at": manifest.now()})
     manifest.write(path, alignment)
@@ -513,20 +514,28 @@ def check_timing(item: Download, *, log: Callable[[str], None] = print,
     vocals, _ = _ensure_separated(item, log, should_stop)
     key = alignment["key"]
     return _run_qa(item, lyrics_mod.load(lyrics_path), alignment, vocals, key.get("language"),
-                   key.get("model", "large-v3"), "auto", out_dir, log, force=force)
+                   key.get("model", "large-v3"), "auto", out_dir, log, force=force, should_stop=should_stop,
+                   strict=True)
 
 
 def _run_qa(item: Download, lyr: lyrics_mod.Lyrics, alignment: dict, vocals: Path,
             language: str | None, model_name: str, device: str, out_dir: Path,
-            log: Callable[[str], None], force: bool = False) -> dict | None:
+            log: Callable[[str], None], force: bool = False,
+            should_stop: Callable[[], bool] | None = None, strict: bool = False) -> dict | None:
+    """strict=False（製作伴唱帶的最後一步）：檢查失敗只記在紀錄裡，不影響成品；
+    strict=True（單獨檢查）：失敗就讓這件工作失敗。"""
     path = out_dir / qa.QA_FILE
     old = manifest.read(path)
     if not force and old and old.get("key") == qa.key_of(alignment["lines"]):
         return old
     try:
-        doc = qa.check(alignment["lines"], lyr.lines, lyr.rubies, vocals, language,
-                       model_name=model_name, device=device, log=log)
+        doc = ai.check(alignment["lines"], lyr.lines, lyr.rubies, vocals, language,
+                       model_name=model_name, device=device, log=log, should_stop=should_stop)
+    except Cancelled:
+        raise
     except Exception as exc:
+        if strict:
+            raise
         log(f"  [!] 對時檢查失敗（不影響伴唱帶）：{exc}")
         return None
     doc["checked_at"] = manifest.now()

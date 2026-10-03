@@ -718,3 +718,6 @@ ruby.slot rt { color: var(--border); }
 .pv-trans { left: 0; right: 0; top: 5%; text-align: center; font-size: calc(var(--fs) * 0.6); color: #ffe08a; }
 .pv-sung { color: #1e90ff; }
 .studio-follow { padding: 10px 16px 6px; color: var(--muted); }
+.ai-status { margin-left: 10px; font-size: 12px; font-weight: 400; white-space: nowrap; }
+.ai-status.on { color: var(--muted); }
+.ai-status.off { color: var(--err); }

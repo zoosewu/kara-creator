@@ -113,7 +113,7 @@ function remember() {
 
 async function loadState() {
   const data = await api("/api/state");
-  Object.assign(state, { items: data.items, folders: data.folders, jobs: data.jobs, settings: data.settings });
+  Object.assign(state, { items: data.items, folders: data.folders, jobs: data.jobs, settings: data.settings, ai: data.ai });
   if (state.folder && !folderById(state.folder)) state.folder = null;  // 資料夾被刪掉了
   const keys = new Set(data.items.map((i) => i.key));
   for (const k of state.selected) if (!keys.has(k)) state.selected.delete(k);  // 歌曲不見了
@@ -125,7 +125,7 @@ async function loadState() {
       renderLibrary();
     }
   }
-  const jobsKey = JSON.stringify(data.jobs);
+  const jobsKey = JSON.stringify([data.jobs, data.ai]);
   if (jobsKey !== state.jobsKey) {
     state.jobsKey = jobsKey;
     renderJobs();
@@ -1154,10 +1154,27 @@ function renderJobs() {
     const jobs = state.jobs.filter((j) => (j.lane || "process") === lane);
     if (lane === "system" && !jobs.length) continue;
     const active = jobs.filter((j) => j.status === "queued" || j.status === "running").length;
-    box.append(el("div", { class: "lane-head", title: tip }, name,
+    box.append(el("div", { class: "lane-head", title: tip },
+      el("span", {}, name, lane === "process" ? aiStatus() : null),
       el("span", { class: "muted" }, active ? `${active} 件進行中` : "閒置")));
     for (const job of jobs) box.append(renderJob(job));
   }
+}
+
+/** AI 伺服器（ai.ps1）的連線狀態，顯示在「AI 處理」佇列標題旁。 */
+function aiStatus() {
+  const ai = state.ai;
+  if (!ai || ai.local) return null;
+  if (ai.checking) return el("span", { class: "ai-status muted" }, "AI 伺服器：連線中…");
+  if (!ai.online) {
+    return el("span", { class: "ai-status off", title: `${ai.url}
+${ai.error || ""}` },
+      "AI 伺服器沒有連上", el("span", { class: "muted" }, ai.error?.includes("版本") ? "（版本不同）" : "（請執行 ai.ps1）"));
+  }
+  const where = /\/\/(127\.0\.0\.1|localhost)[:/]/.test(ai.url) ? "本機" : ai.url.replace(/^https?:\/\//, "");
+  return el("span", { class: "ai-status on", title: `${ai.url}
+${ai.gpu || ai.device || ""}` },
+    `AI 伺服器：${where}`, ai.device === "cpu" ? el("span", { class: "muted" }, "（沒有顯示卡，較慢）") : null);
 }
 
 function renderJob(job) {
@@ -1188,7 +1205,7 @@ function renderJob(job) {
   el("span", { class: "job-sub ellipsis" + (cancellable ? " with-cancel" : "") }, `${steps}${mode} · ${sub}`),
   cancellable ? el("button", {
     type: "button", class: "job-cancel",
-    title: job.status === "queued" ? "移出佇列" : "中斷處理（對時進行中時會等對時完成才停下）",
+    title: job.status === "queued" ? "移出佇列" : "中斷處理",
     onclick: (e) => { e.stopPropagation(); cancelJob(job); },
   }, "取消") : null,
   bar);

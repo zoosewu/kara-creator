@@ -79,5 +79,6 @@ if (-not $DataRepo) {
 }
 
 Write-Host ""
-Write-Host "完成。啟動 UI：.\ui.ps1（區域網路：.\ui.ps1 --lan）"
+Write-Host "完成。啟動 AI 伺服器：.\ai.ps1；再開另一個視窗啟動 UI：.\ui.ps1（區域網路：.\ui.ps1 --lan）"
+Write-Host "AI 伺服器在另一台電腦時：那台執行 .\ai.ps1 --lan --token 密碼，這台 .\ui.ps1 --ai http://那台的位址:8770 --ai-token 密碼"
 Write-Host "從資料備份重建曲庫：.\.venv\Scripts\python.exe scripts\restore.py --make"
