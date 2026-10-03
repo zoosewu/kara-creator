@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/zoosewu/kara-creator/nas/internal/proc"
 )
 
 // 副檔名。
@@ -156,7 +158,7 @@ var ErrCancelled = errors.New("已取消")
 
 // run 執行外部指令；ctx 結束時終止子程序。失敗時錯誤訊息帶 stderr 的最後一段。
 func (t Tools) run(ctx context.Context, name string, args ...string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := proc.Command(ctx, name, args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {

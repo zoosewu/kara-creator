@@ -14,3 +14,8 @@
 - Write / Edit 工具會把內容裡的 `\uXXXX` 轉成真正的字元（例如 `"﻿"` 變成 BOM，Go 編譯失敗）。
   程式碼裡需要特殊字元的跳脫寫法時，寫完用 `rg` / `od -c` 確認，或用 `sd -F` 改成 `\u` 形式。
 - Go 的 `"\x85"` 是**一個位元組**，不是 U+0085；Unicode 字元一律寫 `"\u0085"`。
+
+## 外部程式
+
+- yt-dlp 單一執行檔（PyInstaller）會再開子程序；`exec.CommandContext` 只結束最上層，子程序會留著並佔住輸出管線，
+  讀輸出的程式就卡住。一律用 `nas/internal/proc.Command`（自成 process group、取消時整組結束、`WaitDelay`）。
