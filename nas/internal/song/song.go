@@ -128,11 +128,14 @@ type SeparateStage struct {
 	Vocals       FileRef `json:"vocals"`
 }
 
-// RenderStage 是一個成品的紀錄。
+// RenderStage 是一個成品的紀錄。Key 是燒錄時的成品指紋；Content 是當時「不看手動 ASS」的指紋：
+// 使用者手改 ASS 之後，只要 Content 和現在的相同（對時、歌詞、標題畫面、樣式、字型都沒變）就沿用手改的 ASS，
+// 否則重新產生（手改的內容會被取代，同 v1）。
 type RenderStage struct {
 	Stage
-	ASS   ASSRef  `json:"ass"`
-	Video FileRef `json:"video"`
+	Content string  `json:"content"`
+	ASS     ASSRef  `json:"ass"`
+	Video   FileRef `json:"video"`
 }
 
 // ASSRef 是成品的字幕。Manual = 使用者用 Aegisub 改過（Q15），之後燒錄改用這份、不重新產生。

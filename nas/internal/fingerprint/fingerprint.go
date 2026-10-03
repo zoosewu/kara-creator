@@ -109,9 +109,9 @@ type RenderInput struct {
 	Scale        float64 // 字幕大小
 	Font         string  // 字型檔 sha256
 	Size         string  // 寬x高
-	Version      int    // versions.render
-	Reading      int    // versions.reading：日文的假名由 worker 燒錄時自己算，讀音規則改了成品也會變
-	ASS          string // 使用者手動改過的 ASS 的 sha256（沒有時為空）
+	Version      int     // versions.render
+	Reading      int     // versions.reading：日文的假名由 worker 燒錄時自己算，讀音規則改了成品也會變
+	ASS          string  // 使用者手動改過的 ASS 的 sha256（沒有時為空）
 }
 
 // Render 是成品（字幕 + 燒錄）的指紋：變了只重新產生字幕與燒錄。

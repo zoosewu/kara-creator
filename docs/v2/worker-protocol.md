@@ -122,7 +122,7 @@ Q9：協定和 worker 的參數保留 `--channels interactive`（只開即時通
   "singers": ["男", null, …],           // 句數和對時不符時為 []
   "translations": ["…", ""],            // 不燒時為 []
   "title_card": ["歌名", "演唱者", "備註"],   // 不顯示時為 [null, null]
-  "style": { "size_ratio": 0.075, … },  // ass.Style 的欄位（字幕大小已經乘進 size_ratio）
+  "scale": 1.0,                         // 字幕大小（1 = 100%）；worker 照 v1 subtitle_ratio 乘上預設樣式的字高比例
   "font": { "sha256": "…", "family": "Noto Sans CJK JP", "index": 0 },
   "encode": { "prefer": ["h264_nvenc", "libx264"] }   // v1 的參數：NVENC p5 cq23 / x264 medium crf18；音訊 aac 320k
 }

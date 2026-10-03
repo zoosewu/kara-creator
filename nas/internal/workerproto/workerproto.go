@@ -270,17 +270,17 @@ type Encode struct {
 // RenderParams：inputs.media 是伴奏影片（或原曲），inputs.ass（選填）是使用者手動改過的 ASS。
 // 上傳 karaoke.ass（沒有手動 ASS 時）與 video.mp4。
 type RenderParams struct {
-	Target       string          `json:"target"` // instrumental | original
-	Lines        []Line          `json:"lines"`
-	Texts        []string        `json:"texts"`
-	Rubies       [][]Ruby        `json:"rubies"`
-	Language     string          `json:"language"`
-	Singers      []*string       `json:"singers"`      // 句數和對時不符時為 []
-	Translations []string        `json:"translations"` // 不燒時為 []
-	TitleCard    []*string       `json:"title_card"`   // [歌名, 演唱者(, 備註)]；不顯示時 [null, null]
-	Style        json.RawMessage `json:"style"`        // ass.Style 的欄位
-	Font         Font            `json:"font"`
-	Encode       Encode          `json:"encode"`
+	Target       string    `json:"target"` // instrumental | original
+	Lines        []Line    `json:"lines"`
+	Texts        []string  `json:"texts"`
+	Rubies       [][]Ruby  `json:"rubies"`
+	Language     string    `json:"language"`
+	Singers      []*string `json:"singers"`      // 句數和對時不符時為 []
+	Translations []string  `json:"translations"` // 不燒時為 []
+	TitleCard    []*string `json:"title_card"`   // [歌名, 演唱者(, 備註)]；不顯示時 [null, null]
+	Scale        float64   `json:"scale"`        // 字幕大小（1 = 100%，worker 乘上預設字高比例）
+	Font         Font      `json:"font"`
+	Encode       Encode    `json:"encode"`
 }
 
 // RenderResult 是 render 的結果。
