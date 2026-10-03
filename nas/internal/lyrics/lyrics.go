@@ -349,3 +349,37 @@ func ParenToRuby(text string) string {
 	}
 	return strings.Join(lines, "\n")
 }
+
+// Sanitize 整理從 API 送來的結構（v1 lyrics.from_dict）：去掉空的讀音、不認得的演唱者，翻譯的空白收斂。
+func Sanitize(doc Document) Document {
+	out := Document{Meta: map[string]string{}, Lines: []Line{}}
+	for k, v := range doc.Meta {
+		if v != "" {
+			out.Meta[k] = v
+		}
+	}
+	for _, ln := range doc.Lines {
+		kind := ln.Kind
+		if kind == "" {
+			kind = KindLyric
+		}
+		rubies := []Ruby{}
+		for _, r := range ln.Rubies {
+			if pystr.Strip(r.Reading) != "" {
+				rubies = append(rubies, r)
+			}
+		}
+		var singer *string
+		if ln.Singer != nil {
+			for _, s := range Singers {
+				if *ln.Singer == s {
+					v := s
+					singer = &v
+				}
+			}
+		}
+		out.Lines = append(out.Lines, Line{Kind: kind, Text: ln.Text, Singer: singer, Rubies: rubies,
+			Translation: pystr.JoinFields(ln.Translation)})
+	}
+	return out
+}

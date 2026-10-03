@@ -42,8 +42,8 @@
 - [x] `backup`
 - [ ] `restore`（v2 與 v1 格式的備份）
 - [x] `fonts`：字型目錄（自己讀 name / OS/2 表）、預設字型、字型 id = sha256:index
-- [ ] `api`：huma REST + SSE + `openapi` 子命令
-- [ ] 完成條件：假的 worker 跑完「下載 → 去人聲 → 對時 → 燒錄 → 檢查」；黃金測試通過
+- [x] `app`（組裝、狀態快取、檔案監看、收尾、yt-dlp 自動更新）+ `api`：huma REST + SSE + 媒體 / 字型 + `openapi` 子命令
+- [x] 完成條件：假的 worker 跑完「下載 → 去人聲 → 對時 → 燒錄 → 檢查」（`api.TestEndToEnd`）；黃金測試通過
 
 ## 檢討
 

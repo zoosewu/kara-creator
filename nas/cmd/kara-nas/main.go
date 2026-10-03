@@ -1,4 +1,7 @@
 // kara-nas：伴唱帶工作室的 NAS 伺服器（曲庫、下載、排程、網頁 UI）。
+//
+//	kara-nas --library /library [--init]   啟動伺服器
+//	kara-nas openapi                       輸出 OpenAPI 規格（docs/openapi.json）
 package main
 
 import (
@@ -14,11 +17,19 @@ import (
 	"time"
 
 	"github.com/zoosewu/kara-creator/nas/internal/api"
+	"github.com/zoosewu/kara-creator/nas/internal/app"
 	"github.com/zoosewu/kara-creator/nas/internal/config"
-	"github.com/zoosewu/kara-creator/nas/internal/store"
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "openapi" {
+		data, err := api.OpenAPI()
+		if err != nil {
+			log.Fatal(err)
+		}
+		os.Stdout.Write(append(data, '\n'))
+		return
+	}
 	cfg, err := config.Parse(os.Args[1:], os.Getenv, os.Stderr)
 	if errors.Is(err, flag.ErrHelp) {
 		return
@@ -33,16 +44,17 @@ func main() {
 }
 
 func run(cfg config.Config) error {
-	st, err := store.Open(cfg.Library, cfg.Init)
+	a, err := app.New(cfg)
 	if err != nil {
 		return err
 	}
-	log.Printf("曲庫：%s（%d 首歌）", st.Root(), len(st.SongIDs()))
+	log.Printf("曲庫：%s（%d 首歌）", a.Store.Root(), len(a.Store.SongIDs()))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	a.Run(ctx)
 
-	srv := &http.Server{Addr: cfg.Listen, Handler: api.Handler(), ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{Addr: cfg.Listen, Handler: api.Handler(a), ReadHeaderTimeout: 10 * time.Second}
 	errc := make(chan error, 1)
 	go func() { errc <- srv.ListenAndServe() }()
 	log.Printf("NAS 伺服器啟動：%s", cfg.Listen)
@@ -55,9 +67,10 @@ func run(cfg config.Config) error {
 	log.Print("關閉中…")
 	shutdown, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	// SSE 等長連線不會自己結束，等不到就直接關。
+	// SSE、worker 的 long-poll 等長連線不會自己結束，等不到就直接關。
 	if err := srv.Shutdown(shutdown); err != nil {
 		srv.Close()
 	}
+	a.Shutdown()
 	return nil
 }
