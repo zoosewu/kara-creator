@@ -36,7 +36,7 @@ python ai/worker.py --nas http://mac-mini.local:8765 --name pc-4070 [--token …
 | `POST /worker/v1/lease` | 領任務（long-poll，最多等 25 秒）。body：`{instance, channel: "heavy" \| "interactive", cached: [最近新增的 sha256…]}`。有任務回 200 + 任務；沒有回 204 |
 | `POST /worker/v1/tasks/{id}/progress` | 心跳兼回報：`{instance, progress: 0–1 或 null, logs: ["…"]}`。回應 `{cancel: bool}`——NAS 要取消時在這裡告訴 worker |
 | `GET /worker/v1/blobs/{sha256}` | 下載輸入檔（支援 Range，斷線可以續傳）。只能取「派給這個 worker 的任務」列出的輸入檔 |
-| `PUT /worker/v1/tasks/{id}/files/{name}` | 上傳結果檔；NAS 邊收邊算 sha256，回傳 sha256 與大小。只接受任務規定的檔名 |
+| `PUT /worker/v1/tasks/{id}/files/{name}?instance=…` | 上傳結果檔；NAS 邊收邊算 sha256，回傳 sha256 與大小。只接受任務規定的檔名 |
 | `POST /worker/v1/tasks/{id}/complete` | 完成：`{instance, result: {…}, files: {name: sha256}}`。NAS 核對檔案 sha256 後套用結果 |
 | `POST /worker/v1/tasks/{id}/fail` | 失敗：`{instance, error: "給人看的繁中說明", retryable: bool}` |
 | `GET /worker/v1/fonts/{sha256}` | 下載字型檔（worker 缺字型時索取） |

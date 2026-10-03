@@ -34,7 +34,8 @@
 - [x] `timing`：`shift_timing`、AI 重對結果的套用
 - [x] `readings`：讀音快取 + 手動 / 自動讀音合併（v1 `reading.furigana`）
 - [x] `planner`：狀態判斷、下一步
-- [ ] `scheduler` + `workerapi`：工作、任務、優先順序、租約、改派、取消、持久化；用假的 worker 測
+- [x] `scheduler`：AI 任務佇列、/worker/v1 端點、優先順序、快取優先、租約、改派、取消（假的 worker 測）
+- [ ] `jobs` + `pipeline`：工作（使用者層級）、每首歌依序、下載 / 本機 ffmpeg 的並行上限、持久化、紀錄、收尾
 - [ ] `download`（假的 yt-dlp 測試）、`inbox`
 - [ ] `export`：clone → 硬連結 → 複製
 - [ ] `backup`、`restore`

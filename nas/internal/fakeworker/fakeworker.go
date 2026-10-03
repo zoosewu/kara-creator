@@ -176,7 +176,7 @@ func (w *worker) run(ctx context.Context, task wp.Task) {
 	shas := map[string]string{}
 	for name, data := range files {
 		var up wp.Uploaded
-		if _, err := w.do(tctx, http.MethodPut, "/tasks/"+task.ID+"/files/"+name, bytes.NewReader(data), &up); err != nil {
+		if _, err := w.do(tctx, http.MethodPut, "/tasks/"+task.ID+"/files/"+name+"?instance="+w.instance, bytes.NewReader(data), &up); err != nil {
 			w.opt.Logf("fakeworker：上傳 %s 失敗：%v", name, err)
 			return
 		}
