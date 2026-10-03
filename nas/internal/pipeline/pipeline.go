@@ -327,6 +327,7 @@ func (p *Pipeline) Karaoke(ctx context.Context, id string, opt KaraokeOptions, r
 	case r.RestoredUsable && !opt.Realign && !opt.Force:
 		al := in.Alignment.Clone()
 		al.Key, al.Lyrics, al.Restored = r.AlignFP, r.LyricsFP, nil
+		al.Language, al.Method, al.Model = r.Language, p.d.Versions.Align, planner.WhisperModel
 		if err := p.writeAlignment(id, al); err != nil {
 			return err
 		}
@@ -418,7 +419,8 @@ func (p *Pipeline) align(ctx context.Context, id string, in planner.Input, r pla
 	if err := json.Unmarshal(res.Raw, &out); err != nil {
 		return fmt.Errorf("AI 回傳的對時結果讀不懂：%w", err)
 	}
-	if err := p.writeAlignment(id, &timing.Alignment{Key: r.AlignFP, Lyrics: r.LyricsFP, Lines: out.Lines}); err != nil {
+	if err := p.writeAlignment(id, &timing.Alignment{Key: r.AlignFP, Lyrics: r.LyricsFP, Language: r.Language,
+		Method: p.d.Versions.Align, Model: planner.WhisperModel, Lines: out.Lines}); err != nil {
 		return err
 	}
 	return p.recordAlign(id, r.AlignFP, res.Worker)

@@ -17,8 +17,11 @@ import (
 
 // Alignment 是 alignment.json 的內容。
 type Alignment struct {
-	Key         string       `json:"key"`    // 對時指紋（fingerprint.Align）；變了就整首重新對時
-	Lyrics      string       `json:"lyrics"` // 對時當下的歌詞指紋：AI 重對前確認歌詞沒改過
+	Key         string       `json:"key"`      // 對時指紋（fingerprint.Align）；變了就整首重新對時
+	Lyrics      string       `json:"lyrics"`   // 對時當下的歌詞指紋：AI 重對前確認歌詞沒改過
+	Language    string       `json:"language"` // 對時當下的語言、方法（versions.align）、模型：資料備份還原時用
+	Method      int          `json:"method"`
+	Model       string       `json:"model"`
 	Lines       []wp.Line    `json:"lines"`
 	Adjustments []Adjustment `json:"adjustments,omitempty"`
 	Restored    *Restored    `json:"restored,omitempty"`
