@@ -97,13 +97,17 @@ type Info struct {
 	Link        string    `json:"link"`     // 手動放入的影片補上的原始連結
 	Translation bool      `json:"translation"`
 	Targets     []string  `json:"targets"`
-	Approved    *Approval `json:"approved"` // 沒確認過時為 null
+	Approved    *Approval `json:"approved"` // 目前的確認；沒確認過或取消確認時為 null
+	// History 是曾經確認過的紀錄（新的在後）。需要重新對時之後確認會失效，但紀錄留著，
+	// 用來告訴使用者「上次確認之後歌詞改了哪幾句」，小改動不必整首重看。
+	History []Approval `json:"approval_history,omitempty"`
 }
 
-// Approval 是「已確認」：確認時內容的指紋（Q6）。
+// Approval 是一次「已確認」：綁對時（fingerprint.Approve），只需重燒的更新不影響確認。
 type Approval struct {
-	Fingerprint string `json:"fingerprint"`
-	At          string `json:"at"`
+	Fingerprint string   `json:"fingerprint"`
+	At          string   `json:"at"`
+	Texts       []string `json:"texts,omitempty"` // 確認當時每句的歌詞（之後比對改了哪幾句）
 }
 
 // Stages 是各階段的紀錄；nil 代表還沒做過。

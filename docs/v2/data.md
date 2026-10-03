@@ -75,7 +75,8 @@ id 決定資料夾名稱，之後不會改變。歌名、資料夾、順序都�
     "link": "",                       // 手動放入的影片補上的原始連結
     "translation": true,              // 歌詞有翻譯時是否燒進伴唱帶
     "targets": ["instrumental"],      // 要做哪些成品：instrumental（伴唱帶）/ original（原曲＋字幕）（Q13）
-    "approved": { "fingerprint": "…", "at": "…" }   // 沒確認過時為 null（Q6）
+    "approved": { "fingerprint": "…", "at": "…", "texts": ["確認當時每句的歌詞"] },   // 目前的確認；沒確認過或取消確認時為 null
+    "approval_history": [ { "fingerprint": "…", "at": "…", "texts": [ … ] } ]          // 曾經確認過的紀錄（最近 20 次）
   },
   "stages": {
     "separate": {
@@ -122,6 +123,7 @@ id 決定資料夾名稱，之後不會改變。歌名、資料夾、順序都�
   "key": "…",                                  // 對時指紋（見下）
   "lyrics": "…",                               // 對時當下的歌詞指紋（AI 重對前確認歌詞沒改過；指紋本身是雜湊，拆不出來）
   "language": "ja", "method": 7, "model": "large-v3",   // 對時當下的語言、方法、模型（資料備份還原時判斷能不能沿用）
+  "run": "3f9c…",                              // 整首對時的編號：整首重新對時才換（手動調整、AI 重對某幾句不換）；「已確認」綁它
   "lines": [ { "text": "…", "start": 1.234, "end": 2.345,
                "words": [ { "text": "…", "start": 1.234, "end": 1.5 } ] } ],
   "adjustments": [ … ],                        // 手動調整與 AI 重對的紀錄（同 v1）
@@ -152,7 +154,7 @@ H(欄位…)       = sha256( 每個欄位以 "\n" 串接，最後也加 "\n" )�
 | 對時 `align` | `stage=align`、`lyrics=<歌詞指紋>`、`vocals=<人聲 sha256>`、`model=large-v3`、`language=<語言>`、`version=<versions.align>` | 歌詞文字或讀音改了、人聲重新分離過、語言改了、對時方法改了 → **整首重新對時** |
 | 成品 `render`（每個 target） | `stage=render`、`target`、`media=<伴奏或來源 sha256>`、`alignment=<對時內容指紋>`、`lyrics=<歌詞指紋>`、`singers=<清單>`、`translations=<清單，不燒時為空>`、`title=<歌名>`、`artist=<演唱者>`、`note=<備註>`、`scale=<字幕大小，小數兩位>`、`font=<字型 id（sha256:index）>`、`size=<寬>x<高>`、`version=<versions.render>`、`reading=<versions.reading>`（日文假名由 worker 燒錄時自己算）；**手動改過 ASS 時**只剩 `stage`、`target`、`media`、`ass=<那份 ASS 的 sha256>`、`size`、`version`（畫面完全由那份 ASS 決定，標題畫面也在裡面） | 任何會改變畫面的東西變了 → **只重新產生字幕與燒錄** |
 | 對時檢查 `qa` | `stage=qa`、`alignment=<對時內容指紋>`、`lyrics=<歌詞指紋>`、`vocals=<人聲 sha256>`、`language`、`model`、`version=<versions.qa>` | 對時改了 → 重新檢查 |
-| 已確認（Q6） | `stage=approve`、`alignment`、`lyrics`、`singers`、`translations`、`title`、`artist`、`note` | 內容變了 → 需重新確認（換字型、改字幕大小不影響） |
+| 已確認 | `stage=approve`、`align=<對時指紋>`、`run=<alignment.json 的對時編號>` | **需要重新對時**才失效（2026-10-04 使用者決定）：只需重燒的更新（演唱者、翻譯、標題畫面、字型、字幕大小、手動調時間、AI 重對某幾句）都不影響確認 |
 
 標題畫面規則同 v1 `karaoke.title_card`：歌名來自手動設定、歌詞檔或標題辨識；標題辨識只能用整個影片標題（`source=fallback`）時不顯示標題畫面。
 
@@ -163,7 +165,10 @@ download   有 source 而且檔案存在 → done
 separate   沒紀錄 → pending；紀錄的 key ≠ 現在算出的 key，或檔案不見 → outdated；否則 done
 lyrics     有 lyrics.txt → done，否則 missing
 karaoke    沒歌詞 → no_lyrics；（任何 target 的）render 沒紀錄 → pending；
-           align key 不符、或任何 target 的 render key 不符、或成品檔不見 → outdated；否則 done
+           align key 不符或去人聲不是最新 → needs_align（需重新對時）；
+           render key 不符或成品檔不見 → needs_render（只需重燒）；否則 done
+approval   沒確認過 → ""；確認的指紋和目前相同 → approved；否則 stale（重新對時後失效），
+           並和最近一次確認時的歌詞比對，列出改了哪幾句（小改動不必整首重看）
 qa         沒紀錄或 key 不符 → 沒檢查（UI 不顯示疑慮數）；否則顯示 qa.json 的統計
 ```
 
@@ -198,7 +203,12 @@ NAS 在記憶體裡保留所有歌的狀態，**只在有變動時重算該首�
 
 ## 匯出
 
-規則同 v1 `export.py`：資料夾結構同曲庫、檔名「歌手 - 歌名.mp4」、同名加 (2)、只管理 `.export.json` 列的檔案。
+2026-10-04 使用者決定：**只匯出「已確認」的歌，而且只在使用者按「匯出」時才同步**（`POST /api/v1/export`），
+處理完不會自動匯出。目的地用 `--export`（`KARA_EXPORT`）指定，預設 `<library>/export`。
+每首歌的摘要有 `exported`：exported（已匯出最新成品）／pending（已確認但還沒匯出，或成品更新了）／空（沒確認）。
+按匯出時，取消確認、改名或換資料夾的歌，舊的匯出檔會一併拿掉。
+
+規則同 v1 `export.py`：資料夾結構同曲庫、檔名「歌手 - 歌名.mp4」、同名加 (2)（依所有歌排，編號才穩定）、只管理 `.export.json` 列的檔案。
 放置方式依序嘗試：
 
 1. **clone**（不佔空間、各自獨立）：macOS 原生用 `clonefile`；Linux / container 用 `FICLONE`（reflink）
@@ -209,7 +219,7 @@ Q2：曲庫在 Mac 的外接硬碟（APFS），NAS 伺服器跑在 OrbStack 的 
 container 透過 bind mount 存取 APFS，clone 和硬連結能不能用要在 Mac 上實測（階段 5）；
 程式每次都依序嘗試，失敗就換下一種，不必事先設定。`/library` 必須是同一個掛載點。
 
-只匯出 `instrumental` 成品；成品需更新時照樣匯出舊的那份（和 v1 相同），重燒完再換成新的。
+只匯出 `instrumental` 成品；匯出的是按下匯出當時的成品。
 
 ## 讀音快取
 

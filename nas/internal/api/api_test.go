@@ -216,8 +216,8 @@ func TestEndToEnd(t *testing.T) {
 	if len(library.Songs) != 1 || library.Songs[0].Export != "日文/虛構歌手 - 自己編的歌.mp4" || len(library.Workers) != 1 {
 		t.Fatalf("%+v", library)
 	}
-	if _, err := os.Stat(filepath.Join(lib, "export", "日文", "虛構歌手 - 自己編的歌.mp4")); err != nil {
-		t.Fatal("應該匯出到 export/")
+	if _, err := os.Stat(filepath.Join(lib, "export", "日文", "虛構歌手 - 自己編的歌.mp4")); err == nil {
+		t.Fatal("沒確認、沒按匯出之前不該匯出")
 	}
 	resp, err := http.Get(srv.URL + song.Media[0].URL)
 	if err != nil || resp.StatusCode != 200 || resp.Header.Get("Accept-Ranges") != "bytes" {
@@ -240,7 +240,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 	waitFor(t, "調整後需更新", func() bool {
 		c.do("GET", "/api/v1/songs/dQw4w9WgXcQ", nil, &song)
-		return song.Status.Karaoke == "outdated"
+		return song.Status.Karaoke == "needs_render"
 	})
 	var qa app.QAView
 	c.do("GET", "/api/v1/songs/dQw4w9WgXcQ/qa", nil, &qa)
@@ -263,6 +263,56 @@ func TestEndToEnd(t *testing.T) {
 	}
 	if code := c.do("PUT", "/api/v1/songs/dQw4w9WgXcQ/approval", map[string]any{"approved": true}, &song); code != 200 || song.Status.Approval != "approved" {
 		t.Fatalf("%d %+v", code, song.Status)
+	}
+
+	// 4b. 匯出：只匯出已確認的，而且要按「匯出」
+	exported := filepath.Join(lib, "export", "日文", "虛構歌手 - 自己編的歌.mp4")
+	c.do("GET", "/api/v1/library", nil, &library)
+	if library.Songs[0].Exported != "pending" {
+		t.Fatalf("已確認、還沒匯出：%q", library.Songs[0].Exported)
+	}
+	var exp struct {
+		Added, Removed, Skipped []string
+		Kept                    int
+		Detail                  string
+	}
+	if code := c.do("POST", "/api/v1/export", nil, &exp); code != 200 || len(exp.Added) != 1 {
+		t.Fatalf("%d %+v", code, exp)
+	}
+	if _, err := os.Stat(exported); err != nil {
+		t.Fatal("按了匯出應該要有檔案")
+	}
+	c.do("GET", "/api/v1/songs/dQw4w9WgXcQ", nil, &song)
+	if song.Exported != "exported" {
+		t.Fatalf("%q", song.Exported)
+	}
+
+	// 4c. 只需重燒的更新（手動調時間）：確認保留
+	if code := c.do("PATCH", "/api/v1/songs/dQw4w9WgXcQ/timing/lines/0", map[string]any{"delta": 0.1}, &timing); code != 200 {
+		t.Fatal(code)
+	}
+	waitFor(t, "只需重燒", func() bool {
+		c.do("GET", "/api/v1/songs/dQw4w9WgXcQ", nil, &song)
+		return song.Status.Karaoke == "needs_render"
+	})
+	if song.Approval.Status != "approved" {
+		t.Fatalf("只需重燒時確認要保留：%+v", song.Approval)
+	}
+
+	// 4d. 改歌詞（需重新對時）：確認失效，紀錄留著，標出改了哪一句
+	c.do("PUT", "/api/v1/songs/dQw4w9WgXcQ/lyrics", map[string]any{"text": "[男] 自己編的第一句\n> 翻譯\n[女] 第二句改了\n"}, &views)
+	waitFor(t, "需重新對時", func() bool {
+		c.do("GET", "/api/v1/songs/dQw4w9WgXcQ", nil, &song)
+		return song.Status.Karaoke == "needs_align"
+	})
+	if song.Approval.Status != "stale" || song.Approval.Count != 1 || len(song.Approval.Changed) != 1 || song.Approval.Changed[0] != 1 {
+		t.Fatalf("%+v", song.Approval)
+	}
+	// 取消確認後再按匯出：匯出檔拿掉
+	c.do("PUT", "/api/v1/songs/dQw4w9WgXcQ/approval", map[string]any{"approved": false}, &song)
+	c.do("POST", "/api/v1/export", nil, &exp)
+	if _, err := os.Stat(exported); err == nil {
+		t.Fatal("沒有確認的歌，匯出時要拿掉")
 	}
 
 	// 5. 錯誤：detail 是繁中

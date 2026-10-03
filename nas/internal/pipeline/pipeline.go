@@ -7,6 +7,8 @@ package pipeline
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -328,6 +330,9 @@ func (p *Pipeline) Karaoke(ctx context.Context, id string, opt KaraokeOptions, r
 		al := in.Alignment.Clone()
 		al.Key, al.Lyrics, al.Restored = r.AlignFP, r.LyricsFP, nil
 		al.Language, al.Method, al.Model = r.Language, p.d.Versions.Align, planner.WhisperModel
+		if al.Run == "" {
+			al.Run = newRun() // 從資料備份還原的對時：沿用備份裡的編號（確認狀態才能延續）
+		}
 		if err := p.writeAlignment(id, al); err != nil {
 			return err
 		}
@@ -420,10 +425,17 @@ func (p *Pipeline) align(ctx context.Context, id string, in planner.Input, r pla
 		return fmt.Errorf("AI 回傳的對時結果讀不懂：%w", err)
 	}
 	if err := p.writeAlignment(id, &timing.Alignment{Key: r.AlignFP, Lyrics: r.LyricsFP, Language: r.Language,
-		Method: p.d.Versions.Align, Model: planner.WhisperModel, Lines: out.Lines}); err != nil {
+		Method: p.d.Versions.Align, Model: planner.WhisperModel, Run: newRun(), Lines: out.Lines}); err != nil {
 		return err
 	}
 	return p.recordAlign(id, r.AlignFP, res.Worker)
+}
+
+// newRun 產生整首對時的編號。
+func newRun() string {
+	b := make([]byte, 6)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
 }
 
 func toProto(rubies [][]lyrics.Ruby) [][]wp.Ruby {

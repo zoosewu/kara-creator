@@ -106,22 +106,26 @@ func (a *App) UpdateInfo(id string, u song.InfoUpdate) (*SongView, error) {
 
 // SetApproval 標記（或取消）「已確認成品沒問題」。只能確認已經做好、而且是最新的伴唱帶。
 func (a *App) SetApproval(id string, approved bool) (*SongView, error) {
-	var fp string
+	var rec song.Approval
 	if approved {
-		_, r, err := a.Evaluate(id)
+		in, r, err := a.Evaluate(id)
 		if err != nil {
 			return nil, errNotFound
 		}
 		if r.Status.Karaoke != planner.Done {
 			return nil, conflict("伴唱帶還沒做好或需要更新，請先製作完成再確認")
 		}
-		fp = r.ApproveFP
+		rec = song.Approval{Fingerprint: r.ApproveFP, At: a.Now().Format(time.RFC3339), Texts: in.Lyrics.Texts()}
 	}
 	err := a.Store.EditSong(id, func(s *song.Song) error {
-		if approved {
-			s.Info.Approved = &song.Approval{Fingerprint: fp, At: a.Now().Format(time.RFC3339)}
-		} else {
-			s.Info.Approved = nil
+		if !approved {
+			s.Info.Approved = nil // 取消確認：紀錄留著
+			return nil
+		}
+		s.Info.Approved = &rec
+		s.Info.History = append(s.Info.History, rec)
+		if n := len(s.Info.History); n > 20 {
+			s.Info.History = s.Info.History[n-20:] // 只留最近 20 次
 		}
 		return nil
 	})
@@ -220,7 +224,6 @@ func (a *App) Place(req PlaceRequest) error {
 func (a *App) afterLibraryChange() {
 	a.invalidateAll()
 	a.touched()
-	go func() { _, _ = a.syncExport() }()
 }
 
 // ---- 時間 ----------------------------------------------------------------------
@@ -491,7 +494,7 @@ func (a *App) SubmitJobs(req JobRequest) (JobResult, error) {
 
 func skipReason(v *SongView, req JobRequest, busy map[string]jobs.Summary) string {
 	st := v.Status
-	hasTiming := st.Karaoke == planner.Done || st.Karaoke == planner.Outdated
+	hasTiming := st.Karaoke == planner.Done || st.Karaoke == planner.NeedsRender || st.Karaoke == planner.NeedsAlign
 	switch {
 	case busy[v.ID].ID != "":
 		return "處理中"

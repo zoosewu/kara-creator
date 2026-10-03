@@ -6,7 +6,7 @@
 // 同一個資料夾裡歌手與歌名都相同時，依曲庫順序在後面的加上 (2)、(3)…。
 // 放置方式依序嘗試 clone（不佔空間、各自獨立）→ 硬連結 → 複製（Q2）。
 // 只管理自己放進去的檔案（記在 export/.export.json），不會動到使用者另外放的東西。
-// 成品需更新時照樣匯出舊的那份，重燒完再換成新的。
+// 只匯出使用者「已確認」的歌，而且只在使用者按「匯出」時同步（呼叫端決定 Song.Video）。
 package export
 
 import (
@@ -24,9 +24,7 @@ import (
 	"sync"
 
 	"github.com/zoosewu/kara-creator/nas/internal/library"
-	"github.com/zoosewu/kara-creator/nas/internal/planner"
 	"github.com/zoosewu/kara-creator/nas/internal/pystr"
-	"github.com/zoosewu/kara-creator/nas/internal/song"
 	"github.com/zoosewu/kara-creator/nas/internal/store"
 )
 
@@ -129,11 +127,11 @@ func Names(lib *library.Library, songs []Song) map[string]string {
 
 // Result 是一次同步的結果。
 type Result struct {
-	Added   []string // 新放的（含更新）
-	Removed []string
-	Kept    int
-	Skipped []string // 目的地已有不是我們放的同名檔
-	Method  string   // 最近一次放置用的方式：clone / link / copy
+	Added   []string `json:"added" doc:"新放的（含更新）"`
+	Removed []string `json:"removed" doc:"拿掉的（取消確認、改名、換資料夾）"`
+	Kept    int      `json:"kept" doc:"已經是最新、沒有動的"`
+	Skipped []string `json:"skipped" doc:"目的地已經有不是這個程式放的同名檔，沒有覆蓋"`
+	Method  string   `json:"method,omitempty" doc:"放置方式：clone / link / copy"`
 }
 
 // Exporter 同步 export/。
@@ -324,24 +322,7 @@ func prune(dir, root string) {
 	}
 }
 
-// Collect 從曲庫收集每首歌的歌名、演唱者與伴唱帶成品（只匯出 instrumental 成品）。
-func Collect(st *store.Store) []Song {
-	var out []Song
-	for _, id := range st.SongIDs() {
-		sg, ok := st.Song(id)
-		if !ok {
-			continue
-		}
-		var meta map[string]string
-		if doc, err := planner.ReadLyrics(st, id); err == nil && doc != nil {
-			meta = doc.Meta
-		}
-		title, artist, _ := planner.Display(sg, meta)
-		s := Song{ID: id, Title: title, Artist: artist}
-		if rec := sg.Stages.Render[song.TargetInstrumental]; rec != nil && rec.Video.Name != "" {
-			s.Video = st.SongPath(id, rec.Video.Name)
-		}
-		out = append(out, s)
-	}
-	return out
+// Exported 表示 rel 已經是 src 的最新版本（使用者按過匯出、之後成品沒變）。
+func (x *Exporter) Exported(rel, src string) bool {
+	return same(filepath.Join(x.Root, filepath.FromSlash(rel)), src)
 }

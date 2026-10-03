@@ -34,9 +34,19 @@ type SongView struct {
 	Status       planner.Status `json:"status"`
 	Translations bool           `json:"has_translation" doc:"歌詞裡有翻譯"`
 	Job          *jobs.Summary  `json:"job" doc:"還沒結束的工作（沒有時為 null）"`
-	Export       string         `json:"export" doc:"在 export/ 裡的相對路徑（不論伴唱帶做好了沒）"`
+	Approval     ApprovalView   `json:"approval"`
+	Export       string         `json:"export" doc:"在匯出資料夾裡的相對路徑（不論伴唱帶做好了沒）"`
+	Exported     string         `json:"exported" enum:"exported,pending," doc:"exported = 已匯出最新的成品；pending = 已確認但還沒匯出（或成品更新了）；空字串 = 沒確認，不匯出"`
 	Media        []MediaView    `json:"media" doc:"可以播放的版本，第一個是預設（最終成品優先）"`
 	Path         string         `json:"path" doc:"這首歌的資料夾（NAS 上的路徑，可以複製）"`
+}
+
+// ApprovalView 是「已確認」的詳細狀態。
+type ApprovalView struct {
+	Status  string `json:"status" enum:"approved,stale," doc:"approved = 已確認；stale = 曾經確認過，但之後重新對時了；空字串 = 沒確認過"`
+	At      string `json:"at,omitempty" doc:"最近一次確認的時間（stale 時是失效前那次）"`
+	Count   int    `json:"count" doc:"總共確認過幾次"`
+	Changed []int  `json:"changed,omitempty" doc:"stale 時：和上次確認時相比，歌詞不同的句子（從 0 起算）；沒改歌詞（例如重新去人聲）時為空陣列"`
 }
 
 // SourceView 是來源資訊。
@@ -127,11 +137,21 @@ func (a *App) Song(id string) (*SongView, error) {
 	return a.withJob(v), nil
 }
 
-// withJob 補上目前的工作（工作狀態變化很快，不放進快取）。
+// withJob 補上目前的工作（變化很快，不放進快取）與匯出狀態。
 func (a *App) withJob(v *SongView) *SongView {
 	cp := *v
 	if s, ok := a.Jobs.Busy()[v.ID]; ok {
 		cp.Job = &s
+	}
+	a.mu.Lock()
+	cp.Export = a.names[v.ID]
+	a.mu.Unlock()
+	cp.Exported = ""
+	if cp.Approval.Status == planner.Approved && cp.Export != "" {
+		cp.Exported = "pending"
+		if src := a.exportVideo(v.ID); src != "" && a.Exporter.Exported(cp.Export, src) {
+			cp.Exported = "exported"
+		}
 	}
 	return &cp
 }
@@ -153,6 +173,10 @@ func (a *App) compute(id string) (*SongView, error) {
 	sg := in.Song
 	v := &SongView{ID: id, Title: r.Title, Artist: r.Artist, Guess: r.Guess, Info: sg.Info, Language: r.Language,
 		Status: r.Status, Path: a.Store.SongPath(id), Media: []MediaView{}}
+	v.Approval = ApprovalView{Status: r.Status.Approval, Count: len(sg.Info.History), Changed: r.ChangedSinceApproval}
+	if r.LastApproval != nil {
+		v.Approval.At = r.LastApproval.At
+	}
 	if v.Info.Targets == nil {
 		v.Info.Targets = []string{song.TargetInstrumental}
 	}
@@ -224,8 +248,11 @@ func (a *App) Library() Library {
 		exp = append(exp, export.Song{ID: id, Title: v.Title, Artist: v.Artist})
 	}
 	names := export.Names(lib, exp)
-	for _, v := range out.Songs {
-		v.Export = names[v.ID]
+	a.mu.Lock()
+	a.names = names
+	a.mu.Unlock()
+	for i, v := range out.Songs {
+		out.Songs[i] = a.withJob(v)
 	}
 	return out
 }

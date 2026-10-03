@@ -7,6 +7,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/zoosewu/kara-creator/nas/internal/app"
+	"github.com/zoosewu/kara-creator/nas/internal/export"
 	"github.com/zoosewu/kara-creator/nas/internal/fonts"
 	"github.com/zoosewu/kara-creator/nas/internal/jobs"
 	"github.com/zoosewu/kara-creator/nas/internal/library"
@@ -328,6 +329,17 @@ func register(api huma.API, a *app.App) {
 				return nil, huma.Error404NotFound("找不到工作")
 			}
 			return &body[jobs.Summary]{s}, nil
+		})
+
+	huma.Register(api, op("export", http.MethodPost, "/export", "匯出",
+		"把「已確認」的伴唱帶依曲庫結構同步到匯出資料夾（檔名「歌手 - 歌名.mp4」）。只在呼叫時執行，不會自動匯出；"+
+			"取消確認、改名或換資料夾的歌，舊的匯出檔會在這時移除。", tLibrary),
+		func(ctx context.Context, _ *struct{}) (*body[export.Result], error) {
+			res, err := a.Export()
+			if err != nil {
+				return nil, fail(err)
+			}
+			return &body[export.Result]{res}, nil
 		})
 
 	huma.Register(api, op("list-workers", http.MethodGet, "/workers", "AI 伺服器", "名稱、GPU、版本是否相符、目前的任務、最後連線時間。", tSystem),

@@ -87,7 +87,6 @@ def qa(*, alignment: str, lyrics: str, vocals: str, language: str, model: str, v
              ("language", language), ("model", model), ("version", version))
 
 
-def approve(*, alignment: str, lyrics: str, singers: str, translations: str, title: str, artist: str,
-            note: str) -> str:
-    return h(("stage", "approve"), ("alignment", alignment), ("lyrics", lyrics), ("singers", singers),
-             ("translations", translations), ("title", title), ("artist", artist), ("note", note))
+def approve(*, align_key: str, run: str) -> str:
+    """「已確認」綁對時：對時指紋加上這次整首對時的編號（只需重燒的更新不影響確認）。"""
+    return h(("stage", "approve"), ("align", align_key), ("run", run))

@@ -38,7 +38,8 @@ type Downloader struct {
 	Store  *store.Store
 	Media  media.Tools
 	YTDLP  string // yt-dlp 執行檔
-	Deno   string // deno 執行檔（空字串 = 讓 yt-dlp 自己找）
+	Deno   string // deno 執行檔（YouTube 需要 JavaScript runtime；空字串 = 讓 yt-dlp 自己找）
+	Node   string // 沒有 deno 時改用 node
 	FFmpeg string // ffmpeg 所在的資料夾（空字串 = 從 PATH 找）
 	Now    func() time.Time
 }
@@ -94,8 +95,11 @@ func (d *Downloader) now() time.Time {
 
 func (d *Downloader) args(extra ...string) []string {
 	args := []string{"--no-playlist", "--no-warnings"}
-	if d.Deno != "" {
+	switch {
+	case d.Deno != "":
 		args = append(args, "--js-runtimes", "deno:"+d.Deno)
+	case d.Node != "":
+		args = append(args, "--js-runtimes", "node:"+d.Node)
 	}
 	if d.FFmpeg != "" {
 		args = append(args, "--ffmpeg-location", d.FFmpeg)

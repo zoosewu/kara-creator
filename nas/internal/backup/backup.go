@@ -95,6 +95,7 @@ type TimingJSON struct {
 	Language          string          `json:"language"`
 	Model             string          `json:"model"`
 	Method            int             `json:"method"` // versions.align
+	Run               string          `json:"run"`    // 整首對時的編號（還原後「已確認」才能延續）
 	Lines             []wp.Line       `json:"lines"`
 	Adjustments       json.RawMessage `json:"adjustments"`
 }
@@ -161,7 +162,7 @@ func (b *Backup) Snapshot() (Stats, error) {
 				adj = []byte("[]")
 			}
 			t := TimingJSON{LyricsFingerprint: al.Lyrics, Language: al.Language, Model: al.Model, Method: al.Method,
-				Lines: al.Lines, Adjustments: adj}
+				Run: al.Run, Lines: al.Lines, Adjustments: adj}
 			rel := TimingDir + "/" + id + ".json"
 			st.Changed += write(filepath.Join(b.Dir, rel), dumps(t))
 			entry.Timing, wanted[rel] = &rel, true

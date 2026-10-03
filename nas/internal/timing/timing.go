@@ -22,6 +22,7 @@ type Alignment struct {
 	Language    string       `json:"language"` // 對時當下的語言、方法（versions.align）、模型：資料備份還原時用
 	Method      int          `json:"method"`
 	Model       string       `json:"model"`
+	Run         string       `json:"run"` // 這次整首對時的編號：整首重新對時才會換（手動調整、AI 重對某幾句不換），「已確認」綁它
 	Lines       []wp.Line    `json:"lines"`
 	Adjustments []Adjustment `json:"adjustments,omitempty"`
 	Restored    *Restored    `json:"restored,omitempty"`

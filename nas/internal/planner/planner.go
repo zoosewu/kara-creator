@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	kara "github.com/zoosewu/kara-creator"
+	"github.com/zoosewu/kara-creator/nas/internal/difflib"
 	"github.com/zoosewu/kara-creator/nas/internal/fingerprint"
 	"github.com/zoosewu/kara-creator/nas/internal/library"
 	"github.com/zoosewu/kara-creator/nas/internal/lyrics"
@@ -31,9 +32,13 @@ const DefaultSize = "1920x1080"
 const (
 	Done     = "done"
 	Pending  = "pending"  // 還沒做過
-	Outdated = "outdated" // 做過，但輸入或方法變了（需更新）
-	Missing  = "missing"  // 檔案不見了（來源、歌詞）
-	NoLyrics = "no_lyrics"
+	Outdated = "outdated" // 去人聲：做過，但來源或方法變了
+
+	// 伴唱帶的「需更新」分成兩種（已確認只會因為需重新對時而失效）
+	NeedsRender = "needs_render" // 只需重燒：演唱者、翻譯、標題畫面、字型、字幕大小、手動調時間、AI 重對某幾句、燒錄方法…
+	NeedsAlign  = "needs_align"  // 需重新對時：歌詞文字或讀音、人聲（重新去人聲）、語言、對時方法改了
+	Missing     = "missing"      // 檔案不見了（來源、歌詞）
+	NoLyrics    = "no_lyrics"
 
 	Approved = "approved" // 確認過，內容沒變
 	Stale    = "stale"    // 確認之後內容變了，需重新確認
@@ -72,9 +77,9 @@ type Status struct {
 	Download string    `json:"download"` // done | missing
 	Separate string    `json:"separate"` // done | pending | outdated
 	Lyrics   string    `json:"lyrics"`   // done | missing
-	Karaoke  string    `json:"karaoke"`  // done | pending | outdated | no_lyrics
+	Karaoke  string    `json:"karaoke"`  // done | pending | needs_render | needs_align | no_lyrics
 	QA       *QACounts `json:"qa"`       // 沒檢查過或對時改了之後為 null（UI 不顯示疑慮數）
-	Approval string    `json:"approval"` // approved | stale | ""（沒確認過）
+	Approval string    `json:"approval"` // approved | stale（重新對時後失效）| ""（沒確認過）
 }
 
 // Result 是判斷結果。
@@ -106,6 +111,11 @@ type Result struct {
 
 	// AlignOK：alignment.json 是目前的歌詞、人聲、語言、方法對出來的（不必重新對時）。
 	AlignOK bool
+	// LastApproval 是最近一次確認（目前有效或已經失效的）；沒確認過為 nil。
+	LastApproval *song.Approval
+	// ChangedSinceApproval：確認失效時，目前歌詞裡和上次確認時不同的句子（從 0 起算）；新增的句子也算。
+	ChangedSinceApproval []int
+
 	// RestoredUsable：alignment.json 是從資料備份還原的，歌詞、語言、方法都相同，可以直接沿用（不重新對時）。
 	RestoredUsable bool
 }
@@ -202,7 +212,9 @@ func Evaluate(in Input) Result {
 	singers := fingerprint.Items(r.Singers)
 	translations := fingerprint.Items(ptrs(r.Translations))
 	if al != nil {
-		r.ApproveFP = fingerprint.Approve(r.ContentFP, r.LyricsFP, singers, translations, cardTitle, cardArtist, cardNote)
+		if r.AlignOK {
+			r.ApproveFP = fingerprint.Approve(r.AlignFP, al.Run)
+		}
 		if sep != nil {
 			r.QAFP = fingerprint.QA(r.ContentFP, r.LyricsFP, sep.Vocals.SHA256, r.Language, WhisperModel, in.Versions.QA)
 		}
@@ -235,8 +247,10 @@ func Evaluate(in Input) Result {
 		switch {
 		case rec == nil:
 			karaoke = worse(karaoke, Pending)
-		case !r.AlignOK || r.Status.Separate != Done || rec.Key != r.RenderFP[target] || !files.VideoOK:
-			karaoke = worse(karaoke, Outdated)
+		case (!r.AlignOK && !r.RestoredUsable) || r.Status.Separate != Done:
+			karaoke = worse(karaoke, NeedsAlign)
+		case !r.AlignOK || rec.Key != r.RenderFP[target] || !files.VideoOK:
+			karaoke = worse(karaoke, NeedsRender) // 從資料備份還原、可以沿用的對時也只需重燒
 		}
 	}
 	if in.Lyrics == nil {
@@ -249,10 +263,24 @@ func Evaluate(in Input) Result {
 		counts := in.QACounts
 		r.Status.QA = &counts
 	}
+	if n := len(sg.Info.History); n > 0 {
+		r.LastApproval = &sg.Info.History[n-1]
+	}
 	if a := sg.Info.Approved; a != nil {
+		r.LastApproval = a
 		r.Status.Approval = Stale
 		if r.ApproveFP != "" && a.Fingerprint == r.ApproveFP {
 			r.Status.Approval = Approved
+		}
+	}
+	if r.Status.Approval != Approved && r.LastApproval != nil && r.LastApproval.Texts != nil {
+		r.ChangedSinceApproval = []int{}
+		for _, op := range difflib.Opcodes(r.LastApproval.Texts, texts) {
+			if op.Tag != difflib.Equal {
+				for j := op.J1; j < op.J2; j++ {
+					r.ChangedSinceApproval = append(r.ChangedSinceApproval, j)
+				}
+			}
 		}
 	}
 	return r
@@ -274,9 +302,9 @@ func Display(sg *song.Song, lyricsMeta map[string]string) (title, artist string,
 	return first(sg.Info.Title, lyricsMeta["title"], guess.Title), first(sg.Info.Artist, lyricsMeta["artist"], guess.Artist), guess
 }
 
-// worse 回傳兩個狀態中比較需要處理的（pending > outdated > done）。
+// worse 回傳兩個狀態中比較需要處理的（pending > needs_align > needs_render > done）。
 func worse(a, b string) string {
-	rank := map[string]int{Done: 0, Outdated: 1, Pending: 2}
+	rank := map[string]int{Done: 0, NeedsRender: 1, NeedsAlign: 2, Pending: 3}
 	if rank[b] > rank[a] {
 		return b
 	}

@@ -13,6 +13,7 @@ import (
 type Config struct {
 	Library     string // 曲庫根目錄（KARA_LIBRARY）
 	Data        string // 資料備份的 git repo（KARA_DATA；預設 <library>/data）
+	Export      string // 匯出的目的地資料夾（KARA_EXPORT；預設 <library>/export）
 	Listen      string // 監聽位址（KARA_LISTEN）
 	WorkerToken string // worker 連線用的共用 token，空字串 = 不檢查（KARA_WORKER_TOKEN）
 	Tools       string // 放 yt-dlp、deno 的資料夾，空字串 = 從 PATH 找（KARA_TOOLS）
@@ -33,6 +34,7 @@ func Parse(args []string, getenv func(string) string, stderr io.Writer) (Config,
 	fs.SetOutput(stderr)
 	fs.StringVar(&c.Library, "library", env("KARA_LIBRARY", ""), "曲庫根目錄（KARA_LIBRARY）")
 	fs.StringVar(&c.Data, "data", env("KARA_DATA", ""), "資料備份的 git repo（KARA_DATA，預設 <library>/data）")
+	fs.StringVar(&c.Export, "export", env("KARA_EXPORT", ""), "匯出的目的地資料夾（KARA_EXPORT，預設 <library>/export）；放在同一顆硬碟才能用 clone / 硬連結")
 	fs.StringVar(&c.Listen, "listen", env("KARA_LISTEN", ":8765"), "監聽位址（KARA_LISTEN）")
 	fs.StringVar(&c.WorkerToken, "worker-token", env("KARA_WORKER_TOKEN", ""), "AI worker 連線用的共用 token（KARA_WORKER_TOKEN，預設不檢查）")
 	fs.StringVar(&c.Tools, "tools", env("KARA_TOOLS", ""), "放 yt-dlp、deno 的資料夾（KARA_TOOLS，預設從 PATH 找）")
@@ -49,6 +51,9 @@ func Parse(args []string, getenv func(string) string, stderr io.Writer) (Config,
 	c.Library = filepath.Clean(c.Library)
 	if c.Data == "" {
 		c.Data = filepath.Join(c.Library, "data")
+	}
+	if c.Export == "" {
+		c.Export = filepath.Join(c.Library, "export")
 	}
 	return c, nil
 }

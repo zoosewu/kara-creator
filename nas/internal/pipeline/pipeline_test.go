@@ -209,7 +209,7 @@ func TestKaraokeFlow(t *testing.T) {
 	if got := e.ai.take(); got != "align_line" {
 		t.Fatal(got)
 	}
-	if r := e.status(); r.Status.Karaoke != planner.Outdated || !r.AlignOK {
+	if r := e.status(); r.Status.Karaoke != planner.NeedsRender || !r.AlignOK {
 		t.Fatalf("%+v", r.Status)
 	}
 	e.karaoke("render,qa")

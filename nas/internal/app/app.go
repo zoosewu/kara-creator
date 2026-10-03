@@ -24,8 +24,10 @@ import (
 	"github.com/zoosewu/kara-creator/nas/internal/jobs"
 	"github.com/zoosewu/kara-creator/nas/internal/media"
 	"github.com/zoosewu/kara-creator/nas/internal/pipeline"
+	"github.com/zoosewu/kara-creator/nas/internal/planner"
 	"github.com/zoosewu/kara-creator/nas/internal/readings"
 	"github.com/zoosewu/kara-creator/nas/internal/scheduler"
+	"github.com/zoosewu/kara-creator/nas/internal/song"
 	"github.com/zoosewu/kara-creator/nas/internal/store"
 	wp "github.com/zoosewu/kara-creator/nas/internal/workerproto"
 )
@@ -57,12 +59,19 @@ type App struct {
 	flush    *time.Timer // 合併短時間內的多次變動，再送 song 事件
 	wrapup   *time.Timer
 	inflight map[string]chan struct{} // 正在算的讀音（快取鍵 → 算完時關閉）
+	names    map[string]string        // 每首歌在匯出資料夾裡的相對路徑（Library() 時更新）
 	ytdlp    string                   // yt-dlp 版本
 	started  time.Time
 }
 
 // New 開啟曲庫、組裝所有元件（還沒開始執行，見 Run）。
 func New(cfg config.Config) (*App, error) {
+	if cfg.Export == "" {
+		cfg.Export = filepath.Join(cfg.Library, "export")
+	}
+	if cfg.Data == "" {
+		cfg.Data = filepath.Join(cfg.Library, "data")
+	}
 	st, err := store.Open(cfg.Library, cfg.Init)
 	if err != nil {
 		return nil, err
@@ -95,10 +104,10 @@ func New(cfg config.Config) (*App, error) {
 	}
 
 	a.Pipe = pipeline.New(pipeline.Deps{Store: st, Media: a.Media, AI: a.Sched, Fonts: a.fontFor, Versions: a.Versions})
-	a.Exporter = &export.Exporter{Root: st.Path(store.ExportDir)}
+	a.Exporter = &export.Exporter{Root: cfg.Export}
 	a.Backup = &backup.Backup{Store: st, Dir: cfg.Data}
 	a.Down = &download.Downloader{Store: st, Media: a.Media, YTDLP: tool(cfg.Tools, "yt-dlp", "yt-dlp_linux", "yt-dlp_macos"),
-		Deno: optionalTool(cfg.Tools, "deno"), FFmpeg: filepath.Dir(a.Media.FFmpeg)}
+		Deno: optionalTool(cfg.Tools, "deno"), Node: optionalTool(cfg.Tools, "node"), FFmpeg: filepath.Dir(a.Media.FFmpeg)}
 	a.Inbox = &inbox.Inbox{Store: st, Media: a.Media, Log: func(s string) { log.Print(s) }}
 	a.Jobs = jobs.New(jobs.Config{Runner: &runner{a}, Path: st.Path(store.CacheDir, "jobs.json"),
 		ProcessLimit: a.processLimit, OnIdle: a.onIdle, OnEvent: a.onJobEvent})
@@ -156,11 +165,6 @@ func (a *App) Run(ctx context.Context) {
 	}()
 	go a.watchSongs(ctx)
 	go a.updater(ctx)
-	go func() {
-		if _, err := a.syncExport(); err != nil {
-			log.Printf("同步匯出資料夾失敗：%v", err)
-		}
-	}()
 }
 
 // Shutdown 關閉：處理中的工作停下（下次啟動繼續），存檔。
@@ -213,8 +217,40 @@ func (a *App) runWrapup(reason string) {
 	})
 }
 
-func (a *App) syncExport() (export.Result, error) {
-	return a.Exporter.Sync(a.Store.Library(), export.Collect(a.Store))
+// exportSongs 是匯出用的歌曲清單：檔名依所有歌排（同名編號才穩定），但只有「已確認」而且有伴唱帶的歌會放檔案。
+func (a *App) exportSongs() []export.Song {
+	var out []export.Song
+	for _, id := range a.Store.SongIDs() {
+		v, err := a.Song(id)
+		if err != nil {
+			continue
+		}
+		s := export.Song{ID: id, Title: v.Title, Artist: v.Artist}
+		if v.Approval.Status == planner.Approved {
+			s.Video = a.exportVideo(id)
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
+// exportVideo 是伴唱帶成品的路徑（沒有時為空）。
+func (a *App) exportVideo(id string) string {
+	sg, ok := a.Store.Song(id)
+	if !ok {
+		return ""
+	}
+	if rec := sg.Stages.Render[song.TargetInstrumental]; rec != nil && rec.Video.Name != "" {
+		return a.Store.SongPath(id, rec.Video.Name)
+	}
+	return ""
+}
+
+// Export 把已確認的伴唱帶同步到匯出資料夾（使用者按「匯出」時才執行）。
+func (a *App) Export() (export.Result, error) {
+	res, err := a.Exporter.Sync(a.Store.Library(), a.exportSongs())
+	a.invalidateAll() // 每首歌的「已匯出」狀態
+	return res, err
 }
 
 // ---- yt-dlp 更新（Q10）----------------------------------------------------------

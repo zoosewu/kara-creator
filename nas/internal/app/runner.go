@@ -47,17 +47,5 @@ func (r *runner) Process(ctx context.Context, job jobs.Job, env jobs.Env) error 
 	return nil
 }
 
-// Finished 處理佇列的工作結束後同步 export/（先同步再標記結束，讓「完成」時輸出檔已經就位）。
-func (r *runner) Finished(job jobs.Job, env jobs.Env) {
-	res, err := r.a.syncExport()
-	if err != nil {
-		env.Log("同步匯出資料夾失敗：" + err.Error())
-		return
-	}
-	for _, rel := range res.Added {
-		env.Log("輸出：export/" + rel)
-	}
-	for _, rel := range res.Skipped {
-		env.Log("輸出略過（已有同名檔案）：export/" + rel)
-	}
-}
+// Finished 處理佇列的工作結束後：不自動匯出（只匯出已確認的歌，而且由使用者按「匯出」）。
+func (r *runner) Finished(job jobs.Job, env jobs.Env) {}

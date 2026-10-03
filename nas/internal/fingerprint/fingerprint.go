@@ -134,8 +134,9 @@ func QA(alignment, lyricsFP, vocals, language, model string, version int) string
 		Field{"language", language}, Field{"model", model}, Field{"version", version})
 }
 
-// Approve 是「已確認」的指紋（Q6：綁內容，換字型、改字幕大小不必重新確認）。
-func Approve(alignment, lyricsFP, singers, translations, title, artist, note string) string {
-	return H(Field{"stage", "approve"}, Field{"alignment", alignment}, Field{"lyrics", lyricsFP}, Field{"singers", singers},
-		Field{"translations", translations}, Field{"title", title}, Field{"artist", artist}, Field{"note", note})
+// Approve 是「已確認」的指紋：綁「對時」——對時指紋（歌詞文字與讀音、人聲、語言、對時方法）加上這次整首對時的編號。
+// 只需重燒的更新（演唱者、翻譯、標題畫面、字型、字幕大小、手動調時間、AI 重對某幾句）不影響確認；
+// 需要整首重新對時的更新才會讓確認失效（確認紀錄另外保留）。
+func Approve(alignKey, run string) string {
+	return H(Field{"stage", "approve"}, Field{"align", alignKey}, Field{"run", run})
 }

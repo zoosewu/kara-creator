@@ -67,7 +67,7 @@ kara-nas restore [--make]   # 從資料備份重建曲庫（v1 scripts/restore.p
 - **工作**：使用者層級的要求，例如「這 12 首製作伴唱帶」。v1 是一首歌一件工作，v2 一樣：批次操作建立多件工作
 - 一件工作 = 一首歌 + 步驟（`download`、`separate`、`karaoke`、`check`、`retime`）+ 選項（`force`、`realign`、`line`、`mode`、`targets`）
 - 工作執行時一步一步問 planner「下一個動作是什麼」：
-  - NAS 本機動作（下載、抽音軌、封裝、轉 speech.wav、套用結果、匯出）在 NAS 的 goroutine 做
+  - NAS 本機動作（下載、抽音軌、封裝、轉 speech.wav、套用結果）在 NAS 的 goroutine 做；匯出由使用者按「匯出」時才做
   - AI 動作建立**任務**放進任務佇列，等 worker 領走；完成後套用結果，再問下一步
 - **同一首歌同時只有一件工作在跑**（後來的排隊等前一件結束），所以不會有兩台 worker 同時改同一首歌
 - 不同首歌的工作同時進行：下載最多 2 首；NAS 本機的 ffmpeg 動作最多 2 個；AI 任務由有幾台 worker 決定
@@ -128,6 +128,7 @@ Q5：v1 的收尾 hook（`hooks/on_idle.ps1`）**不移植**。它原本用來�
 | `GET/PATCH /settings` | 全域設定：字幕大小、每種語言的字型 |
 | `GET /fonts` · `GET /fonts/{sha256}` | 字型清單、字型檔（前端預覽用 `@font-face`） |
 | `GET /system` | 版本（NAS、versions.json）、磁碟用量、yt-dlp 版本、資料備份狀態 |
+| `POST /export` | 匯出：把「已確認」的伴唱帶同步到匯出資料夾（只在使用者按的時候） |
 | `GET /events` | Server-Sent Events，見下 |
 
 v1 的「開啟資料夾」（`os.startfile`）在 NAS 上沒有意義，改成在畫面上顯示路徑（可以複製），例如 SMB 分享路徑。

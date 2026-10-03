@@ -90,6 +90,15 @@
           },
           "fingerprint": {
             "type": "string"
+          },
+          "texts": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "required": [
@@ -117,6 +126,45 @@
         },
         "required": [
           "approved"
+        ],
+        "type": "object"
+      },
+      "ApprovalView": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "description": "最近一次確認的時間（stale 時是失效前那次）",
+            "type": "string"
+          },
+          "changed": {
+            "description": "stale 時：和上次確認時相比，歌詞不同的句子（從 0 起算）；沒改歌詞（例如重新去人聲）時為空陣列",
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "count": {
+            "description": "總共確認過幾次",
+            "format": "int64",
+            "type": "integer"
+          },
+          "status": {
+            "description": "approved = 已確認；stale = 曾經確認過，但之後重新對時了；空字串 = 沒確認過",
+            "enum": [
+              "approved",
+              "stale",
+              ""
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "count"
         ],
         "type": "object"
       },
@@ -540,6 +588,15 @@
       "Info": {
         "additionalProperties": false,
         "properties": {
+          "approval_history": {
+            "items": {
+              "$ref": "#/components/schemas/Approval"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "approved": {
             "$ref": "#/components/schemas/Approval"
           },
@@ -1164,6 +1221,66 @@
         ],
         "type": "object"
       },
+      "Result": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/Result.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "added": {
+            "description": "新放的（含更新）",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "kept": {
+            "description": "已經是最新、沒有動的",
+            "format": "int64",
+            "type": "integer"
+          },
+          "method": {
+            "description": "放置方式：clone / link / copy",
+            "type": "string"
+          },
+          "removed": {
+            "description": "拿掉的（取消確認、改名、換資料夾）",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "skipped": {
+            "description": "目的地已經有不是這個程式放的同名檔，沒有覆蓋",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "added",
+          "removed",
+          "kept",
+          "skipped"
+        ],
+        "type": "object"
+      },
       "Ruby": {
         "additionalProperties": false,
         "properties": {
@@ -1324,12 +1441,24 @@
             "readOnly": true,
             "type": "string"
           },
+          "approval": {
+            "$ref": "#/components/schemas/ApprovalView"
+          },
           "artist": {
             "description": "實際使用的演唱者",
             "type": "string"
           },
           "export": {
-            "description": "在 export/ 裡的相對路徑（不論伴唱帶做好了沒）",
+            "description": "在匯出資料夾裡的相對路徑（不論伴唱帶做好了沒）",
+            "type": "string"
+          },
+          "exported": {
+            "description": "exported = 已匯出最新的成品；pending = 已確認但還沒匯出（或成品更新了）；空字串 = 沒確認，不匯出",
+            "enum": [
+              "exported",
+              "pending",
+              ""
+            ],
             "type": "string"
           },
           "folder": {
@@ -1403,7 +1532,9 @@
           "status",
           "has_translation",
           "job",
+          "approval",
           "export",
+          "exported",
           "media",
           "path"
         ],
@@ -1983,6 +2114,38 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/export": {
+      "post": {
+        "description": "把「已確認」的伴唱帶依曲庫結構同步到匯出資料夾（檔名「歌手 - 歌名.mp4」）。只在呼叫時執行，不會自動匯出；取消確認、改名或換資料夾的歌，舊的匯出檔會在這時移除。",
+        "operationId": "export",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "匯出",
+        "tags": [
+          "曲庫"
+        ]
+      }
+    },
     "/api/v1/folders": {
       "get": {
         "operationId": "list-folders",
