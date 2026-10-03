@@ -31,7 +31,7 @@
 - [x] `store`：`song.json`、`library.json`、原子寫入、`--init`、外接硬碟沒掛上時拒絕啟動
 - [x] `library`：資料夾、順序（v1 `catalog.place`）、display_info
 - [x] `media`：ffprobe / ffmpeg 包裝（抽音軌、封裝、speech.wav、vocals.flac）
-- [ ] `timing`：`shift_timing`、AI 重對結果的套用
+- [x] `timing`：`shift_timing`、AI 重對結果的套用
 - [ ] `readings`：讀音快取 + 手動 / 自動讀音合併（v1 `reading.furigana`）
 - [ ] `planner`：狀態判斷、下一步
 - [ ] `scheduler` + `workerapi`：工作、任務、優先順序、租約、改派、取消、持久化；用假的 worker 測

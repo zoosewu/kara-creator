@@ -30,7 +30,7 @@ for _name in ("SONG_OUTPUT_DIR", "SONG_LYRICS_DIR", "SONG_DATA_DIR", "SONG_HOOKS
     os.environ[_name] = str(_tmp / _name.lower())
 sys.path.insert(0, str(ROOT / "ui"))
 
-from songtool import catalog, lyrics, titles  # noqa: E402
+from songtool import catalog, karaoke, lyrics, manifest, titles  # noqa: E402
 import server as v1_server  # noqa: E402
 from migrate import fingerprint  # noqa: E402
 
@@ -341,6 +341,41 @@ def gen_catalog() -> list[dict]:
     return sequences
 
 
+def gen_shift_timing() -> list[dict]:
+    """v1 karaoke.shift_timing：讀寫檔的部分導到暫存資料夾，時間戳固定。"""
+    rng = random.Random(8)
+    work = _tmp / "shift"
+    work.mkdir(parents=True, exist_ok=True)
+    karaoke.output_dir = lambda item: work
+    manifest.now = lambda: "2026-10-03T12:00:00+08:00"
+    cases = []
+    for _ in range(400):
+        lines, t = [], rng.uniform(0, 5)
+        for i in range(rng.randint(1, 8)):
+            words, w = [], t
+            for k in range(rng.randint(0, 5)):
+                length = rng.choice([0, 0.05, 0.1, 0.3, rng.uniform(0, 1.5)])
+                words.append({"text": rng.choice(["空", "の", "a ", "歌"]), "start": round(w, 3), "end": round(w + length, 3)})
+                w += length + rng.choice([0, 0, 0.02, 0.4])
+            end = round(max(w, t + rng.choice([0, 0.1, 0.5])), 3)
+            lines.append({"text": f"第{i}句", "start": round(t, 3), "end": end, "words": words})
+            t = end + rng.choice([0, 0.01, 0.2, 1, 3, -0.2])
+        line = rng.randrange(len(lines)) if rng.random() < 0.95 else len(lines)
+        delta = rng.choice([0, 0.0004, 0.1, -0.1, 0.5, -0.5, 2, -2, 10, -10, rng.uniform(-5, 5)])
+        following = rng.random() < 0.3
+        before = {"key": "k", "lines": lines}
+        manifest.write(work / karaoke.ALIGNMENT, before)
+        error = result = None
+        try:
+            result = karaoke.shift_timing(None, line, delta, following)
+        except ValueError as exc:
+            error = str(exc)
+        after = manifest.read(work / karaoke.ALIGNMENT)
+        cases.append({"lines": lines, "line": line, "delta": delta, "following": following, "error": error,
+                      "pushed": result["pushed"] if result else None, "after": after})
+    return cases
+
+
 GENERATORS = {
     "lyrics_parse": gen_lyrics_parse,
     "paren": gen_paren,
@@ -350,6 +385,7 @@ GENERATORS = {
     "titles": gen_titles,
     "fingerprint": gen_fingerprint,
     "catalog": gen_catalog,
+    "shift_timing": gen_shift_timing,
 }
 
 
