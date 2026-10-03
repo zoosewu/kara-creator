@@ -13,7 +13,7 @@
 │ 下載（yt-dlp 執行檔，2 條）     手動放入（inbox/）   ffmpeg 輕量操作    │
 │ 紀錄檔與狀態判斷（planner）     排程器（工作 → 任務 → 派給 AI）         │
 │ worker 協定（AI 來領任務、取檔案、回報）   字型檔    讀音快取            │
-│ 匯出（export/）   資料備份（data/ git）   收尾 hook                     │
+│ 匯出（export/）   資料備份（data/ git）                                 │
 └─────────────────────────────────────────────────────────────────────────┘
    ▲  HTTP：/worker/v1（AI 主動連線：領任務、取輸入檔、上傳結果、回報進度）
    │
@@ -37,10 +37,15 @@
 ## repo 目錄結構（v2 完成後）
 
 ```
-nas/                      Go module（NAS 伺服器）
+go.mod                    Go module 在 repo 根目錄（go:embed 才拿得到根目錄的 versions.json）
+versions.go               內嵌 versions.json（package kara）
+nas/                      NAS 伺服器（Go）
   cmd/kara-nas/           main：參數、啟動、關閉
+  cmd/fakeworker/         假的 AI worker（開發與測試用，回傳固定結果）
   internal/
     config/               路徑、參數、環境變數
+    workerproto/          worker 協定的資料結構（NAS 端與假的 worker 共用）
+    fakeworker/           假的 AI worker 的實作
     store/                資料夾結構、song.json、原子寫入、鎖
     library/              曲庫：資料夾、順序、歌曲資訊（v1 catalog.py）
     lyrics/               歌詞解析 / 寫回、括號讀音、語言判斷（v1 lyrics.py）
@@ -57,7 +62,6 @@ nas/                      Go module（NAS 伺服器）
     fonts/                字型目錄、字型清單、預設字型
     export/               匯出（clone / 硬連結 / 複製）
     backup/               資料備份（git）
-    hooks/                收尾 hook
   web/                    Svelte 前端（Vite），build 輸出到 nas/internal/api/dist 給 go:embed
 ai/                       AI 伺服器（Python）
   worker.py               進入點：連上 NAS、兩個通道的迴圈
@@ -67,10 +71,10 @@ songtool/                 Python 演算法（AI 伺服器用；v1 的 UI 相關�
 migrate/                  搬遷工具（Python，在舊資料的 Windows 上執行）
 versions.json             兩邊共用的演算法 / 協定版本（見 worker-protocol.md）
 fonts/                    （不進 git）開發時的預設字型；安裝時下載
-deploy/                   Dockerfile、compose 範例、launchd plist、安裝腳本
+deploy/                   Dockerfile、compose 範例、安裝腳本
 ai.ps1                    Windows：執行 ai/worker.py
 docs/v2/                  本規格
-docs/openapi.json         由 Go 產生的 OpenAPI 規格（`go run ./cmd/kara-nas openapi > …`，CI 檢查是否過期）
+docs/openapi.json         由 Go 產生的 OpenAPI 規格（`go run ./nas/cmd/kara-nas openapi > …`，CI 檢查是否過期）
 ```
 
 階段 6 移除：`ui/`、`ui.ps1`、`scripts/`（除了仍需要的）、`download.ps1`、`separate.ps1`、`karaoke.ps1`、
@@ -86,13 +90,13 @@ v1 才用到的 `songtool/` 模組（`catalog.py`、`download.py`、`local.py`�
 1. [NAS 下載通道] yt-dlp 下載到 songs/<id>/，寫 song.json 的 source（含檔案 sha256）
 2. [NAS] planner：去人聲需要做 → NAS 抽音軌成 44.1kHz 立體聲 wav（暫存，算 sha256）→ 建立任務 separate
 3. [AI 重通道] 領到 separate → 缺輸入檔就向 NAS 下載 → Demucs → 上傳 vocals.wav、no_vocals.wav → 完成
-4. [NAS] 把 no_vocals 和來源影像軌封裝成伴奏（和來源同格式，`-c:v copy`），人聲存成 vocals.flac（Q7），寫紀錄
+4. [NAS] 把 no_vocals 和來源影像軌封裝成伴奏（和來源同格式，`-c:v copy`），人聲存成 vocals.flac，寫紀錄
 5. [NAS] planner：要對時（有歌詞）→ NAS 把人聲轉成 16kHz 單聲道 wav（speech.wav，算 sha256）→ 任務 align
 6. [AI] align → 回傳 lines → [NAS] 寫 alignment.json
 7. [NAS] planner：要產生成品 → 任務 render（輸入：伴奏影片、對時、歌詞句子與讀音、演唱者、翻譯、標題畫面、樣式、字型）
 8. [AI] 缺字型就向 NAS 索取 → 量字寬、加假名、產生 ASS → 用 NVENC 燒錄（不行就 x264）→ 上傳 karaoke.ass、karaoke.mp4
 9. [NAS] 寫成品紀錄 → 任務 qa（輸入 speech.wav、對時、歌詞）→ [AI] 回傳檢查結果 → [NAS] 寫 qa.json
-10. [NAS] 匯出到 export/，工作 J 完成；佇列清空時收尾（備份、hook）
+10. [NAS] 匯出到 export/，工作 J 完成；佇列清空時收尾（資料備份）
 ```
 
 同一首歌的任務依序執行（前一個完成才建立下一個）；不同首歌的任務可以同時派給不同的 AI。

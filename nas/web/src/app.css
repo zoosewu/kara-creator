@@ -1,0 +1,28 @@
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #1f2328;
+  --muted: #656d76;
+  --danger: #cf222e;
+  font-family: system-ui, "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --fg: #e6edf3;
+    --muted: #8d96a0;
+    --danger: #f85149;
+  }
+}
+
+body {
+  margin: 0;
+  padding: 16px;
+}
+
+.error {
+  color: var(--danger);
+}

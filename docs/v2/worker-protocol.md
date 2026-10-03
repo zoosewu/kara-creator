@@ -67,7 +67,7 @@ worker 開兩條迴圈，各自 long-poll `lease`：
 
 MeCab tagger 不是執行緒安全的：interactive 迴圈用自己的 tagger 實例（或加鎖）。
 
-Q9：只開 interactive 通道的 worker（`--channels interactive`，不需要 GPU 與 PyTorch）也要能跑，讓沒有 GPU 的機器提供假名。
+Q9：協定和 worker 的參數保留 `--channels interactive`（只開即時通道，不需要 GPU 與 PyTorch），但**先不打包、不部署**到 Mac 上；有需要再做。
 
 ## 檔案
 
@@ -108,7 +108,7 @@ Q9：只開 interactive 通道的 worker（`--channels interactive`，不需要 
 | `align_from` | `audio`：speech.wav | `texts`、`rubies`、`first`、`anchor`、`language`、`model` | `{lines}`：第 first 句（含）之後，整首的絕對時間 | — |
 | `align_line` | `audio`：speech.wav | `text`、`rubies`、`t0`、`t1`（下一句開頭，可為 null）、`language` | `{line}` | — |
 | `qa` | `audio`：speech.wav | `lines`、`texts`、`rubies`、`language`、`model` | `{doc}`：同 v1 `qa.check` 的回傳 | — |
-| `reading` | — | `language`、`lines: [{text, rubies}]` | `{lines: [{segments, units}]}`：`segments` 是假名片段（v1 `reading.furigana`），`units` 是變色單位與羅馬字（v1 `reading.split`，供日後需要時使用） | — |
+| `reading` | — | `language`、`texts` | `{lines: [[{start, end, ruby}…]…]}`：每句的**自動**讀音（v1 `reading._auto_furigana`），位置以 code point 計 | — |
 | `render` | `media`：伴奏影片（或原曲，看 target）；`ass`：（Q15 手動改過的 ASS，選填） | 見下 | `{width, height, ass_sha256}` | `karaoke.ass`（沒有手動 ASS 時）、`video.mp4` |
 
 `render` 的 params：
@@ -129,6 +129,13 @@ Q9：只開 interactive 通道的 worker（`--channels interactive`，不需要 
 ```
 
 `reading` 也會被 `render` 內部用到（日文假名），worker 直接在行程內呼叫，不另外派任務。
+
+`reading` 只看句子文字、**不看手動讀音**（2026-10-03 階段 0 調整）：讀音快取的 key 是「語言 + 句子 + 版本」，
+結果必須和手動讀音無關才能快取。手動讀音和自動讀音的合併（手動優先、重疊的自動讀音丟掉、台語 / 粵語每字一格）
+由 NAS 照 v1 `reading.furigana` 的規則做。v1 的 `units`（變色單位與羅馬字）沒有人用，不放進協定。
+
+所有歌詞位置（`rubies`、`reading` 的 `start` / `end`）都以 Unicode code point 計，和 Python 字串索引相同；
+Go 端要用 `[]rune` 換算，不能用 byte 位置。
 
 ## worker 的紀錄
 

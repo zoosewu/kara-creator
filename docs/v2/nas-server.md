@@ -37,7 +37,6 @@ kara-nas restore [--make]   # 從資料備份重建曲庫（v1 scripts/restore.p
 | `download` | `songtool/download.py` | 用假的 yt-dlp 測試 |
 | `inbox` | `songtool/local.py` | ✔（id 演算法） |
 | `backup` | `songtool/backup.py` | — |
-| `hooks` | `songtool/hooks.py` | — |
 | `scheduler` | `songtool/jobs.py` | 用假的 worker 測試 |
 
 ## 下載
@@ -51,7 +50,8 @@ kara-nas restore [--make]   # 從資料備份重建曲庫（v1 scripts/restore.p
   3. 完成後搬成 `source.<ext>`，寫 song.json（含 sha256、ffprobe 的寬高）
 - 同時最多下載 2 首（同 v1）
 - 啟動時替舊紀錄補抓歌曲資訊（v1 `refresh_metadata`，`meta_version`）
-- Q10：yt-dlp 自動更新（`yt-dlp -U`）：啟動時與每天一次；UI 的「系統」顯示版本
+- Q10：yt-dlp 自動更新：啟動時與每天檢查一次。更新前把目前的執行檔留成 `yt-dlp.prev`；UI 的「系統」顯示版本，
+  可以一鍵退回上一版（新版下載失敗時用）
 
 ## 手動放入（inbox）
 
@@ -81,6 +81,7 @@ kara-nas restore [--make]   # 從資料備份重建曲庫（v1 scripts/restore.p
 | 批次 | 下載後一路製作、批次製作 / 重新處理 | heavy |
 
 - 同一等級先到先做
+- **已經在跑的任務不會被中斷**：等級只決定 worker 下一次 lease 時拿到哪一件
 - 派工（worker 來 lease 時）：在這個 worker 能做的任務中取最高等級；同等級裡**優先選輸入檔已在這台快取裡的**，
   但等超過 2 分鐘的任務不再挑快取（避免一直被跳過）
 - worker 版本不同、被停用、不支援這個任務種類（例如只開 interactive 的 worker）就不派
@@ -96,10 +97,9 @@ v1 的佇列只在記憶體，重新啟動就清空。v2 把**還沒結束的工
 - 佇列清空（所有工作都結束）時收尾一次
 - 曲庫有變動（改歌名、資料夾、歌詞、時間…）後安靜 30 秒收尾一次（連續操作只跑一次）
 
-收尾 = 資料備份（寫 `data/`，有變動就 `git commit` + `git push`；push 失敗只記錄）→ 執行 hook。
-Q5：hook 改成 `hooks/on_idle.sh`（macOS / Linux），環境變數同 v1 但改名 `KARA_*`
-（`KARA_HOOK_REASON`、`KARA_EXPORT_DIR`、`KARA_LIBRARY`、`KARA_DATA_DIR`、`KARA_HOOK_SUMMARY`、`KARA_JOBS_DONE/FAILED/CANCELLED`），
-超過 30 分鐘中斷。收尾的紀錄顯示在處理佇列的「收尾」。
+收尾 = 資料備份（寫 `data/`，有變動就 `git commit` + `git push`；push 失敗只記錄）。收尾的紀錄顯示在處理佇列的「收尾」。
+
+Q5：v1 的收尾 hook（`hooks/on_idle.ps1`）**不移植**。它原本用來把匯出同步到 NAS，v2 的匯出本來就在 NAS 上。
 
 ## REST API（`/api/v1`）
 

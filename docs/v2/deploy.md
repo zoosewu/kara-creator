@@ -1,19 +1,18 @@
 # 部署、開發環境與測試
 
-## NAS：Mac mini M1（Q1 待討論）
+## NAS：Mac mini M1（Q1：container，用 OrbStack）
 
-### 原生執行（建議）
+Mac 上本來就在跑 OrbStack，所以 NAS 伺服器以 container 執行（`deploy/compose.nas.yml`），不做 launchd 安裝。
+Go 執行檔本身照樣可以在 macOS 原生編譯執行（開發、除錯用），但不提供安裝腳本。
 
-- `GOOS=darwin GOARCH=arm64` 編譯出 `kara-nas`
-- 外部工具放 `--tools`（安裝腳本下載）：`yt-dlp_macos`、`deno`（aarch64-apple-darwin）、`ffmpeg` / `ffprobe`（arm64 靜態版）
-- 預設字型下載到 `<library>/fonts/`
-- `deploy/macos/install.sh`：下載工具與字型、安裝執行檔到 `~/Applications/kara-nas/`、
-  產生 `~/Library/LaunchAgents/com.kara.nas.plist`（開機啟動、當掉自動重啟、紀錄寫到 `~/Library/Logs/kara-nas.log`）
+- 曲庫在外接硬碟（APFS，Q2），bind mount 到 container 的 `/library`
+- clone / 硬連結在 OrbStack 的 bind mount 上能不能用，階段 5 在 Mac 上實測（匯出會自動退回複製，不影響正確性）
+- `restart: unless-stopped`；OrbStack 設成登入時啟動
 - 提醒使用者：系統設定 → 能源 →「顯示器關閉時防止自動進入睡眠」，否則 AI 伺服器連不到
-- 防火牆第一次會詢問，允許「kara-nas」接受連線
-- 資料備份：用 Mac 上的 SSH 金鑰 `git push`；`data/` 在 Mac 上 clone 私人 repo
+- 外接硬碟沒掛上時 container 不要啟動成空的曲庫：啟動時檢查 `/library/library.json`（或 `--init` 明確建立新曲庫），沒有就結束並說明
+- 資料備份：把 Mac 的 SSH 金鑰唯讀掛載進 container 來 `git push`
 
-### container（給 Linux NAS，或在 Mac 上用 OrbStack）
+### container 映像（Mac 的 OrbStack 與 Linux NAS 共用）
 
 `deploy/nas.Dockerfile`，多階段建置：
 
@@ -61,15 +60,24 @@ ENTRYPOINT python ai/worker.py
 
 ## 開發環境（container 內）
 
-使用者會在 container 內 clone 這個 repo 開發。**需要的工具安裝前先問使用者**：
+使用者會在 container 內 clone 這個 repo 開發。2026-10-03 使用者同意開發 container 內的工具可以直接安裝或更新到最新版
+（使用者的 Windows PC、Mac 上安裝東西仍然要先問）。
 
-| 工具 | 用途 |
-| --- | --- |
-| Go（最新穩定版） | NAS 伺服器 |
-| Node.js LTS + npm | 前端建置 |
-| Python 3.14 + `requirements-ai.txt` 的 CPU 版 PyTorch | worker 的單元測試、產生黃金測試資料、搬遷工具 |
-| ffmpeg | 兩邊都要 |
-| Playwright（Chromium） | 前端截圖驗證 |
+| 工具 | 用途 | 目前（2026-10-03） |
+| --- | --- | --- |
+| Go（最新穩定版） | NAS 伺服器 | 1.27.1 |
+| Node.js LTS + npm | 前端建置 | 24.21 |
+| Python 3.14 + CPU 版 PyTorch 2.11 | worker 的單元測試、產生黃金測試資料、搬遷工具 | `.venv-linux/`（uv 建立） |
+| ffmpeg | 兩邊都要 | BtbN 的最新靜態版，`~/.local/bin` |
+| Chromium | 前端截圖驗證 | `google-chrome`、Playwright 的 Chromium |
+
+```sh
+go test -race ./...                     # Go（含假的 worker）
+cd nas/web && npm run check && npm run build
+.venv-linux/bin/python -m pytest -q     # Python
+go run ./nas/cmd/kara-nas --library <暫存曲庫> --listen 127.0.0.1:8766 &
+go run ./nas/cmd/fakeworker --nas http://127.0.0.1:8766 --delay 2s
+```
 
 container 通常沒有 GPU：worker 的整合測試用 CPU 跑短的測試音訊（慢但可以），真的 GPU 驗證留給使用者的 PC（見下）。
 

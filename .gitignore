@@ -19,3 +19,8 @@ data/
 # 使用者自己的 hook（通常有伺服器位址）；範例 on_idle.example.ps1 會進 git
 hooks/*
 !hooks/*.example.ps1
+
+# v2：前端打包結果由 npm run build 產生（.gitkeep 讓 go:embed 在還沒打包時也能編譯）
+nas/internal/api/dist/*
+!nas/internal/api/dist/.gitkeep
+node_modules/

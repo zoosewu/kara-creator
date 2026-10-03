@@ -4,7 +4,7 @@ v1 的紀錄檔裡有絕對路徑（例如 `karaoke.json` 的 `videos.*.source`�
 搬到另一台電腦或另一顆硬碟，路徑和修改時間都會變，整個曲庫就會變成需更新，甚至整首重新對時、手動調整被蓋掉。
 v2 的紀錄**只用相對路徑和內容雜湊**，整個資料夾搬到哪裡都一樣。
 
-> Q8（待討論）：以下用「每首歌一個資料夾」撰寫。
+> Q8（定案）：每首歌一個資料夾。
 
 ## 資料夾結構
 
@@ -19,7 +19,7 @@ v2 的紀錄**只用相對路徑和內容雜湊**，整個資料夾搬到哪裡�
       source.<ext>        來源影片或音訊（下載的或手動放入的；保留原副檔名）
       lyrics.txt          歌詞（格式同 v1）
       instrumental.<ext>  伴奏：和來源同格式，影像軌直接複製
-      vocals.flac         人聲（Q7：只存音訊）
+      vocals.flac         人聲（只存音訊，Q7）
       alignment.json      逐字時間軸（格式同 v1，見下）
       qa.json             對時檢查結果
       karaoke.ass         字幕（AI 產生；使用者可以用 Aegisub 修改，Q15）
@@ -32,7 +32,6 @@ v2 的紀錄**只用相對路徑和內容雜湊**，整個資料夾搬到哪裡�
   cache/                  可以整個刪掉的衍生檔
     work/                 給 AI 的暫存輸入（抽出的 wav、speech.wav），以 sha256 命名
     readings.jsonl        讀音快取
-  hooks/                  收尾 hook（on_idle.sh）
 ```
 
 資料備份（git repo）的位置另外指定（`--data`，預設 `<library>/data`），格式見「資料備份」。
@@ -150,7 +149,7 @@ H(欄位…)       = sha256( 每個欄位以 "\n" 串接，最後也加 "\n" )�
 | 對時 `align` | `stage=align`、`lyrics=<歌詞指紋>`、`vocals=<人聲 sha256>`、`model=large-v3`、`language=<語言>`、`version=<versions.align>` | 歌詞文字或讀音改了、人聲重新分離過、語言改了、對時方法改了 → **整首重新對時** |
 | 成品 `render`（每個 target） | `stage=render`、`target`、`media=<伴奏或來源 sha256>`、`alignment=<對時內容指紋>`、`lyrics=<歌詞指紋>`、`singers=<清單>`、`translations=<清單，不燒時為空>`、`title=<歌名>`、`artist=<演唱者>`、`note=<備註>`、`scale=<字幕大小，小數兩位>`、`font=<字型 sha256>`、`size=<寬>x<高>`、`version=<versions.render>`；**手動改過 ASS 時**改成 `ass=<那份 ASS 的 sha256>` 取代 alignment / lyrics / singers / translations / title / scale / font | 任何會改變畫面的東西變了 → **只重新產生字幕與燒錄** |
 | 對時檢查 `qa` | `stage=qa`、`alignment=<對時內容指紋>`、`lyrics=<歌詞指紋>`、`vocals=<人聲 sha256>`、`language`、`model`、`version=<versions.qa>` | 對時改了 → 重新檢查 |
-| 已確認（Q6 建議） | `stage=approve`、`alignment`、`lyrics`、`singers`、`translations`、`title`、`artist`、`note` | 內容變了 → 需重新確認（換字型、改字幕大小不影響） |
+| 已確認（Q6） | `stage=approve`、`alignment`、`lyrics`、`singers`、`translations`、`title`、`artist`、`note` | 內容變了 → 需重新確認（換字型、改字幕大小不影響） |
 
 標題畫面規則同 v1 `karaoke.title_card`：歌名來自手動設定、歌詞檔或標題辨識；標題辨識只能用整個影片標題（`source=fallback`）時不顯示標題畫面。
 
@@ -193,9 +192,13 @@ NAS 在記憶體裡保留所有歌的狀態，**只在有變動時重算該首�
 規則同 v1 `export.py`：資料夾結構同曲庫、檔名「歌手 - 歌名.mp4」、同名加 (2)、只管理 `.export.json` 列的檔案。
 放置方式依序嘗試：
 
-1. **APFS clone**（macOS `clonefile`，不佔空間、各自獨立）
+1. **clone**（不佔空間、各自獨立）：macOS 原生用 `clonefile`；Linux / container 用 `FICLONE`（reflink）
 2. **硬連結**
-3. **複製**（exFAT 等不支援前兩者的檔案系統，Q2）
+3. **複製**
+
+Q2：曲庫在 Mac 的外接硬碟（APFS），NAS 伺服器跑在 OrbStack 的 container 裡（Q1）。
+container 透過 bind mount 存取 APFS，clone 和硬連結能不能用要在 Mac 上實測（階段 5）；
+程式每次都依序嘗試，失敗就換下一種，不必事先設定。`/library` 必須是同一個掛載點。
 
 只匯出 `instrumental` 成品；成品需更新時照樣匯出舊的那份（和 v1 相同），重燒完再換成新的。
 
@@ -204,10 +207,10 @@ NAS 在記憶體裡保留所有歌的狀態，**只在有變動時重算該首�
 `cache/readings.jsonl`，每行一筆：
 
 ```json
-{"k": "<sha256(language \x1f 句子 \x1f versions.reading)>", "segments": [{"start": 0, "end": 2, "ruby": "きょう"}], "units": …}
+{"k": "<sha256(language \x1f 句子 \x1f versions.reading)>", "spans": [{"start": 0, "end": 2, "ruby": "きょう"}]}
 ```
 
-- 值是 AI `reading` 任務對一句的回傳（見 worker-protocol.md）
+- 值是 AI `reading` 任務對一句的回傳：只有自動讀音（見 worker-protocol.md）；手動讀音在 NAS 合併
 - 啟動時全部讀進記憶體（量很小：上千句也只有幾百 KB）；新增時附加一行
 - `versions.reading` 變了，舊的自然對不上，過一陣子用不到的會在壓縮時丟掉（檔案超過一定大小時重寫，只留最近用過的）
 
