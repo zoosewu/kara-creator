@@ -27,7 +27,7 @@
 - [x] `tools/golden.py` + `lyrics`：parse / serialize / 括號讀音 / detect_language
 - [x] `difflib`：移植 Python `SequenceMatcher(autojunk=False).get_opcodes()` + `_from_plain`
 - [x] `titles`：標題辨識
-- [ ] `fingerprint`：data.md 的指紋（Python 版也要，搬遷工具用）
+- [x] `fingerprint`：data.md 的指紋（Python 版也要，搬遷工具用）
 - [ ] `store`：`song.json`、`library.json`、原子寫入、`--init`、外接硬碟沒掛上時拒絕啟動
 - [ ] `library`：資料夾、順序（v1 `catalog.place`）、display_info
 - [ ] `media`：ffprobe / ffmpeg 包裝（抽音軌、封裝、speech.wav、vocals.flac）

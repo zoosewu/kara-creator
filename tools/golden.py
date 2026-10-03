@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import atexit  # noqa: E402
+import hashlib  # noqa: E402
 import difflib  # noqa: E402
 import os  # noqa: E402
 import shutil  # noqa: E402
@@ -31,6 +32,7 @@ sys.path.insert(0, str(ROOT / "ui"))
 
 from songtool import lyrics, titles  # noqa: E402
 import server as v1_server  # noqa: E402
+from migrate import fingerprint  # noqa: E402
 
 OUT = ROOT / "nas" / "testdata" / "golden"
 
@@ -223,6 +225,51 @@ def gen_titles() -> list[dict]:
     return out
 
 
+def gen_fingerprint() -> dict:
+    rng = random.Random(5)
+    lyric_cases = []
+    for text in LYRICS_CASES + random_texts(100, seed=6):
+        doc = lyrics.parse(text)
+        texts = [ln.text for ln in doc.lyric_lines]
+        rubies = [[{"start": r.start, "end": r.end, "reading": r.reading} for r in ln.rubies] for ln in doc.lyric_lines]
+        if rubies and rng.random() < 0.3:
+            rubies = [list(reversed(r)) for r in rubies]  # 順序亂掉也要依 start 排序
+        lyric_cases.append({"texts": texts, "rubies": rubies, "fingerprint": fingerprint.lyrics(texts, rubies)})
+    times = [0, 0.0005, 0.0015, 0.0025, 1.0005, 2.4995, 12.345, 123.4565, 59.9999, 0.1 + 0.2, 1e-9, 3600.5005]
+    align_cases = []
+    for _ in range(60):
+        lines = []
+        for _ in range(rng.randint(0, 4)):
+            words = [{"text": rng.choice(["空", "の", "a ", "b", "歌詞", ""]), "start": rng.choice(times) + rng.random() * 100,
+                      "end": rng.choice(times)} for _ in range(rng.randint(0, 3))]
+            lines.append({"text": "".join(w["text"] for w in words), "start": rng.choice(times), "end": rng.choice(times) + rng.random(),
+                          "words": words})
+        align_cases.append({"lines": lines, "fingerprint": fingerprint.alignment(lines)})
+    ms_cases = [{"t": t, "ms": fingerprint.ms(t)} for t in times + [rng.random() * 1000 for _ in range(200)]]
+    items_cases = [{"values": v, "items": fingerprint.items(v)} for v in [[], [None], ["男", None, "女"], ["", "合"]]]
+    texts = ["", "普通", "有\n換行", "反斜線\\n", "x=y", "全形　空白", "\x1f"]
+    stage_cases = []
+    for i in range(80):
+        pick = lambda: rng.choice(texts)  # noqa: E731
+        sha = lambda: hashlib.sha256(str(rng.random()).encode()).hexdigest()  # noqa: E731
+        kw = {"target": rng.choice(["instrumental", "original"]), "media": sha(), "alignment": sha(), "lyrics": sha(),
+              "singers": fingerprint.items(rng.choice([[], ["男", None]])), "translations": pick(), "title": pick(),
+              "artist": pick(), "note": pick(), "scale": rng.choice([1, 0.6, 1.005, 0.125, 1.6, 0.995, 1 / 3]),
+              "font": sha(), "size": rng.choice(["1920x1080", "", "640x360"]), "version": rng.randint(1, 9),
+              "ass": rng.choice([None, None, sha()])}
+        stage_cases.append({"kind": "render", "args": kw, "fingerprint": fingerprint.render(**kw)})
+        kw = {"source": sha(), "model": "htdemucs", "stems": 2, "version": rng.randint(1, 3)}
+        stage_cases.append({"kind": "separate", "args": kw, "fingerprint": fingerprint.separate(**kw)})
+        kw = {"lyrics": sha(), "vocals": sha(), "model": "large-v3", "language": rng.choice(["", "ja", "nan"]), "version": 7}
+        stage_cases.append({"kind": "align", "args": kw, "fingerprint": fingerprint.align(**kw)})
+        kw = {"alignment": sha(), "lyrics": sha(), "vocals": sha(), "language": "zh", "model": "large-v3", "version": 4}
+        stage_cases.append({"kind": "qa", "args": kw, "fingerprint": fingerprint.qa(**kw)})
+        kw = {"alignment": sha(), "lyrics": sha(), "singers": "", "translations": pick(), "title": pick(),
+              "artist": pick(), "note": pick()}
+        stage_cases.append({"kind": "approve", "args": kw, "fingerprint": fingerprint.approve(**kw)})
+    return {"lyrics": lyric_cases, "alignment": align_cases, "ms": ms_cases, "items": items_cases, "stages": stage_cases}
+
+
 GENERATORS = {
     "lyrics_parse": gen_lyrics_parse,
     "paren": gen_paren,
@@ -230,6 +277,7 @@ GENERATORS = {
     "difflib": gen_difflib,
     "lyrics_plain": gen_lyrics_plain,
     "titles": gen_titles,
+    "fingerprint": gen_fingerprint,
 }
 
 

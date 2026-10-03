@@ -133,10 +133,12 @@ id 決定資料夾名稱，之後不會改變。歌名、資料夾、順序都�
 ## 指紋
 
 **所有指紋都是 sha256 的十六進位字串，輸入是下面明確定義的文字格式**（不要用 JSON 序列化當輸入：
-Go 和 Python 的 JSON 輸出細節不同，浮點數格式也不同）。時間一律先四捨五入成**整數毫秒**。
+Go 和 Python 的 JSON 輸出細節不同，浮點數格式也不同）。時間一律先四捨五入成**整數毫秒**：`floor(秒 × 1000 + 0.5)`。
+實作：Go `nas/internal/fingerprint`、Python `migrate/fingerprint.py`，黃金測試確認兩邊相同。
 
 ```
 H(欄位…)       = sha256( 每個欄位以 "\n" 串接，最後也加 "\n" )；每個欄位是 "名稱=值"
+                  （值裡的 "\" 寫成 "\\"、換行寫成 "\n"；字幕大小寫成小數兩位，例如 1.00）
 歌詞指紋        = sha256( 每句：句子文字 + 每個手動讀音依 start 排序「\x1f{start}\x1f{end}\x1f{reading}」，句與句以 "\x1e" 串接 )
                   （只看要唱的句子；演唱者、翻譯、註解、標題不算——它們不影響對時）
 對時內容指紋    = sha256( 每句：「{start_ms}\x1f{end_ms}」再加每個字「\x1d{text}\x1f{start_ms}\x1f{end_ms}」，句與句以 "\x1e" 串接 )
@@ -147,7 +149,7 @@ H(欄位…)       = sha256( 每個欄位以 "\n" 串接，最後也加 "\n" )�
 | --- | --- | --- |
 | 去人聲 `separate` | `stage=separate`、`source=<來源 sha256>`、`model=htdemucs`、`stems=2`、`version=<versions.separate>` | 來源檔換了，或去人聲方法改了 |
 | 對時 `align` | `stage=align`、`lyrics=<歌詞指紋>`、`vocals=<人聲 sha256>`、`model=large-v3`、`language=<語言>`、`version=<versions.align>` | 歌詞文字或讀音改了、人聲重新分離過、語言改了、對時方法改了 → **整首重新對時** |
-| 成品 `render`（每個 target） | `stage=render`、`target`、`media=<伴奏或來源 sha256>`、`alignment=<對時內容指紋>`、`lyrics=<歌詞指紋>`、`singers=<清單>`、`translations=<清單，不燒時為空>`、`title=<歌名>`、`artist=<演唱者>`、`note=<備註>`、`scale=<字幕大小，小數兩位>`、`font=<字型 sha256>`、`size=<寬>x<高>`、`version=<versions.render>`；**手動改過 ASS 時**改成 `ass=<那份 ASS 的 sha256>` 取代 alignment / lyrics / singers / translations / title / scale / font | 任何會改變畫面的東西變了 → **只重新產生字幕與燒錄** |
+| 成品 `render`（每個 target） | `stage=render`、`target`、`media=<伴奏或來源 sha256>`、`alignment=<對時內容指紋>`、`lyrics=<歌詞指紋>`、`singers=<清單>`、`translations=<清單，不燒時為空>`、`title=<歌名>`、`artist=<演唱者>`、`note=<備註>`、`scale=<字幕大小，小數兩位>`、`font=<字型 sha256>`、`size=<寬>x<高>`、`version=<versions.render>`；**手動改過 ASS 時**只剩 `stage`、`target`、`media`、`ass=<那份 ASS 的 sha256>`、`size`、`version`（畫面完全由那份 ASS 決定，標題畫面也在裡面） | 任何會改變畫面的東西變了 → **只重新產生字幕與燒錄** |
 | 對時檢查 `qa` | `stage=qa`、`alignment=<對時內容指紋>`、`lyrics=<歌詞指紋>`、`vocals=<人聲 sha256>`、`language`、`model`、`version=<versions.qa>` | 對時改了 → 重新檢查 |
 | 已確認（Q6） | `stage=approve`、`alignment`、`lyrics`、`singers`、`translations`、`title`、`artist`、`note` | 內容變了 → 需重新確認（換字型、改字幕大小不影響） |
 
