@@ -30,7 +30,7 @@ for _name in ("SONG_OUTPUT_DIR", "SONG_LYRICS_DIR", "SONG_DATA_DIR", "SONG_HOOKS
     os.environ[_name] = str(_tmp / _name.lower())
 sys.path.insert(0, str(ROOT / "ui"))
 
-from songtool import catalog, karaoke, lyrics, manifest, reading, titles  # noqa: E402
+from songtool import catalog, export, karaoke, lyrics, manifest, reading, titles  # noqa: E402
 import server as v1_server  # noqa: E402
 from migrate import fingerprint  # noqa: E402
 
@@ -410,6 +410,46 @@ def gen_readings() -> list[dict]:
     return out
 
 
+def gen_export_names() -> dict:
+    """v1 export.file_name 與 targets（檔名、同名編號、資料夾名稱）。"""
+    from types import SimpleNamespace
+    rng = random.Random(9)
+    pieces = ["歌名", "歌手", "Song", "song", "SONG", "a/b", "c:d", "問?號", "星*", "<角>", "\"引號\"", "pipe|", "back\\slash",
+              "結尾點.", "結尾空白 ", " ", "", "\x01控制", "ß", "SS", "İ", "很長" * 100, "  前後  "]
+    names = []
+    for _ in range(300):
+        title = "".join(rng.choice(pieces) for _ in range(rng.randint(0, 3)))
+        artist = "".join(rng.choice(pieces) for _ in range(rng.randint(0, 2)))
+        copy = rng.choice([1, 1, 2, 3])
+        names.append({"title": title, "artist": artist, "copy": copy, "name": export.file_name(title, artist, copy)})
+
+    export.catalog.song_key = lambda item: item.key
+    export.lyrics.find = lambda item: None
+    export.catalog.display_info = lambda item, song, meta: (item.title, item.artist)
+    libraries = []
+    for _ in range(40):
+        cat = catalog.Catalog()
+        folders = [None]
+        for k in range(rng.randint(0, 5)):
+            parent = rng.choice(folders)
+            name = rng.choice(["日文", "中文", "a/b", "結尾點.", "  ", "子", "日文"])
+            f = catalog.Folder(f"f{k:07d}", name, rng.randint(1, 3), parent)
+            cat.folders[f.id] = f
+            folders.append(f.id)
+        items = []
+        for k in range(rng.randint(1, 12)):
+            key = f"s{k:02d}"
+            cat.songs[key] = catalog.Song(key, rng.choice(folders), rng.randint(1, 4))
+            items.append(SimpleNamespace(key=key, title=rng.choice(["晴天", "晴天", "Song", "song", "雨"]),
+                                         artist=rng.choice(["", "歌手", "歌手 ", "ß", "SS"])))
+        state = cat.to_dict()
+        libraries.append({"folders": state["folders"],
+                          "songs": {k: {"folder": v["folder"], "number": v["number"]} for k, v in state["songs"].items()},
+                          "display": {i.key: [i.title, i.artist] for i in items},
+                          "targets": export.targets(catalog.Catalog.from_dict(state), items)})
+    return {"names": names, "libraries": libraries}
+
+
 GENERATORS = {
     "lyrics_parse": gen_lyrics_parse,
     "paren": gen_paren,
@@ -421,6 +461,7 @@ GENERATORS = {
     "catalog": gen_catalog,
     "shift_timing": gen_shift_timing,
     "readings": gen_readings,
+    "export_names": gen_export_names,
 }
 
 

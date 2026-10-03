@@ -128,10 +128,7 @@ func Evaluate(in Input) Result {
 
 	// 語言、歌名、演唱者、標題畫面
 	r.Language = first(sg.Info.Language, lyrics.DetectLanguage(texts))
-	r.Guess = titles.FromInfo(titles.Info{Title: sg.Source.Title, Track: sg.Source.Track, Artists: sg.Source.Artists,
-		Channel: sg.Source.Channel, Uploader: sg.Source.Uploader})
-	r.Title = first(sg.Info.Title, doc.Meta["title"], r.Guess.Title)
-	r.Artist = first(sg.Info.Artist, doc.Meta["artist"], r.Guess.Artist)
+	r.Title, r.Artist, r.Guess = Display(sg, doc.Meta)
 	// 標題辨識只能用整個影片標題時不顯示標題畫面，避免整串 YouTube 標題上畫面。
 	known := sg.Info.Title != "" || doc.Meta["title"] != "" || r.Guess.Source != titles.SourceFallback
 	var cardTitle, cardArtist, cardNote string
@@ -259,6 +256,14 @@ func Evaluate(in Input) Result {
 		}
 	}
 	return r
+}
+
+// Display 回傳實際使用的歌名與演唱者：手動設定 > 歌詞檔的 # title / # artist > 自動辨識（v1 catalog.display_info）。
+// 自動辨識不會寫進紀錄，所以永遠不會蓋掉手動設定；手動欄位清空就回到自動辨識。
+func Display(sg *song.Song, lyricsMeta map[string]string) (title, artist string, guess titles.Guess) {
+	guess = titles.FromInfo(titles.Info{Title: sg.Source.Title, Track: sg.Source.Track, Artists: sg.Source.Artists,
+		Channel: sg.Source.Channel, Uploader: sg.Source.Uploader})
+	return first(sg.Info.Title, lyricsMeta["title"], guess.Title), first(sg.Info.Artist, lyricsMeta["artist"], guess.Artist), guess
 }
 
 // worse 回傳兩個狀態中比較需要處理的（pending > outdated > done）。

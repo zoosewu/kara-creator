@@ -37,7 +37,7 @@
 - [x] `scheduler`：AI 任務佇列、/worker/v1 端點、優先順序、快取優先、租約、改派、取消（假的 worker 測）
 - [ ] `jobs` + `pipeline`：工作（使用者層級）、每首歌依序、下載 / 本機 ffmpeg 的並行上限、持久化、紀錄、收尾
 - [x] `download`（假的 yt-dlp 測試；更新 / 退回上一版）、`inbox`（fsnotify）、`proc`（取消時整個 process group 結束）
-- [ ] `export`：clone → 硬連結 → 複製
+- [x] `export`：clone（Linux FICLONE / macOS clonefile）→ 硬連結 → 複製；檔名規則黃金測試
 - [ ] `backup`、`restore`
 - [ ] `fonts`：字型目錄、family 名稱
 - [ ] `api`：huma REST + SSE + `openapi` 子命令
