@@ -66,10 +66,14 @@ class _Measure:
     找不到字型或沒有 Pillow 時用字數估算。
     """
 
-    def __init__(self, font: str):
-        self._file = FONT_FILES.get(font)
-        self._path = (Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / self._file[0]
-                      if self._file else None)
+    def __init__(self, font: str, path: Path | None = None, index: int = 0):
+        """path：直接指定字型檔（v2 的 AI worker 用 NAS 給的字型檔）；沒給時依字型名稱找 Windows 的字型。"""
+        if path is not None:
+            self._file, self._path = (Path(path).name, index), Path(path)
+        else:
+            self._file = FONT_FILES.get(font)
+            self._path = (Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / self._file[0]
+                          if self._file else None)
         self._fonts: dict[int, object] = {}
         self._scale = _libass_scale(self._path, self._file[1]) if self._path else None
 
@@ -124,10 +128,11 @@ TRANSLATION_LAYOUT = "top-center"
 
 def build(lines: list[dict], width: int, height: int, style: Style,
           title: str | None = None, artist: str | None = None, note: str | None = None,
-          translations: list[str] | None = None) -> str:
+          translations: list[str] | None = None, font_file: Path | None = None, font_index: int = 0) -> str:
     """lines: [{"text", "start", "end", "words": [{"text", "start", "end"}],
-                "singer"?, "rubies"?: [(start, end, reading)]}]"""
-    measure = _Measure(style.font)
+                "singer"?, "rubies"?: [(start, end, reading)]}]
+    font_file / font_index：量字寬用的字型檔（沒給時依 style.font 找 Windows 的字型）。"""
+    measure = _Measure(style.font, font_file, font_index)
     fs = round(height * style.size_ratio)
     margin_x = round(width * 0.06)
     avail = width - 2 * margin_x

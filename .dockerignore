@@ -1,0 +1,9 @@
+.git
+.venv*
+output
+lyrics
+data
+tools
+nas/web/node_modules
+nas/internal/api/dist
+**/__pycache__

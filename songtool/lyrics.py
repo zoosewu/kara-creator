@@ -22,8 +22,12 @@ import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+from typing import TYPE_CHECKING
+
 from . import config
-from .download import Download
+
+if TYPE_CHECKING:   # 只有型別註記用到；AI worker 沒有安裝 yt-dlp
+    from .download import Download
 
 SINGERS = ("男", "女", "合")
 
