@@ -24,8 +24,8 @@
 
 依相依順序。純規則的模組先寫黃金測試（`tools/golden.py` 用 v1 產生答案 → `nas/testdata/golden/*.json`）。
 
-- [ ] `tools/golden.py` + `lyrics`：parse / serialize / 括號讀音 / detect_language
-- [ ] `difflib`：移植 Python `SequenceMatcher(autojunk=False).get_opcodes()` + `_from_plain`
+- [x] `tools/golden.py` + `lyrics`：parse / serialize / 括號讀音 / detect_language
+- [x] `difflib`：移植 Python `SequenceMatcher(autojunk=False).get_opcodes()` + `_from_plain`
 - [ ] `titles`：標題辨識
 - [ ] `fingerprint`：data.md 的指紋（Python 版也要，搬遷工具用）
 - [ ] `store`：`song.json`、`library.json`、原子寫入、`--init`、外接硬碟沒掛上時拒絕啟動

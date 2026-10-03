@@ -1,0 +1,1148 @@
+[
+ {
+  "input": "",
+  "readings": [],
+  "converted": ""
+ },
+ {
+  "input": "\n\n  \n",
+  "readings": [],
+  "converted": "\n\n  \n"
+ },
+ {
+  "input": "# title: 自己編的歌\n# artist: 不存在的歌手\n春の風{かぜ}が吹{ふ}く\n",
+  "readings": [],
+  "converted": "# title: 自己編的歌\n# artist: 不存在的歌手\n春の風{かぜ}が吹{ふ}く\n"
+ },
+ {
+  "input": "# TITLE：全形冒號\n#Artist:沒有空白\n# 副歌\n一句歌詞\n",
+  "readings": [],
+  "converted": "# TITLE：全形冒號\n#Artist:沒有空白\n# 副歌\n一句歌詞\n"
+ },
+ {
+  "input": "# title:\n# artist:   \n歌名是空的\n",
+  "readings": [],
+  "converted": "# title:\n# artist:   \n歌名是空的\n"
+ },
+ {
+  "input": "[男] 第一句\n[女]第二句\n[合]  第三句\n[男]\n[路人] 不是演唱者\n",
+  "readings": [],
+  "converted": "[男] 第一句\n[女]第二句\n[合]  第三句\n[男]\n[路人] 不是演唱者\n"
+ },
+ {
+  "input": "﻿開頭有 BOM 的歌詞\n",
+  "readings": [],
+  "converted": "﻿開頭有 BOM 的歌詞\n"
+ },
+ {
+  "input": "Windows 換行\r\n第二句\r\n",
+  "readings": [],
+  "converted": "Windows 換行\r\n第二句\r\n"
+ },
+ {
+  "input": "全形　空白　收斂\n連續   半形\t空白\n",
+  "readings": [],
+  "converted": "全形　空白　收斂\n連續   半形\t空白\n"
+ },
+ {
+  "input": "君の声は私{わたし}の灯り\n{本気|マジ}で\n運命{さだめ}を\n",
+  "readings": [],
+  "converted": "君の声は私{わたし}の灯り\n{本気|マジ}で\n運命{さだめ}を\n"
+ },
+ {
+  "input": "abc{エービーシー}と漢字{かんじ}{ふりがな}\n",
+  "readings": [],
+  "converted": "abc{エービーシー}と漢字{かんじ}{ふりがな}\n"
+ },
+ {
+  "input": "{|空的原字}\n{空讀音|}\n{  }\n沒有收尾的{大括號\n}只有收尾\n",
+  "readings": [],
+  "converted": "{|空的原字}\n{空讀音|}\n{  }\n沒有收尾的{大括號\n}只有收尾\n"
+ },
+ {
+  "input": "重疊{a|x}{b}\n漢字漢字{かな}{|後面}\n標{一}標{二}\n",
+  "readings": [],
+  "converted": "重疊{a|x}{b}\n漢字漢字{かな}{|後面}\n標{一}標{二}\n"
+ },
+ {
+  "input": "你佇{tī}遮\n阮{gún}\n心肝{sim-kuann}\n台灣{Tâi-uân}人\n三字{sann jī}漢字\n",
+  "readings": [],
+  "converted": "你佇{tī}遮\n阮{gún}\n心肝{sim-kuann}\n台灣{Tâi-uân}人\n三字{sann jī}漢字\n"
+ },
+ {
+  "input": "歌詞{go1 ci4}\n粵語{jyut6 jyu5}啊\n一{jat1}二{ji6}\n",
+  "readings": [],
+  "converted": "歌詞{go1 ci4}\n粵語{jyut6 jyu5}啊\n一{jat1}二{ji6}\n"
+ },
+ {
+  "input": "第一句\n> 第一句的翻譯\n>  第二行翻譯\n> \n第二句\n\n> 前面是空行，當成註解\n",
+  "readings": [],
+  "converted": "第一句\n> 第一句的翻譯\n>  第二行翻譯\n> \n第二句\n\n> 前面是空行，當成註解\n"
+ },
+ {
+  "input": "# 註解\n> 開頭就是翻譯\n",
+  "readings": [],
+  "converted": "# 註解\n> 開頭就是翻譯\n"
+ },
+ {
+  "input": "\n\n開頭結尾的空行\n\n\n中間的空行\n\n",
+  "readings": [],
+  "converted": "\n\n開頭結尾的空行\n\n\n中間的空行\n\n"
+ },
+ {
+  "input": "Made up English line\nanother line with Numbers 123\n",
+  "readings": [],
+  "converted": "Made up English line\nanother line with Numbers 123\n"
+ },
+ {
+  "input": "한국어 가사\n",
+  "readings": [],
+  "converted": "한국어 가사\n"
+ },
+ {
+  "input": "混合 mixed 文字 と かな\n",
+  "readings": [],
+  "converted": "混合 mixed 文字 と かな\n"
+ },
+ {
+  "input": "運命(さだめ)\n運命{うんめい}(さだめ)\n本気（マジ）だ\n# 註解(かっこ)不動\n今(いま)と未来（みらい）\n",
+  "readings": [
+   "運命(さだめ)",
+   "運命{うんめい}(さだめ)",
+   "本気（マジ）",
+   "今(いま)",
+   "未来（みらい）"
+  ],
+  "converted": "{運命|さだめ}\n{運命|さだめ}\n{本気|マジ}だ\n# 註解(かっこ)不動\n{今|いま}と{未来|みらい}\n"
+ },
+ {
+  "input": "ruby 在英數上 ABC{えーびーしー}123{いちにさん}\n",
+  "readings": [],
+  "converted": "ruby 在英數上 ABC{えーびーしー}123{いちにさん}\n"
+ },
+ {
+  "input": "vertical\u000btab\fform\u001cfile\u001dgroup\u001erecordnext line para\n",
+  "readings": [],
+  "converted": "vertical\u000btab\fform\u001cfile\u001dgroup\u001erecordnext line para\n"
+ },
+ {
+  "input": "unit\u001fseparator 不是換行但是空白\n",
+  "readings": [],
+  "converted": "unit\u001fseparator 不是換行但是空白\n"
+ },
+ {
+  "input": "  前後空白  \n\t[女]\t前面有 tab\n",
+  "readings": [],
+  "converted": "  前後空白  \n\t[女]\t前面有 tab\n"
+ },
+ {
+  "input": "𠀀擴充漢字{よみ}\n㐀擴充A{よみ}\n",
+  "readings": [],
+  "converted": "𠀀擴充漢字{よみ}\n㐀擴充A{よみ}\n"
+ },
+ {
+  "input": "{a|b|c}\n{{巢狀}}\n}{反過來\n",
+  "readings": [],
+  "converted": "{a|b|c}\n{{巢狀}}\n}{反過來\n"
+ },
+ {
+  "input": "夏春c灣",
+  "readings": [],
+  "converted": "夏春c灣"
+ },
+ {
+  "input": "な\nい\n空\tヶ台1)  jyut6 #Atitle9]イ空",
+  "readings": [],
+  "converted": "な\nい\n空\tヶ台1)  jyut6 #Atitle9]イ空"
+ },
+ {
+  "input": "c|",
+  "readings": [],
+  "converted": "c|"
+ },
+ {
+  "input": "B0:灣# title:人さか私人さ人佇##c#々# title:一{",
+  "readings": [],
+  "converted": "B0:灣# title:人さか私人さ人佇##c#々# title:一{"
+ },
+ {
+  "input": "ⁿ:'c\u001c\nbc{台́xsim-kuannⁿ|）:た[合]ウ[]#\u001cbー}",
+  "readings": [],
+  "converted": "ⁿ:'c\u001c\nbc{台́xsim-kuannⁿ|）:た[合]ウ[]#\u001cbー}"
+ },
+ {
+  "input": "a jyut6 # title:jyut6 }[合]ーうさtī灣\r\nイ한[女]ジマ -]# title:>]）\r\n\nyジá",
+  "readings": [],
+  "converted": "a jyut6 # title:jyut6 }[合]ーうさtī灣\r\nイ한[女]ジマ -]# title:>]）\r\n\nyジá"
+ },
+ {
+  "input": "[合]#cヶ\r風㐀めjyut6 の二͘冬命",
+  "readings": [],
+  "converted": "[合]#cヶ\r風㐀めjyut6 の二͘冬命"
+ },
+ {
+  "input": "）運イ\nかヶ冬́>佇イたあ命0sim-kuann'空命cc人た々私春心花私海á声Aな你台ⁿ",
+  "readings": [],
+  "converted": "）運イ\nかヶ冬́>佇イたあ命0sim-kuann'空命cc人た々私春心花私海á声Aな你台ⁿ"
+ },
+ {
+  "input": ">〆君C\n海\u001cた阮空君a",
+  "readings": [],
+  "converted": ">〆君C\n海\u001cた阮空君a"
+ },
+ {
+  "input": "(͘͘心カめ[合]私ジ{artist한\nⁿ海ア́x\r-阮[男]う夏ーヶー冬私{㐀你>\t𠀀 [合]#さ遮",
+  "readings": [],
+  "converted": "(͘͘心カめ[合]私ジ{artist한\nⁿ海ア́x\r-阮[男]う夏ーヶー冬私{㐀你>\t𠀀 [合]#さ遮"
+ },
+ {
+  "input": "アア\nz）声tī# title:佇・命な空你台灣秋})か#-",
+  "readings": [],
+  "converted": "アア\nz）声tī# title:佇・命な空你台灣秋})か#-"
+ },
+ {
+  "input": "たかsim-kuann",
+  "readings": [],
+  "converted": "たかsim-kuann"
+ },
+ {
+  "input": "風な春\nか\r\u001c \r-cなヶ0ウ:́君阮空Cy台心#jyut6 夏さ冬",
+  "readings": [],
+  "converted": "風な春\nか\r\u001c \r-cなヶ0ウ:́君阮空Cy台心#jyut6 夏さ冬"
+ },
+ {
+  "input": "声一́か冬い私",
+  "readings": [],
+  "converted": "声一́か冬い私"
+ },
+ {
+  "input": "・|}ジ：（Bいヶ'あá 10#声\t\n運z:\t一秋ー [女]c声>肝\r\nc",
+  "readings": [],
+  "converted": "・|}ジ：（Bいヶ'あá 10#声\t\n運z:\t一秋ー [女]c声>肝\r\nc"
+ },
+ {
+  "input": "〆Aジ声ヶy秋冬ジ三𠀀々声 {命y)[合]",
+  "readings": [],
+  "converted": "〆Aジ声ヶy秋冬ジ三𠀀々声 {命y)[合]"
+ },
+ {
+  "input": "あ\n\r\n風君カ私Aジjyut6 風う́[合]二心　A sim-kuann|佇́a 肝な肝肝春",
+  "readings": [],
+  "converted": "あ\n\r\n風君カ私Aジjyut6 風う́[合]二心　A sim-kuann|佇́a 肝な肝肝春"
+ },
+ {
+  "input": "だ（ い〆冬私\rー[男]𠀀海jyut6 -[サb}遮 Aイ[女]:[女]jyut6 á z[合]ヶサ か台[合]\nアartist0",
+  "readings": [],
+  "converted": "だ（ い〆冬私\rー[男]𠀀海jyut6 -[サb}遮 Aイ[女]:[女]jyut6 á z[合]ヶサ か台[合]\nアartist0"
+ },
+ {
+  "input": "\tá　秋風b",
+  "readings": [],
+  "converted": "\tá　秋風b"
+ },
+ {
+  "input": "title遮 z花 夏ヶ （空你",
+  "readings": [],
+  "converted": "title遮 z花 夏ヶ （空你"
+ },
+ {
+  "input": "Cか-・ヶだ9人:カ心阮titlé0秋だ>た",
+  "readings": [],
+  "converted": "Cか-・ヶだ9人:カ心阮titlé0秋だ>た"
+ },
+ {
+  "input": "な灣台|-さxb㐀'　á遮|9jyut6 私 \nCⁿ一 #運[女]ウxな-áy-",
+  "readings": [],
+  "converted": "な灣台|-さxb㐀'　á遮|9jyut6 私 \nCⁿ一 #運[女]ウxな-áy-"
+ },
+ {
+  "input": "cartistだsim-kuann͘ー春'jyut6 う：\r二x・B)のー|:sim-kuann|）人秋声xいá ",
+  "readings": [],
+  "converted": "cartistだsim-kuann͘ー春'jyut6 う：\r二x・B)のー|:sim-kuann|）人秋声xいá "
+ },
+ {
+  "input": "Cい秋C# title:한 三ウ͘\n\t二[合] \r\n佇の\r\n々1[女]な# 人|sim-kuannあ'風a君[合]：・ー花́",
+  "readings": [],
+  "converted": "Cい秋C# title:한 三ウ͘\n\t二[合] \r\n佇の\r\n々1[女]な# 人|sim-kuannあ'風a君[合]：・ー花́"
+ },
+ {
+  "input": "[合]々だ}イ]}私春\r\ńa人'́㐀xな々(㐀jyut6 佇運台[B|々サ阮のカ# title:|君c空",
+  "readings": [],
+  "converted": "[合]々だ}イ]}私春\r\ńa人'́㐀xな々(㐀jyut6 佇運台[B|々サ阮のカ# title:|君c空"
+ },
+ {
+  "input": "B 9あ々ジ[）佇[女]〆：sim-kuannマ風アーマだ（\u001cジ）（ >夏#)あ \n:阮 ",
+  "readings": [],
+  "converted": "B 9あ々ジ[）佇[女]〆：sim-kuannマ風アーマだ（\u001cジ）（ >夏#)あ \n:阮 "
+ },
+ {
+  "input": "(夏ジ海か}# title:か>ウ命心心々㐀Bcいーb風だ}c灣[9サ|佇sim-kuann9)",
+  "readings": [],
+  "converted": "(夏ジ海か}# title:か>ウ命心心々㐀Bcいーb風だ}c灣[9サ|佇sim-kuann9)"
+ },
+ {
+  "input": "イさ台秋さ[男]二́々A一b佇\u001c",
+  "readings": [],
+  "converted": "イさ台秋さ[男]二́々A一b佇\u001c"
+ },
+ {
+  "input": "かイ artist)Bx ͘",
+  "readings": [],
+  "converted": "かイ artist)Bx ͘"
+ },
+ {
+  "input": "ウjyut6 \n]\t〆áさ͘x́sim-kuann-(́sim-kuannサ：\r)・風",
+  "readings": [],
+  "converted": "ウjyut6 \n]\t〆áさ͘x́sim-kuann-(́sim-kuannサ：\r)・風"
+ },
+ {
+  "input": "ジ [女]人アb9[女]夏一ーB你私冬a灣b風á'）1の",
+  "readings": [],
+  "converted": "ジ [女]人アb9[女]夏一ーB你私冬a灣b風á'）1の"
+ },
+ {
+  "input": "ささ\nCtitleカ[男])阮cー三[秋遮㐀あだな遮zcな夏め二た-さá\r\n海めA（",
+  "readings": [],
+  "converted": "ささ\nCtitleカ[男])阮cー三[秋遮㐀あだな遮zcな夏め二た-さá\r\n海めA（"
+ },
+ {
+  "input": "命遮人花19𠀀イ你さ>　心め（한-\r\n か運 한[男][合]\rーtitle\r\n夏\n#：・[x〆}灣",
+  "readings": [],
+  "converted": "命遮人花19𠀀イ你さ>　心め（한-\r\n か運 한[男][合]\rーtitle\r\n夏\n#：・[x〆}灣"
+ },
+ {
+  "input": "C:{海冬{\n你肝ヶ]人風 ジ} -のな冬・aう人私遮",
+  "readings": [],
+  "converted": "C:{海冬{\n你肝ヶ]人風 ジ} -のな冬・aう人私遮"
+ },
+ {
+  "input": "・夏め）|運[男]さ花[女]佇# title:私佇tī]title命運三title君>めヶ:さ佇",
+  "readings": [],
+  "converted": "・夏め）|運[男]さ花[女]佇# title:私佇tī]title命運三title君>めヶ:さ佇"
+ },
+ {
+  "input": "[合]君你title心た冬|い 運\r\nい(Bめ\r（ sim-kuann:]𠀀々",
+  "readings": [],
+  "converted": "[合]君你title心た冬|い 運\r\nい(Bめ\r（ sim-kuann:]𠀀々"
+ },
+ {
+  "input": "#冬阮(あ人B三マめ1",
+  "readings": [],
+  "converted": "#冬阮(あ人B三マめ1"
+ },
+ {
+  "input": "0你 ー マ 秋# title:秋",
+  "readings": [],
+  "converted": "0你 ー マ 秋# title:秋"
+ },
+ {
+  "input": "イカ:'[合]ウかztī佇tīartistー冬私\nartist́三い二 \t海（佇(私͘アtī",
+  "readings": [],
+  "converted": "イカ:'[合]ウかztī佇tīartistー冬私\nartist́三い二 \t海（佇(私͘アtī"
+ },
+ {
+  "input": "title運ⁿ한う遮\nー空〆三冬佇)〆title一'夏ヶ|(サあ台さtīウ> 花",
+  "readings": [],
+  "converted": "title運ⁿ한う遮\nー空〆三冬佇)〆title一'夏ヶ|(サあ台さtīウ> 花"
+ },
+ {
+  "input": "z・jyut6 空}マー肝)tīáイ声いzだア：á \n:͘三1한你",
+  "readings": [],
+  "converted": "z・jyut6 空}マー肝)tīáイ声いzだア：á \n:͘三1한你"
+ },
+ {
+  "input": "㐀{}aC[男]\r\nな\r\n二\t",
+  "readings": [],
+  "converted": "㐀{}aC[男]\r\nな\r\n二\t"
+ },
+ {
+  "input": "9二́[男]　めジ風灣A\n([男]う한\r\n）ー　你ヶジあ：マ秋の㐀私三ー",
+  "readings": [],
+  "converted": "9二́[男]　めジ風灣A\n([男]う한\r\n）ー　你ヶジあ：マ秋の㐀私三ー"
+ },
+ {
+  "input": "ー：な\u001c",
+  "readings": [],
+  "converted": "ー：な\u001c"
+ },
+ {
+  "input": "9風z[男]sim-kuann声カ\t　你い阮台\n한Bjyut6 花)\n{ウ",
+  "readings": [],
+  "converted": "9風z[男]sim-kuann声カ\t　你い阮台\n한Bjyut6 花)\n{ウ"
+ },
+ {
+  "input": "[[女] 㐀さ阮",
+  "readings": [],
+  "converted": "[[女] 㐀さ阮"
+ },
+ {
+  "input": "マか三\r-だ\n\r\ntī :yさ（い# title:命ア・た佇\rá 1肝}  [男]Bカいさう命：",
+  "readings": [],
+  "converted": "マか三\r-だ\n\r\ntī :yさ（い# title:命ア・た佇\rá 1肝}  [男]Bカいさう命："
+ },
+ {
+  "input": "夏\ntitle々君運C-1xか#イ秋c#c>㐀[\t花-}ⁿtīうウ私私[女]海你）",
+  "readings": [],
+  "converted": "夏\ntitle々君運C-1xか#イ秋c#c>㐀[\t花-}ⁿtīうウ私私[女]海你）"
+ },
+ {
+  "input": "あささ：運\r\n遮（サ'",
+  "readings": [],
+  "converted": "あささ：運\r\n遮（サ'"
+ },
+ {
+  "input": "（# title:title夏々・佇",
+  "readings": [],
+  "converted": "（# title:title夏々・佇"
+ },
+ {
+  "input": "-佇空ジ#ーイ[男]運# title:b'めヶ秋\nc冬\n㐀ac\u001c)ウ [女]カ",
+  "readings": [],
+  "converted": "-佇空ジ#ーイ[男]運# title:b'めヶ秋\nc冬\n㐀ac\u001c)ウ [女]カ"
+ },
+ {
+  "input": "\n阮私海め1)のa々：sim-kuann運ー風〆title]\r\n한10zさ\u001c一台\r\n海声\n'jyut6 ",
+  "readings": [],
+  "converted": "\n阮私海め1)のa々：sim-kuann運ー風〆title]\r\n한10zさ\u001c一台\r\n海声\n'jyut6 "
+ },
+ {
+  "input": "々一サ声海た 㐀うx花c心\n花たかartist二冬君〆x",
+  "readings": [],
+  "converted": "々一サ声海た 㐀うx花c心\n花たかartist二冬君〆x"
+ },
+ {
+  "input": "]ウ\t）う運",
+  "readings": [],
+  "converted": "]ウ\t）う運"
+ },
+ {
+  "input": ">:x0㐀你阮0你}ⁿA運　一>91\n （{台[\n你a遮声な-一阮)",
+  "readings": [],
+  "converted": ">:x0㐀你阮0你}ⁿA運　一>91\n （{台[\n你a遮声な-一阮)"
+ },
+ {
+  "input": " (な9[男]|二01イ𠀀うb́(空 \r私0マ私artist[女] アヶ",
+  "readings": [],
+  "converted": " (な9[男]|二01イ𠀀うb́(空 \r私0マ私artist[女] アヶ"
+ },
+ {
+  "input": "た|sim-kuann}c>\r|ーた# title:：台}カ́cz",
+  "readings": [],
+  "converted": "た|sim-kuann}c>\r|ーた# title:：台}カ́cz"
+ },
+ {
+  "input": "]ヶた͘）ーC心",
+  "readings": [],
+  "converted": "]ヶた͘）ーC心"
+ },
+ {
+  "input": "\n|\r>}夏ⁿC{\r\n한sim-kuanntīⁿc # title:a灣遮か・）人y{[-",
+  "readings": [],
+  "converted": "\n|\r>}夏ⁿC{\r\n한sim-kuanntīⁿc # title:a灣遮か・）人y{[-"
+ },
+ {
+  "input": "yアー　xマ（sim-kuann㐀ア・ー",
+  "readings": [],
+  "converted": "yアー　xマ（sim-kuann㐀ア・ー"
+ },
+ {
+  "input": "x",
+  "readings": [],
+  "converted": "x"
+ },
+ {
+  "input": "海あ}秋心のcさ\nーáx人͘さ㐀春:\n[女]x\rさ9秋\n声a私マ[佇sim-kuann-運のだx",
+  "readings": [],
+  "converted": "海あ}秋心のcさ\nーáx人͘さ㐀春:\n[女]x\rさ9秋\n声a私マ[佇sim-kuann-運のだx"
+ },
+ {
+  "input": "）\r\n君[女])　あうⁿ\r\nさ灣だマ𠀀  \njyut6 [合]|'ウ春]い　cさcA",
+  "readings": [],
+  "converted": "）\r\n君[女])　あうⁿ\r\nさ灣だマ𠀀  \njyut6 [合]|'ウ春]い　cさcA"
+ },
+ {
+  "input": "さtitle ）jyut6 \rうあ\n|さ ",
+  "readings": [],
+  "converted": "さtitle ）jyut6 \rうあ\n|さ "
+ },
+ {
+  "input": "\nあ#台君x한[男]ⁿc）一々三átī\n一",
+  "readings": [],
+  "converted": "\nあ#台君x한[男]ⁿc）一々三átī\n一"
+ },
+ {
+  "input": "\r\n君\u001cá佇あ-い君\r春}𠀀)三ⁿ一イ \r\n声のc心ジ空　c[男]B肝風",
+  "readings": [],
+  "converted": "\r\n君\u001cá佇あ-い君\r春}𠀀)三ⁿ一イ \r\n声のc心ジ空　c[男]B肝風"
+ },
+ {
+  "input": "人遮 한}（花イ遮[女]：風 :- サカ私artist# title:あ風z你一\nジ|三",
+  "readings": [],
+  "converted": "人遮 한}（花イ遮[女]：風 :- サカ私artist# title:あ風z你一\nジ|三"
+ },
+ {
+  "input": "tīめ}",
+  "readings": [],
+  "converted": "tīめ}"
+ },
+ {
+  "input": "阮か\ra",
+  "readings": [],
+  "converted": "阮か\ra"
+ },
+ {
+  "input": " tī（冬二阮う私さ肝イ冬A𠀀風] sim-kuann\r\n佇",
+  "readings": [],
+  "converted": " tī（冬二阮う私さ肝イ冬A𠀀風] sim-kuann\r\n佇"
+ },
+ {
+  "input": "你0á͘三ジartist'声́声め)阮jyut6 風titlé運佇ⁿ[z",
+  "readings": [],
+  "converted": "你0á͘三ジartist'声́声め)阮jyut6 風titlé運佇ⁿ[z"
+ },
+ {
+  "input": "[女]ーサマ花(阮ⁿ心君夏遮bsim-kuann阮マ𠀀 々：你夏か",
+  "readings": [],
+  "converted": "[女]ーサマ花(阮ⁿ心君夏遮bsim-kuann阮マ𠀀 々：你夏か"
+ },
+ {
+  "input": "jyut6 𠀀͘か だ夏一・1あy）ー空だ0[）# title:a一:肝ー海你ヶB遮z한'ⁿう)イ",
+  "readings": [],
+  "converted": "jyut6 𠀀͘か だ夏一・1あy）ー空だ0[）# title:a一:肝ー海你ヶB遮z한'ⁿう)イ"
+ },
+ {
+  "input": "titletī肝夏#　jyut6 \r人三ー\r々-風：ー你]ささ々}々x}冬ーか運a冬 声 心͘ アb",
+  "readings": [],
+  "converted": "titletī肝夏#　jyut6 \r人三ー\r々-風：ー你]ささ々}々x}冬ーか運a冬 声 心͘ アb"
+ },
+ {
+  "input": "さめ0か海佇灣你á灣 阮冬（マ'0|君心0君〆秋空二1君二\u001cBー阮人イイ",
+  "readings": [],
+  "converted": "さめ0か海佇灣你á灣 阮冬（マ'0|君心0君〆秋空二1君二\u001cBー阮人イイ"
+ },
+ {
+  "input": " か>ジジ z[[女]C한サ 人） z",
+  "readings": [],
+  "converted": " か>ジジ z[[女]C한サ 人） z"
+ },
+ {
+  "input": "\u001c　}:0　〆さtitle風 のなy\t}jyut6 夏]",
+  "readings": [],
+  "converted": "\u001c　}:0　〆さtitle風 のなy\t}jyut6 夏]"
+ },
+ {
+  "input": "[男]:)ウ台いA冬ⁿうい1你#二]C台風ジ}遮́#夏ⁿA々一う㐀artist海1# title:",
+  "readings": [],
+  "converted": "[男]:)ウ台いA冬ⁿうい1你#二]C台風ジ}遮́#夏ⁿA々一う㐀artist海1# title:"
+ },
+ {
+  "input": " title'",
+  "readings": [],
+  "converted": " title'"
+ },
+ {
+  "input": "か台áx\u001cう三　か]なartistウ\nア台私（\rx",
+  "readings": [],
+  "converted": "か台áx\u001cう三　か]なartistウ\nア台私（\rx"
+ },
+ {
+  "input": "sim-kuann運命㐀[合]二artistさサá（海|だ一{運あAな͘9ア々]な運jyut6 さのz）う",
+  "readings": [],
+  "converted": "sim-kuann運命㐀[合]二artistさサá（海|だ一{運あAな͘9ア々]な運jyut6 さのz）う"
+ },
+ {
+  "input": "C〆ヶ[女]佇0〆サ風ー人'",
+  "readings": [],
+  "converted": "C〆ヶ[女]佇0〆サ風ー人'"
+ },
+ {
+  "input": "z花：\t",
+  "readings": [],
+  "converted": "z花：\t"
+ },
+ {
+  "input": "声私cいヶ） '：[男]",
+  "readings": [],
+  "converted": "声私cいヶ） '：[男]"
+ },
+ {
+  "input": "・𠀀\r\n〆\nだ冬君風あ声jyut6 :한:私阮私サな肝声（\n声aウ冬",
+  "readings": [],
+  "converted": "・𠀀\r\n〆\nだ冬君風あ声jyut6 :한:私阮私サな肝声（\n声aウ冬"
+ },
+ {
+  "input": "・・)ー一yのさい台\rsim-kuann1title空　ウ冬さ\tた運い・さ",
+  "readings": [],
+  "converted": "・・)ー一yのさい台\rsim-kuann1title空　ウ冬さ\tた運い・さ"
+ },
+ {
+  "input": "\r君灣肝\t三（さカだ〆春",
+  "readings": [],
+  "converted": "\r君灣肝\t三（さカだ〆春"
+ },
+ {
+  "input": ")你 㐀た冬c[合]〆一あいCカ",
+  "readings": [],
+  "converted": ")你 㐀た冬c[合]〆一あいCカ"
+ },
+ {
+  "input": "春",
+  "readings": [],
+  "converted": "春"
+ },
+ {
+  "input": " ジ）Aサtitle𠀀ジー海'ジ夏[男]]",
+  "readings": [],
+  "converted": " ジ）Aサtitle𠀀ジー海'ジ夏[男]]"
+ },
+ {
+  "input": "\n bカ\r0\n0（",
+  "readings": [],
+  "converted": "\n bカ\r0\n0（"
+ },
+ {
+  "input": "：一（\nか\r)",
+  "readings": [],
+  "converted": "：一（\nか\r)"
+ },
+ {
+  "input": "花|春\n遮[女]私阮B",
+  "readings": [],
+  "converted": "花|春\n遮[女]私阮B"
+ },
+ {
+  "input": "[女]A>）佇1三冬めめジ1佇",
+  "readings": [],
+  "converted": "[女]A>）佇1三冬めめジ1佇"
+ },
+ {
+  "input": "\nア[男] さ君á海君心あサ命\u001c9]",
+  "readings": [],
+  "converted": "\nア[男] さ君á海君心あサ命\u001c9]"
+ },
+ {
+  "input": "あた風空私心C心z \n0(#私",
+  "readings": [],
+  "converted": "あた風空私心C心z \n0(#私"
+ },
+ {
+  "input": "人肝",
+  "readings": [],
+  "converted": "人肝"
+ },
+ {
+  "input": "う春sim-kuannウ>：イ心한 一한\n",
+  "readings": [],
+  "converted": "う春sim-kuannウ>：イ心한 一한\n"
+ },
+ {
+  "input": "三ⁿ\n夏人ヶ私君・冬） }|声（\n君かtī",
+  "readings": [],
+  "converted": "三ⁿ\n夏人ヶ私君・冬） }|声（\n君かtī"
+ },
+ {
+  "input": "々風さ〆ウ㐀'心灣二春0ウ[心イ\n\r遮さBう",
+  "readings": [],
+  "converted": "々風さ〆ウ㐀'心灣二春0ウ[心イ\n\r遮さBう"
+ },
+ {
+  "input": "う三[合]9心[合] ）ーsim-kuann命}海0}jyut6 ・-〆さ artistyartist（́命㐀ー :xイ肝{カマ͘",
+  "readings": [],
+  "converted": "う三[合]9心[合] ）ーsim-kuann命}海0}jyut6 ・-〆さ artistyartist（́命㐀ー :xイ肝{カマ͘"
+ },
+ {
+  "input": "さ́々'灣〆た肝́私ウ：tī你C1\tá空々ヶ佇-（海命あ",
+  "readings": [],
+  "converted": "さ́々'灣〆た肝́私ウ：tī你C1\tá空々ヶ佇-（海命あ"
+ },
+ {
+  "input": "sim-kuannな：",
+  "readings": [],
+  "converted": "sim-kuannな："
+ },
+ {
+  "input": "台[a々春-1artist\r\n台冬z",
+  "readings": [],
+  "converted": "台[a々春-1artist\r\n台冬z"
+ },
+ {
+  "input": "た君(あ한イ命ういヶ[女]:͘[合]{'声空ジ",
+  "readings": [],
+  "converted": "た君(あ한イ命ういヶ[女]:͘[合]{'声空ジ"
+ },
+ {
+  "input": ":\r）:い0秋}|:ー灣# title:人マ\r\n遮sim-kuanntitle肝>一私だjyut6 㐀運",
+  "readings": [],
+  "converted": ":\r）:い0秋}|:ー灣# title:人マ\r\n遮sim-kuanntitle肝>一私だjyut6 㐀運"
+ },
+ {
+  "input": "͘\nイ(  さ\n\n　(你花 た遮\tめ-さ運 い\n運二c命の한ヶ[合] \n阮-運\n）z",
+  "readings": [],
+  "converted": "͘\nイ(  さ\n\n　(你花 た遮\tめ-さ運 い\n運二c命の한ヶ[合] \n阮-運\n）z"
+ },
+ {
+  "input": "さ台:>た",
+  "readings": [],
+  "converted": "さ台:>た"
+ },
+ {
+  "input": "ア なめ[jyut6 々",
+  "readings": [],
+  "converted": "ア なめ[jyut6 々"
+ },
+ {
+  "input": "|á㐀いだartist君\r\n君͘\nⁿ\n秋y0z\r\n",
+  "readings": [],
+  "converted": "|á㐀いだartist君\r\n君͘\nⁿ\n秋y0z\r\n"
+ },
+ {
+  "input": " ウz'君な私声台\n（aいい夏artistbサめ運心め々jyut6 マ一ー遮なア",
+  "readings": [],
+  "converted": " ウz'君な私声台\n（aいい夏artistbサめ運心め々jyut6 マ一ー遮なア"
+ },
+ {
+  "input": "#artist한：アサ さ>'\n# title:|1 C春 春>阮冬さ [女]한ヶ\t春͘yx",
+  "readings": [],
+  "converted": "#artist한：アサ さ>'\n# title:|1 C春 春>阮冬さ [女]한ヶ\t春͘yx"
+ },
+ {
+  "input": "\rイ[女]声artist[：c(z͘三\n春の人々アsim-kuann私サ空ー0𠀀ジ tīた",
+  "readings": [],
+  "converted": "\rイ[女]声artist[：c(z͘三\n春の人々アsim-kuann私サ空ー0𠀀ジ tīた"
+ },
+ {
+  "input": " ]イ\nB イ君ア一カ君三声三一さ㐀ウ 二́々tīめC\n你",
+  "readings": [],
+  "converted": " ]イ\nB イ君ア一カ君三声三一さ㐀ウ 二́々tīめC\n你"
+ },
+ {
+  "input": "運冬",
+  "readings": [],
+  "converted": "運冬"
+ },
+ {
+  "input": "yー肝Bジ佇ウ三x空々zyめ風あ",
+  "readings": [],
+  "converted": "yー肝Bジ佇ウ三x空々zyめ風あ"
+ },
+ {
+  "input": "遮〆：)|x[女]-イ\rう0}さ([)イあヶ[男]B私ア:なマーい",
+  "readings": [],
+  "converted": "遮〆：)|x[女]-イ\rう0}さ([)イあヶ[男]B私ア:なマーい"
+ },
+ {
+  "input": ")z運春秋一灣めカ ：う）三'(風冬]な:{め]́遮二か肝マ:[合]'[女]}(〆",
+  "readings": [],
+  "converted": ")z運春秋一灣めカ ：う）三'(風冬]な:{め]́遮二か肝マ:[合]'[女]}(〆"
+ },
+ {
+  "input": "めカ阮}9私0㐀:x一か\nさ>zカ9佇ウc（zヶヶ・空台𠀀A〆ヶ>",
+  "readings": [],
+  "converted": "めカ阮}9私0㐀:x一か\nさ>zカ9佇ウc（zヶヶ・空台𠀀A〆ヶ>"
+ },
+ {
+  "input": "い\t\t1めtitleい イ々佇𠀀ヶジ\t\nさ)　風のヶ：〆á한[合]君title三の花artist（め灣 ",
+  "readings": [],
+  "converted": "い\t\t1めtitleい イ々佇𠀀ヶジ\t\nさ)　風のヶ：〆á한[合]君title三の花artist（め灣 "
+ },
+ {
+  "input": "\n\ńマzさ阮\t(のヶ>",
+  "readings": [],
+  "converted": "\n\ńマzさ阮\t(のヶ>"
+ },
+ {
+  "input": "한| 声B㐀ⁿ灣一た・肝}いめう春ジ運秋イ1秋tī秋三-B二z -た[女](）い風",
+  "readings": [],
+  "converted": "한| 声B㐀ⁿ灣一た・肝}いめう春ジ運秋イ1秋tī秋三-B二z -た[女](）い風"
+ },
+ {
+  "input": "# title:春cjyut6 二いb〆[男]",
+  "readings": [],
+  "converted": "# title:春cjyut6 二いb〆[男]"
+ },
+ {
+  "input": " ウ一{́)]ウtitle\n夏私:title遮だ# title:たさうた'y",
+  "readings": [],
+  "converted": " ウ一{́)]ウtitle\n夏私:title遮だ# title:たさうた'y"
+ },
+ {
+  "input": "カ佇ヶジー君1]ー(}佇ジだ>\t冬阮:tīヶx\nA空tīy[",
+  "readings": [],
+  "converted": "カ佇ヶジー君1]ー(}佇ジだ>\t冬阮:tīヶx\nA空tīy["
+ },
+ {
+  "input": "'͘夏夏[|[男]tī海㐀tīー人たⁿa さ々\r\nさ\nな\nー",
+  "readings": [],
+  "converted": "'͘夏夏[|[男]tī海㐀tīー人たⁿa さ々\r\nさ\nな\nー"
+ },
+ {
+  "input": "}\n㐀zztīⁿ你\u001c:\r遮二ⁿい)い冬海運z風xtitle|人ーB你한君私xy\n阮",
+  "readings": [],
+  "converted": "}\n㐀zztīⁿ你\u001c:\r遮二ⁿい)い冬海運z風xtitle|人ーB你한君私xy\n阮"
+ },
+ {
+  "input": "한# title:マ한遮冬心一あいtī三",
+  "readings": [],
+  "converted": "한# title:マ한遮冬心一あいtī三"
+ },
+ {
+  "input": "め海㐀さめ海]á",
+  "readings": [],
+  "converted": "め海㐀さめ海]á"
+ },
+ {
+  "input": "阮だ空:sim-kuannカた你artistさⁿさ〆9運：]xマtī[合]>空一　さ春a私[女]㐀\n声́1",
+  "readings": [],
+  "converted": "阮だ空:sim-kuannカた你artistさⁿさ〆9運：]xマtī[合]>空一　さ春a私[女]㐀\n声́1"
+ },
+ {
+  "input": "かCだ\rtī[男]冬た",
+  "readings": [],
+  "converted": "かCだ\rtī[男]冬た"
+ },
+ {
+  "input": "\u001c風\n（#：う阮私[女]9㐀ー\r\n9[女]{한ジ你\r\n\r\nサ\t[合]ジ花秋声0",
+  "readings": [],
+  "converted": "\u001c風\n（#：う阮私[女]9㐀ー\r\n9[女]{한ジ你\r\n\r\nサ\t[合]ジ花秋声0"
+ },
+ {
+  "input": "ー運ジ𠀀声あ　阮",
+  "readings": [],
+  "converted": "ー運ジ𠀀声あ　阮"
+ },
+ {
+  "input": "（(a） 遮夏イ\r\n肝花阮 \u001cた君カ\n台sim-kuann空Ca",
+  "readings": [],
+  "converted": "（(a） 遮夏イ\r\n肝花阮 \u001cた君カ\n台sim-kuann空Ca"
+ },
+ {
+  "input": "ジ[）}\u001c灣",
+  "readings": [],
+  "converted": "ジ[）}\u001c灣"
+ },
+ {
+  "input": "命'さxjyut6 な〆'𠀀め一  }め春カジあ風風め#[女]artistの々你（ccサ'[男]#の遮・",
+  "readings": [],
+  "converted": "命'さxjyut6 な〆'𠀀め一  }め春カジあ風風め#[女]artistの々你（ccサ'[男]#の遮・"
+ },
+ {
+  "input": "b-title\n台イなア遮ー𠀀私z你xC͘肝#( ayーなー[空ジ カ花風 𠀀）á[女]",
+  "readings": [],
+  "converted": "b-title\n台イなア遮ー𠀀私z你xC͘肝#( ayーなー[空ジ カ花風 𠀀）á[女]"
+ },
+ {
+  "input": "一ー肝y# title:ア>B声",
+  "readings": [],
+  "converted": "一ー肝y# title:ア>B声"
+ },
+ {
+  "input": "ⁿ㐀空佇三の你{jyut6 [合]声たjyut6 artistáájyut6 '（͘た):(한花㐀-マ",
+  "readings": [],
+  "converted": "ⁿ㐀空佇三の你{jyut6 [合]声たjyut6 artistáájyut6 '（͘た):(한花㐀-マ"
+ },
+ {
+  "input": " 阮あ：|いカ[女]á風阮[合]運たなイ\n声運 め>アB9]'sim-kuann(のa\r\n々aうなの命",
+  "readings": [],
+  "converted": " 阮あ：|いカ[女]á風阮[合]運たなイ\n声運 め>アB9]'sim-kuann(のa\r\n々aうなの命"
+ },
+ {
+  "input": "x声\n#さ{肝한（}声〆# title:{だ台9ー한\r\nサ〆\u001c",
+  "readings": [],
+  "converted": "x声\n#さ{肝한（}声〆# title:{だ台9ー한\r\nサ〆\u001c"
+ },
+ {
+  "input": "さイ阮sim-kuanntitle# title:xジ運イ（ー]-# title:zartist カー灣春ヶ佇マ xc# title:[花́\r\nアヶ|カ肝々",
+  "readings": [],
+  "converted": "さイ阮sim-kuanntitle# title:xジ運イ（ー]-# title:zartist カー灣春ヶ佇マ xc# title:[花́\r\nアヶ|カ肝々"
+ },
+ {
+  "input": " \t𠀀tīイマ冬\n：á\n冬́\nyjyut6 )(海́私\nz(あさ三}# title:カ〆|だAx",
+  "readings": [],
+  "converted": " \t𠀀tīイマ冬\n：á\n冬́\nyjyut6 )(海́私\nz(あさ三}# title:カ〆|だAx"
+ },
+ {
+  "input": "の# title::(ー[男]さ[女]ⁿ三）# title:{ヶ\r\n\njyut6 \rあ心 ：",
+  "readings": [],
+  "converted": "の# title::(ー[男]さ[女]ⁿ三）# title:{ヶ\r\n\njyut6 \rあ心 ："
+ },
+ {
+  "input": " \tB台\nヶ さ한の",
+  "readings": [],
+  "converted": " \tB台\nヶ さ한の"
+ },
+ {
+  "input": "z(ジ命マ冬た# title:ⁿアサ のá海だ私Aサ〆sim-kuanńCtī'",
+  "readings": [],
+  "converted": "z(ジ命マ冬た# title:ⁿアサ のá海だ私Aサ〆sim-kuanńCtī'"
+ },
+ {
+  "input": "う阮'\t空（:[ {' 人二1[男]titleartist命\u001c秋風1マ0さイ：",
+  "readings": [],
+  "converted": "う阮'\t空（:[ {' 人二1[男]titleartist命\u001c秋風1マ0さイ："
+ },
+ {
+  "input": "(：ⁿ1春）肝ー㐀二の한〆",
+  "readings": [],
+  "converted": "(：ⁿ1春）肝ー㐀二の한〆"
+ },
+ {
+  "input": "夏y\r一・\r\n\tヶ風㐀-aztitle[女]\r\n Cウのá三の[男]artist運佇\t>",
+  "readings": [],
+  "converted": "夏y\r一・\r\n\tヶ風㐀-aztitle[女]\r\n Cウのá三の[男]artist運佇\t>"
+ },
+ {
+  "input": "[男])0c灣jyut6 三 カ y命zz三 #c# title:你[合]：>'二tī",
+  "readings": [],
+  "converted": "[男])0c灣jyut6 三 カ y命zz三 #c# title:你[合]：>'二tī"
+ },
+ {
+  "input": " \n春A\n海心你々\t台|イ9𠀀秋心\nー君[合] ",
+  "readings": [],
+  "converted": " \n春A\n海心你々\t台|イ9𠀀秋心\nー君[合] "
+ },
+ {
+  "input": "ⁿア:あ二サ{一二͘Cjyut6 㐀な\u001c：-\ttī\r\n",
+  "readings": [],
+  "converted": "ⁿア:あ二サ{一二͘Cjyut6 㐀な\u001c：-\ttī\r\n"
+ },
+ {
+  "input": "だ私Aジ",
+  "readings": [],
+  "converted": "だ私Aジ"
+ },
+ {
+  "input": "ジ）|ーa𠀀tīイい(\nB灣サ9(A肝|x佇jyut6 Aá（title[",
+  "readings": [],
+  "converted": "ジ）|ーa𠀀tīイい(\nB灣サ9(A肝|x佇jyut6 Aá（title["
+ },
+ {
+  "input": "三á",
+  "readings": [],
+  "converted": "三á"
+ },
+ {
+  "input": " 空(君・花\n你夏君声三jyut6 一#のb# title:b",
+  "readings": [],
+  "converted": " 空(君・花\n你夏君声三jyut6 一#のb# title:b"
+ },
+ {
+  "input": "春[男]ヶ-々う",
+  "readings": [],
+  "converted": "春[男]ヶ-々う"
+ },
+ {
+  "input": "jyut6 ウさ\ry命台-aさマ1x1𠀀二一\u001c  ́[ウ 人 á",
+  "readings": [],
+  "converted": "jyut6 ウさ\ry命台-aさマ1x1𠀀二一\u001c  ́[ウ 人 á"
+ },
+ {
+  "input": "うあ  冬：y[合]心空秋た[合]一）た遮c)命a君titleサた",
+  "readings": [],
+  "converted": "うあ  冬：y[合]心空秋た[合]一）た遮c)命a君titleサた"
+ },
+ {
+  "input": "カ人私な[男]\n:　[女]々人(0",
+  "readings": [],
+  "converted": "カ人私な[男]\n:　[女]々人(0"
+ },
+ {
+  "input": "夏空いC9\u001c春め佇 花",
+  "readings": [],
+  "converted": "夏空いC9\u001c春め佇 花"
+ },
+ {
+  "input": "(ジx한イ阮：>心：C'人b阮:だ \n春台肝-ウ9한\tたさ ウ一あ㐀𠀀B）>）",
+  "readings": [],
+  "converted": "(ジx한イ阮：>心：C'人b阮:だ \n春台肝-ウ9한\tたさ ウ一あ㐀𠀀B）>）"
+ },
+ {
+  "input": "風マsim-kuann[合])한ア'の0カカイヶ私・tīなイ𠀀 ",
+  "readings": [],
+  "converted": "風マsim-kuann[合])한ア'の0カカイヶ私・tīなイ𠀀 "
+ },
+ {
+  "input": "運\r\n・ヶ 二sim-kuann夏\ny ー肝ア>A>肝さサた佇夏\njyut6 title夏0阮台'",
+  "readings": [],
+  "converted": "運\r\n・ヶ 二sim-kuann夏\ny ー肝ア>A>肝さサた佇夏\njyut6 title夏0阮台'"
+ },
+ {
+  "input": "y[男]　A：風ー㐀1だ",
+  "readings": [],
+  "converted": "y[男]　A：風ー㐀1だ"
+ },
+ {
+  "input": "\r\n風}台y",
+  "readings": [],
+  "converted": "\r\n風}台y"
+ },
+ {
+  "input": "tīartistめ0):[（\u001c𠀀（たa ・[合]",
+  "readings": [],
+  "converted": "tīartistめ0):[（\u001c𠀀（たa ・[合]"
+ },
+ {
+  "input": "のウ:あ運ーtī\tマ：たc運9カ春c0）sim-kuann\n人阮冬:い́さ#tī\nう9マヶtitleⁿ：a",
+  "readings": [],
+  "converted": "のウ:あ運ーtī\tマ：たc運9カ春c0）sim-kuann\n人阮冬:い́さ#tī\nう9マヶtitleⁿ：a"
+ },
+ {
+  "input": "\u001c　運人áさ# title:Aだ(yb\n",
+  "readings": [],
+  "converted": "\u001c　運人áさ# title:Aだ(yb\n"
+ },
+ {
+  "input": "一\ntī 𠀀二マ0a二á\tイ\nい한:{# title:|々う́[合])\r\nだ\n한カめ：",
+  "readings": [],
+  "converted": "一\ntī 𠀀二マ0a二á\tイ\nい한:{# title:|々う́[合])\r\nだ\n한カめ："
+ },
+ {
+  "input": "c君{\u001cヶ0ー𠀀㐀私\u001cアあx の>い空[ tī一A|C\n'[女]͘# title:声いただ心い台",
+  "readings": [],
+  "converted": "c君{\u001cヶ0ー𠀀㐀私\u001cアあx の>い空[ tī一A|C\n'[女]͘# title:声いただ心い台"
+ },
+ {
+  "input": "sim-kuannた𠀀ジsim-kuann秋：你\n\r\n空阮한君͘",
+  "readings": [],
+  "converted": "sim-kuannた𠀀ジsim-kuann秋：你\n\r\n空阮한君͘"
+ },
+ {
+  "input": "\t運(\nさbc\r\n　命々な\r\n三 ) # title:[女]さ一め artist うⁿヶá遮",
+  "readings": [],
+  "converted": "\t運(\nさbc\r\n　命々な\r\n三 ) # title:[女]さ一め artist うⁿヶá遮"
+ },
+ {
+  "input": ")ジう|𠀀アイかyAい",
+  "readings": [],
+  "converted": ")ジう|𠀀アイかyAい"
+ },
+ {
+  "input": "á風風肝台b한 y9灣君}阮[0春z# title:人 サか--冬한夏",
+  "readings": [],
+  "converted": "á風風肝台b한 y9灣君}阮[0春z# title:人 サか--冬한夏"
+ },
+ {
+  "input": " さ　[イた}　Aさy1い一'冬}のめサx夏[}遮阮\u001cジ二{三yさ二",
+  "readings": [],
+  "converted": " さ　[イた}　Aさy1い一'冬}のめサx夏[}遮阮\u001cジ二{三yさ二"
+ },
+ {
+  "input": "tī二㐀:ア\t1[女]:- [々か\u001c你",
+  "readings": [],
+  "converted": "tī二㐀:ア\t1[女]:- [々か\u001c你"
+ },
+ {
+  "input": "う(な海",
+  "readings": [],
+  "converted": "う(な海"
+ },
+ {
+  "input": "C[男]c͘さかめá}㐀\n　々artist]ーめ人{á ）㐀 い夏{マさ一[男]秋>\r君肝A",
+  "readings": [],
+  "converted": "C[男]c͘さかめá}㐀\n　々artist]ーめ人{á ）㐀 い夏{マさ一[男]秋>\r君肝A"
+ },
+ {
+  "input": "yだな灣title秋人だ\n'たマⁿカ：́Bjyut6 \r\n　さ",
+  "readings": [],
+  "converted": "yだな灣title秋人だ\n'たマⁿカ：́Bjyut6 \r\n　さ"
+ },
+ {
+  "input": " う(冬:#aー　心á夏いだartistウⁿ春(}なサ春\t・)心一㐀声",
+  "readings": [],
+  "converted": " う(冬:#aー　心á夏いだartistウⁿ春(}なサ春\t・)心一㐀声"
+ },
+ {
+  "input": "肝）9た}͘)々冬b[男]\n]〆イ花ウ阮・さyC二[男]カ z秋yx花私々[合]カあ空́声マ",
+  "readings": [],
+  "converted": "肝）9た}͘)々冬b[男]\n]〆イ花ウ阮・さyC二[男]カ z秋yx花私々[合]カあ空́声マ"
+ },
+ {
+  "input": "title]だ你[女]bいartistなの〆",
+  "readings": [],
+  "converted": "title]だ你[女]bいartistなの〆"
+ },
+ {
+  "input": "\u001cヶ# title:]aだ々0 0ジ1声 た風カ・\n君サ（[男]B[（[男]心aa　-#う々b心",
+  "readings": [],
+  "converted": "\u001cヶ# title:]aだ々0 0ジ1声 た風カ・\n君サ（[男]B[（[男]心aa　-#う々b心"
+ },
+ {
+  "input": "（x\rb)[男]海artistカ",
+  "readings": [],
+  "converted": "（x\rb)[男]海artistカ"
+ },
+ {
+  "input": "台カ]͘一(",
+  "readings": [],
+  "converted": "台カ]͘一("
+ },
+ {
+  "input": "運灣ー・夏あ君な：",
+  "readings": [],
+  "converted": "運灣ー・夏あ君な："
+ },
+ {
+  "input": "海ジ風秋アz 㐀めい0心𠀀台心海[合]遮[男]　サ [合]",
+  "readings": [],
+  "converted": "海ジ風秋アz 㐀めい0心𠀀台心海[合]遮[男]　サ [合]"
+ },
+ {
+  "input": "うBa海jyut6 -a",
+  "readings": [],
+  "converted": "うBa海jyut6 -a"
+ },
+ {
+  "input": "々|sim-kuann君私[合]秋ⁿ人[合]9 # title:1のたjyut6 命春",
+  "readings": [],
+  "converted": "々|sim-kuann君私[合]秋ⁿ人[合]9 # title:1のたjyut6 命春"
+ },
+ {
+  "input": "𠀀)ⁿ声ウ\r[男]イた1秋たヶ͘たá：\r\n한𠀀心二花空:\t\r々カ肝title",
+  "readings": [],
+  "converted": "𠀀)ⁿ声ウ\r[男]イた1秋たヶ͘たá：\r\n한𠀀心二花空:\t\r々カ肝title"
+ },
+ {
+  "input": "jyut6 \n# title: 㐀声の한な\n風]か）C）ない",
+  "readings": [],
+  "converted": "jyut6 \n# title: 㐀声の한な\n風]か）C）ない"
+ },
+ {
+  "input": "[合]0한海々͘y\r夏",
+  "readings": [],
+  "converted": "[合]0한海々͘y\r夏"
+ },
+ {
+  "input": "イ肝カ-サ遮人台空肝阮}\ń[你",
+  "readings": [],
+  "converted": "イ肝カ-サ遮人台空肝阮}\ń[你"
+ },
+ {
+  "input": "ⁿjyut6 の二\n\n\nあ-ztitleい阮うー-さ cマ春Bⁿ秋ヶ你な秋さ [{マ風bb夏[合]",
+  "readings": [],
+  "converted": "ⁿjyut6 の二\n\n\nあ-ztitleい阮うー-さ cマ春Bⁿ秋ヶ你な秋さ [{マ風bb夏[合]"
+ },
+ {
+  "input": "c\n\u001c：[） \r\n",
+  "readings": [],
+  "converted": "c\n\u001c：[） \r\n"
+ },
+ {
+  "input": "夏 \n\rCあ・風なの二á[合]]\nか你ーc# title:artistc\t君め ",
+  "readings": [],
+  "converted": "夏 \n\rCあ・風なの二á[合]]\nか你ーc# title:artistc\t君め "
+ },
+ {
+  "input": "你夏めjyut6 三'〆のááz",
+  "readings": [],
+  "converted": "你夏めjyut6 三'〆のááz"
+ },
+ {
+  "input": "tī花]\u001cウ　yyサsim-kuann\rbartistめジ[男]zz}風肝め風（]命title（空{灣你c二春𠀀春声秋あ",
+  "readings": [],
+  "converted": "tī花]\u001cウ　yyサsim-kuann\rbartistめジ[男]zz}風肝め風（]命title（空{灣你c二春𠀀春声秋あ"
+ },
+ {
+  "input": "[合]\u001c㐀空#你#] # title:",
+  "readings": [],
+  "converted": "[合]\u001c㐀空#你#] # title:"
+ }
+]

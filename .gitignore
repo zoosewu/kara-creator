@@ -4,21 +4,22 @@
 __pycache__/
 *.pyc
 
-# 外部工具（setup.ps1 會下載）
-tools/
+# 外部工具（setup.ps1 會下載到 tools/ 底下；tools/*.py 是 v2 的開發工具，要進 git）
+/tools/ffmpeg/
+/tools/deno/
 
 # 產出物：影片、伴奏、伴唱帶都有版權也很大，絕對不進 git（只保留資料夾結構）
-output/**
-!output/*/
-!output/*/.gitkeep
+/output/**
+!/output/*/
+!/output/*/.gitkeep
 
 # 歌詞與資料備份有版權，放在另一個私人 repo（data/ 本身就是那個 repo 的 clone）
-lyrics/
-data/
+/lyrics/
+/data/
 
 # 使用者自己的 hook（通常有伺服器位址）；範例 on_idle.example.ps1 會進 git
-hooks/*
-!hooks/*.example.ps1
+/hooks/*
+!/hooks/*.example.ps1
 
 # v2：前端打包結果由 npm run build 產生（.gitkeep 讓 go:embed 在還沒打包時也能編譯）
 nas/internal/api/dist/*

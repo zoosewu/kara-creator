@@ -1,0 +1,184 @@
+"""用 v1 的 Python 實作產生黃金測試的答案（nas/testdata/golden/*.json），Go 的測試讀它比對。
+
+    .venv-linux/bin/python tools/golden.py            # 全部重新產生
+    .venv-linux/bin/python tools/golden.py lyrics     # 只產生名稱含 lyrics 的
+
+輸入全部是自己編的句子或隨機字串（公開 repo，不能放真實歌詞）。
+隨機案例用固定的 seed，重新產生的結果相同；v1 的規則改了才會有差異。
+"""
+from __future__ import annotations
+
+import json
+import random
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+import atexit  # noqa: E402
+import difflib  # noqa: E402
+import os  # noqa: E402
+import shutil  # noqa: E402
+import tempfile  # noqa: E402
+
+# v1 的 ui/server.py 有 _from_plain；import 時會讀寫設定的資料夾，先指到暫存資料夾，不碰使用者的資料。
+_tmp = Path(tempfile.mkdtemp(prefix="kara-golden-"))
+atexit.register(shutil.rmtree, _tmp, ignore_errors=True)
+for _name in ("SONG_OUTPUT_DIR", "SONG_LYRICS_DIR", "SONG_DATA_DIR", "SONG_HOOKS_DIR"):
+    os.environ[_name] = str(_tmp / _name.lower())
+sys.path.insert(0, str(ROOT / "ui"))
+
+from songtool import lyrics  # noqa: E402
+import server as v1_server  # noqa: E402
+
+OUT = ROOT / "nas" / "testdata" / "golden"
+
+# ---- 輸入 ------------------------------------------------------------------------
+
+LYRICS_CASES = [
+    "",
+    "\n\n  \n",
+    "# title: 自己編的歌\n# artist: 不存在的歌手\n春の風{かぜ}が吹{ふ}く\n",
+    "# TITLE：全形冒號\n#Artist:沒有空白\n# 副歌\n一句歌詞\n",
+    "# title:\n# artist:   \n歌名是空的\n",
+    "[男] 第一句\n[女]第二句\n[合]  第三句\n[男]\n[路人] 不是演唱者\n",
+    "﻿開頭有 BOM 的歌詞\n",
+    "Windows 換行\r\n第二句\r\n",
+    "全形　空白　收斂\n連續   半形\t空白\n",
+    "君の声は私{わたし}の灯り\n{本気|マジ}で\n運命{さだめ}を\n",
+    "abc{エービーシー}と漢字{かんじ}{ふりがな}\n",
+    "{|空的原字}\n{空讀音|}\n{  }\n沒有收尾的{大括號\n}只有收尾\n",
+    "重疊{a|x}{b}\n漢字漢字{かな}{|後面}\n標{一}標{二}\n",
+    "你佇{tī}遮\n阮{gún}\n心肝{sim-kuann}\n台灣{Tâi-uân}人\n三字{sann jī}漢字\n",
+    "歌詞{go1 ci4}\n粵語{jyut6 jyu5}啊\n一{jat1}二{ji6}\n",
+    "第一句\n> 第一句的翻譯\n>  第二行翻譯\n> \n第二句\n\n> 前面是空行，當成註解\n",
+    "# 註解\n> 開頭就是翻譯\n",
+    "\n\n開頭結尾的空行\n\n\n中間的空行\n\n",
+    "Made up English line\nanother line with Numbers 123\n",
+    "한국어 가사\n",
+    "混合 mixed 文字 と かな\n",
+    "運命(さだめ)\n運命{うんめい}(さだめ)\n本気（マジ）だ\n# 註解(かっこ)不動\n今(いま)と未来（みらい）\n",
+    "ruby 在英數上 ABC{えーびーしー}123{いちにさん}\n",
+    "vertical\x0btab\x0cform\x1cfile\x1dgroup\x1erecord\x85next line para\n",
+    "unit\x1fseparator 不是換行但是空白\n",
+    "  前後空白  \n\t[女]\t前面有 tab\n",
+    "𠀀擴充漢字{よみ}\n㐀擴充A{よみ}\n",
+    "{a|b|c}\n{{巢狀}}\n}{反過來\n",
+]
+
+ALPHABET = list("君の声私空海運命花風春夏秋冬心肝你佇遮阮台灣人一二三あいうかさたなアイウカサマジーさだめabcABC xyz019")
+ALPHABET += ["{", "}", "|", "[男]", "[女]", "[合]", "[", "]", "#", ">", ":", "：", "title", "artist", "# title:",
+             " ", "　", "\t", "\n", "\n", "\n", "\r\n", "\r", "(", ")", "（", "）", "ー", "・", "々", "ヶ", "〆",
+             "tī", "-", "sim-kuann", "jyut6 ", "á", "ⁿ", "͘", "́", "'", "한", "𠀀", "㐀", "\x1c", " ", " "]
+
+
+def random_texts(n: int, seed: int) -> list[str]:
+    rng = random.Random(seed)
+    return ["".join(rng.choice(ALPHABET) for _ in range(rng.randint(1, 40))) for _ in range(n)]
+
+
+LANGUAGE_CASES = [
+    [], [""], ["   "], ["自己編的中文"], ["ひらがな"], ["カタカナ"], ["漢字とかな"], ["한국어"], ["中文 한국어"],
+    ["Made up English"], ["English 中文"], ["123 456"], ["a1 2 3"], ["ab 12"], ["ab 123"], ["ëñ"], ["ー"], ["・"],
+    ["㐀擴充"], ["𠀀"], ["", "第二句才有字"], ["English", "かな"], ["Café au lait"],
+]
+
+# ---- 產生 ------------------------------------------------------------------------
+
+
+def lyric_case(text: str) -> dict:
+    doc = lyrics.parse(text.removeprefix("﻿"))
+    lyric = lyrics.Lyrics(Path("x.txt"), doc)
+    return {
+        "input": text,
+        "doc": lyrics.to_dict(doc),
+        "serialized": lyrics.serialize(doc),
+        "language": lyrics.detect_language(lyric.lines),
+        "v1_align_sha1": lyric.align_sha1,
+    }
+
+
+def gen_lyrics_parse() -> list[dict]:
+    return [lyric_case(t) for t in LYRICS_CASES + random_texts(400, seed=1)]
+
+
+def gen_paren() -> list[dict]:
+    texts = LYRICS_CASES + random_texts(200, seed=2)
+    return [{"input": t, "readings": lyrics.paren_readings(t), "converted": lyrics.paren_to_ruby(t)} for t in texts]
+
+
+def gen_language() -> list[dict]:
+    return [{"lines": lines, "language": lyrics.detect_language(lines)} for lines in LANGUAGE_CASES]
+
+
+def gen_difflib() -> list[dict]:
+    rng = random.Random(3)
+    cases = [([], []), (["a"], []), ([], ["a"]), (["a", "b"], ["a", "b"]), (["a", "b", "c"], ["c", "b", "a"])]
+    for _ in range(300):
+        alphabet = "abcde"[:rng.randint(1, 5)]
+        cases.append(([rng.choice(alphabet) for _ in range(rng.randint(0, 12))],
+                      [rng.choice(alphabet) for _ in range(rng.randint(0, 12))]))
+    out = []
+    for a, b in cases:
+        ops = difflib.SequenceMatcher(a=a, b=b, autojunk=False).get_opcodes()
+        out.append({"a": a, "b": b, "opcodes": [list(op) for op in ops]})
+    return out
+
+
+PLAIN_BASES = [
+    "# title: 編的歌\n[男] 第一句{だい}\n> 翻譯一\n[女] 第二句\n> 翻譯二\n# 副歌\n[合] 第三句\n",
+    "空{そら}の色{いろ}\n海{うみ}の音{おと}\n風{かぜ}の歌\n",
+    "[男] 你佇{tī}遮\n[女] 阮{gún}佇遐\n",
+    "",
+]
+PLAIN_EDITS = [
+    "第一句\n第二句\n第三句\n",
+    "第一句\n新的一句\n第二句\n第三句\n",
+    "第二句\n第三句\n",
+    "第一句改了\n第二句\n第三句\n",
+    "第一句\n> 新翻譯\n第二句\n第三句\n",
+    "[女] 第一句\n第二句\n第三句\n",
+    "空の色\n海の音\n風の歌\n",
+    "空の色\n海の声\n風の歌\n",
+    "空の青\n海の音\n",
+    "海の音\n空の色\n",
+    "你佇遮\n阮佇遐\n多一句\n",
+    "你佇遐\n阮佇遮\n",
+    "",
+    "全部換掉\n",
+]
+
+
+def gen_lyrics_plain() -> list[dict]:
+    out = []
+    for base in PLAIN_BASES:
+        for plain in PLAIN_EDITS:
+            doc = v1_server._from_plain(plain, lyrics.parse(base))
+            out.append({"base": lyrics.to_dict(lyrics.parse(base)), "plain": plain, "doc": lyrics.to_dict(doc)})
+    return out
+
+
+GENERATORS = {
+    "lyrics_parse": gen_lyrics_parse,
+    "paren": gen_paren,
+    "language": gen_language,
+    "difflib": gen_difflib,
+    "lyrics_plain": gen_lyrics_plain,
+}
+
+
+def main() -> None:
+    wanted = sys.argv[1:]
+    OUT.mkdir(parents=True, exist_ok=True)
+    for name, gen in GENERATORS.items():
+        if wanted and not any(w in name for w in wanted):
+            continue
+        cases = gen()
+        path = OUT / f"{name}.json"
+        path.write_text(json.dumps(cases, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        print(f"{path.relative_to(ROOT)}：{len(cases)} 筆")
+
+
+if __name__ == "__main__":
+    main()
