@@ -220,7 +220,7 @@ func Evaluate(in Input) Result {
 		}
 		ri := fingerprint.RenderInput{Target: target, Media: media, Alignment: r.ContentFP, Lyrics: r.LyricsFP,
 			Singers: singers, Translations: translations, Title: cardTitle, Artist: cardArtist, Note: cardNote,
-			Scale: in.Settings.SubtitleScale, Font: r.Font.SHA256, Size: r.Size, Version: in.Versions.Render,
+			Scale: in.Settings.SubtitleScale, Font: r.FontID(), Size: r.Size, Version: in.Versions.Render,
 			Reading: in.Versions.Reading}
 		plain := fingerprint.Render(ri)
 		r.RenderPlain[target], r.RenderFP[target] = plain, plain
@@ -256,6 +256,14 @@ func Evaluate(in Input) Result {
 		}
 	}
 	return r
+}
+
+// FontID 是成品用的字型 id（字型檔 sha256:第幾個字型；.ttc 一個檔案裡有好幾個字型）。
+func (r Result) FontID() string {
+	if r.Font.SHA256 == "" {
+		return ""
+	}
+	return r.Font.SHA256 + ":" + strconv.Itoa(r.Font.Index)
 }
 
 // Display 回傳實際使用的歌名與演唱者：手動設定 > 歌詞檔的 # title / # artist > 自動辨識（v1 catalog.display_info）。

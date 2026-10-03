@@ -36,7 +36,7 @@ type Place struct {
 // Settings 是全域設定（所有歌共用）。
 type Settings struct {
 	SubtitleScale float64           `json:"subtitle_scale"` // 字幕大小，1 = 100%
-	Fonts         map[string]string `json:"fonts"`          // 語言 → 字型檔 sha256；沒設的語言用預設字型
+	Fonts         map[string]string `json:"fonts"`          // 語言 → 字型 id（sha256:index）；沒設的語言用預設字型
 }
 
 // Library 是 library.json 的內容。

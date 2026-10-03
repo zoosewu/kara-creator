@@ -107,7 +107,7 @@ id 決定資料夾名稱，之後不會改變。歌名、資料夾、順序都�
   "version": 2,
   "folders": [ { "id": "a1b2c3d4", "name": "日文", "parent": null, "order": 1 } ],
   "songs":   { "dQw4w9WgXcQ": { "folder": "a1b2c3d4", "order": 3 } },
-  "settings": { "subtitle_scale": 1.0, "fonts": { "ja": "<字型檔 sha256>", "zh": "…" } }
+  "settings": { "subtitle_scale": 1.0, "fonts": { "ja": "<字型 id>", "zh": "…" } }   // 字型 id = 字型檔 sha256:第幾個字型
 }
 ```
 
@@ -150,7 +150,7 @@ H(欄位…)       = sha256( 每個欄位以 "\n" 串接，最後也加 "\n" )�
 | --- | --- | --- |
 | 去人聲 `separate` | `stage=separate`、`source=<來源 sha256>`、`model=htdemucs`、`stems=2`、`version=<versions.separate>` | 來源檔換了，或去人聲方法改了 |
 | 對時 `align` | `stage=align`、`lyrics=<歌詞指紋>`、`vocals=<人聲 sha256>`、`model=large-v3`、`language=<語言>`、`version=<versions.align>` | 歌詞文字或讀音改了、人聲重新分離過、語言改了、對時方法改了 → **整首重新對時** |
-| 成品 `render`（每個 target） | `stage=render`、`target`、`media=<伴奏或來源 sha256>`、`alignment=<對時內容指紋>`、`lyrics=<歌詞指紋>`、`singers=<清單>`、`translations=<清單，不燒時為空>`、`title=<歌名>`、`artist=<演唱者>`、`note=<備註>`、`scale=<字幕大小，小數兩位>`、`font=<字型 sha256>`、`size=<寬>x<高>`、`version=<versions.render>`、`reading=<versions.reading>`（日文假名由 worker 燒錄時自己算）；**手動改過 ASS 時**只剩 `stage`、`target`、`media`、`ass=<那份 ASS 的 sha256>`、`size`、`version`（畫面完全由那份 ASS 決定，標題畫面也在裡面） | 任何會改變畫面的東西變了 → **只重新產生字幕與燒錄** |
+| 成品 `render`（每個 target） | `stage=render`、`target`、`media=<伴奏或來源 sha256>`、`alignment=<對時內容指紋>`、`lyrics=<歌詞指紋>`、`singers=<清單>`、`translations=<清單，不燒時為空>`、`title=<歌名>`、`artist=<演唱者>`、`note=<備註>`、`scale=<字幕大小，小數兩位>`、`font=<字型 id（sha256:index）>`、`size=<寬>x<高>`、`version=<versions.render>`、`reading=<versions.reading>`（日文假名由 worker 燒錄時自己算）；**手動改過 ASS 時**只剩 `stage`、`target`、`media`、`ass=<那份 ASS 的 sha256>`、`size`、`version`（畫面完全由那份 ASS 決定，標題畫面也在裡面） | 任何會改變畫面的東西變了 → **只重新產生字幕與燒錄** |
 | 對時檢查 `qa` | `stage=qa`、`alignment=<對時內容指紋>`、`lyrics=<歌詞指紋>`、`vocals=<人聲 sha256>`、`language`、`model`、`version=<versions.qa>` | 對時改了 → 重新檢查 |
 | 已確認（Q6） | `stage=approve`、`alignment`、`lyrics`、`singers`、`translations`、`title`、`artist`、`note` | 內容變了 → 需重新確認（換字型、改字幕大小不影響） |
 
@@ -191,7 +191,8 @@ NAS 在記憶體裡保留所有歌的狀態，**只在有變動時重算該首�
 - NAS 啟動時掃描字型目錄：讀每個字型檔（含 .ttc 裡的每個字型）的 family 名稱、粗細、sha256，列在 API `GET /api/v1/fonts`
 - 預設字型（Q11）：日文 Noto Sans CJK JP Bold、中文 / 台語 / 粵語 Noto Sans CJK TC Bold、韓文 Noto Sans CJK KR Bold、
   英文 Noto Sans CJK JP Bold。安裝時下載到 `fonts/`（不進 git；授權 SIL OFL，可以放進 NAS 映像）
-- 設定裡每種語言選一個字型（存字型檔的 sha256）；預設用上面的預設字型
+- 一個字型用「字型檔 sha256:第幾個字型」識別（.ttc 一個檔案裡有好幾個，例如 Noto Sans CJK 的 JP、TC、KR）
+- 設定裡每種語言選一個字型（存字型 id）；預設用上面的預設字型（依完整名稱 nameID 4 找，例如「Noto Sans CJK JP Bold」；ASS 的 Fontname 用 family「Noto Sans CJK JP」）
 - 字型會出現在成品指紋裡：換字型 → 成品需更新（只重燒）
 - 前端播放畫面的即時字幕用 `@font-face` 載入同一個字型檔（`GET /fonts/<sha256>`），預覽和成品外觀一致
 

@@ -38,8 +38,9 @@
 - [ ] `jobs` + `pipeline`：工作（使用者層級）、每首歌依序、下載 / 本機 ffmpeg 的並行上限、持久化、紀錄、收尾
 - [x] `download`（假的 yt-dlp 測試；更新 / 退回上一版）、`inbox`（fsnotify）、`proc`（取消時整個 process group 結束）
 - [x] `export`：clone（Linux FICLONE / macOS clonefile）→ 硬連結 → 複製；檔名規則黃金測試
-- [ ] `backup`、`restore`
-- [ ] `fonts`：字型目錄、family 名稱
+- [x] `backup`
+- [ ] `restore`（v2 與 v1 格式的備份）
+- [x] `fonts`：字型目錄（自己讀 name / OS/2 表）、預設字型、字型 id = sha256:index
 - [ ] `api`：huma REST + SSE + `openapi` 子命令
 - [ ] 完成條件：假的 worker 跑完「下載 → 去人聲 → 對時 → 燒錄 → 檢查」；黃金測試通過
 
