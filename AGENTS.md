@@ -3,6 +3,10 @@
 這份文件給協助開發這個專案的 AI 看：架構、資料格式、不能破壞的規則、使用者的偏好與測試方法。
 使用方式（給人看的）請見 [README.md](README.md)。
 
+> **v2 重構進行中**（2026-10-03 起）：NAS 伺服器改用 Go + Svelte、AI 伺服器主動向 NAS 領工作、可以接多台、container 化。
+> 規格在 [docs/v2/](docs/v2/README.md)，**做 v2 相關的工作前先讀完它**，裡面的「未決問題」要先和使用者討論。
+> 本文件描述的是目前可用的 v1（Python），在 v2 驗證完之前保留，也是 v2 行為的參考實作。
+
 ## 專案在做什麼
 
 本機的 KTV 伴唱帶工作室（Windows、NVIDIA GPU）：
@@ -16,6 +20,13 @@
 
 另外有網頁 UI（`ui/`）、REST API（`/api/v1`）、資料備份（`data/` 私人 repo）、收尾 hook。
 
+分成兩個伺服器（兩個執行檔）：
+- **歌曲伺服器** `ui/server.py`（`ui.ps1`，預設 127.0.0.1:8765）：UI、曲庫、下載、字幕、燒錄、工作佇列、備份
+- **AI 伺服器** `ai/server.py`（`ai.ps1`，預設 127.0.0.1:8770）：Demucs、Whisper、CTC。可以在另一台電腦（`--lan`）
+
+步驟 2、3、5 的模型運算經由 `songtool/ai.py` 交給 AI 伺服器（HTTP，上傳音訊、輪詢進度、取回結果）；
+其餘（抽音軌、封裝、字幕、燒錄、紀錄檔）都在歌曲伺服器。檔案與曲庫只存在歌曲伺服器。
+
 ## 架構地圖
 
 | 位置 | 內容 |
@@ -28,6 +39,9 @@
 | `songtool/reading.py` | 一句歌詞 → 變色單位 + 羅馬字讀音（日文 MeCab、中文拼音、台語 / 粵語靠手動標註）；`furigana()` 給編輯器 |
 | `songtool/align.py` | 對時：Whisper（stable-ts）定句 → 人聲音量修正 → CTC（torchaudio MMS_FA）逐音精修。台語 / 粵語（`CTC_ONLY`）不經 Whisper，整首 CTC |
 | `songtool/qa.py` | 對時檢查（規則 + 分段聽寫比對；台語 / 粵語只做規則） |
+| `songtool/ai.py` | AI 處理的入口：`separate` / `align_song` / `align_from` / `align_line` / `check`。後端 `Remote`（AI 伺服器）或 `Local`（同一行程，命令列工具沒設 `SONG_AI_URL` 時的預設）。`execute()` 是實際執行的地方（AI 伺服器也呼叫它）；`versions()` 兩邊不同時拒絕處理 |
+| `ai/server.py` | AI 伺服器：blob 快取（sha1，`SONG_AI_CACHE`）、單一執行緒的工作佇列、取消（Demucs 子程序終止；對時做完才丟掉結果） |
+| `songtool/net.py` | 區域網路位址（兩個伺服器共用） |
 | `songtool/ass.py` | ASS 字幕產生（字寬用 Pillow 量、換算 libass 比例） |
 | `songtool/karaoke.py` | 串起對時 → 字幕 → 燒錄 → 檢查；手動平移時間 `shift_timing`、AI 重對 `retime` |
 | `songtool/catalog.py` | 曲庫（`output/library.json`）：巢狀資料夾、順序、手動歌名 / 演唱者 / 語言、已確認（成品字幕的 sha1，成品變了就失效）、手動放入影片補上的連結（`link`）、備註（`note`，標題畫面第三行）、是否燒上翻譯（`translation`） |
@@ -71,6 +85,9 @@
   程式碼、註解、文件裡的範例歌詞要用自己編的句子
 - 輸出格式與輸入相同；去人聲保留原影像軌、不重新編碼
 - 每個階段寫紀錄檔判斷是否做過，重複執行只處理新的或有變動的
+- AI 伺服器的結果要和在同一行程執行時**完全相同**：對時與檢查只傳 16kHz 單聲道人聲（Whisper / CTC 讀檔時本來就轉成這個），
+  改動傳輸格式時要用真實歌曲比對 local 與 remote 的 `alignment` / `qa` 是否逐字相同
+- 協定改了（`ai/server.py` 的端點、`songtool/ai.py` 的參數或結果）要調高 `ai.API_VERSION`
 - 調高 `align.VERSION` 會讓**所有**歌在下次製作時整首重新對時、使用者手動調整的時間被取代 —— 除非使用者同意，不要調
 - 長時間處理要可以取消（`should_stop`），子程序要確實結束；關閉程式（Ctrl+C）要乾淨
 - 檔名、歌名辨識、語言、讀音：只做規則與手動操作，**不用 LLM、不自動判斷語言**（使用者明確要求）
@@ -90,15 +107,17 @@
 
   ```powershell
   $env:SONG_OUTPUT_DIR = "<暫存>\output"; $env:SONG_LYRICS_DIR = "<暫存>\lyrics"
-  $env:SONG_DATA_DIR = "<暫存>\data"; $env:SONG_HOOKS_DIR = "<暫存>\hooks"
-  .\.venv\Scripts\python.exe ui\server.py --no-browser --port 8766
+  $env:SONG_DATA_DIR = "<暫存>\data"; $env:SONG_HOOKS_DIR = "<暫存>\hooks"; $env:SONG_AI_CACHE = "<暫存>\ai-cache"
+  .\.venv\Scripts\python.exe ai\server.py --port 8771
+  .\.venv\Scripts\python.exe ui\server.py --no-browser --port 8766 --ai http://127.0.0.1:8771
   ```
 
   `SONG_CHANGE_DELAY`（秒）可以縮短「變動後收尾」的等待時間
 - UI 的驗證：用無頭瀏覽器（Edge + DevTools 協定）操作頁面、執行 JS、截圖確認，而不只是看程式碼
 - 對時品質要用真實歌曲驗證：看 `alignment.json` 的句首、零長度字、句內大間隔，必要時和獨立聽寫比對
 - 對時演算法的修改要同時確認：現有的歌不會變差、人為製造的錯誤能被抓到
-- 使用者的 UI 可能正在執行（`ui.ps1 --lan`）：改後端後提醒重新啟動；不要擅自關掉使用者的程式
+- 使用者的 UI 與 AI 伺服器可能正在執行（`ui.ps1 --lan`、`ai.ps1`）：改後端後提醒重新啟動（改了 `songtool/ai.py`、
+  `align.py`、`qa.py`、`separate.py`、`demucs_run.py` 或 `ai/` 要重啟 `ai.ps1`）；不要擅自關掉使用者的程式
 - 在 Windows 的 Bash 工具裡用 heredoc 執行 Python 時，`\n`、`\\` 等反斜線會被轉換 —— 含反斜線的程式碼改用檔案編輯工具
 - 歌詞、對時等資料會自動備份到 `data/` 並 push：測試時務必用 `SONG_DATA_DIR` 指到暫存資料夾
 
