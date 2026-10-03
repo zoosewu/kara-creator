@@ -83,7 +83,7 @@ func TestGolden(t *testing.T) {
 		case "render":
 			got = Render(RenderInput{Target: s("target"), Media: s("media"), Alignment: s("alignment"), Lyrics: s("lyrics"),
 				Singers: s("singers"), Translations: s("translations"), Title: s("title"), Artist: s("artist"), Note: s("note"),
-				Scale: a["scale"].(float64), Font: s("font"), Size: s("size"), Version: n("version"), ASS: s("ass")})
+				Scale: a["scale"].(float64), Font: s("font"), Size: s("size"), Version: n("version"), Reading: n("reading"), ASS: s("ass")})
 		}
 		if got != c.Fingerprint {
 			t.Errorf("%s(%v) 不同", c.Kind, a)

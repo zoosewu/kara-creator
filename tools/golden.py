@@ -256,6 +256,7 @@ def gen_fingerprint() -> dict:
               "singers": fingerprint.items(rng.choice([[], ["男", None]])), "translations": pick(), "title": pick(),
               "artist": pick(), "note": pick(), "scale": rng.choice([1, 0.6, 1.005, 0.125, 1.6, 0.995, 1 / 3]),
               "font": sha(), "size": rng.choice(["1920x1080", "", "640x360"]), "version": rng.randint(1, 9),
+              "reading": rng.randint(1, 3),
               "ass": rng.choice([None, None, sha()])}
         stage_cases.append({"kind": "render", "args": kw, "fingerprint": fingerprint.render(**kw)})
         kw = {"source": sha(), "model": "htdemucs", "stems": 2, "version": rng.randint(1, 3)}

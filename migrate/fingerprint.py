@@ -70,14 +70,16 @@ def align(*, lyrics: str, vocals: str, model: str, language: str, version: int) 
 
 def render(*, target: str, media: str, alignment: str, lyrics: str, singers: str, translations: str,
            title: str, artist: str, note: str, scale: float, font: str, size: str, version: int,
-           ass: str | None = None) -> str:
-    """ass：使用者手動改過的 ASS 的 sha256。有的話畫面完全由那份 ASS 決定，取代對時、歌詞、標題、樣式、字型等欄位。"""
+           reading: int, ass: str | None = None) -> str:
+    """ass：使用者手動改過的 ASS 的 sha256。有的話畫面完全由那份 ASS 決定，取代對時、歌詞、標題、樣式、字型等欄位。
+    reading：versions.reading（日文的假名由 worker 燒錄時自己算，讀音規則改了成品也會變）。"""
     if ass:
         return h(("stage", "render"), ("target", target), ("media", media), ("ass", ass), ("size", size),
                  ("version", version))
     return h(("stage", "render"), ("target", target), ("media", media), ("alignment", alignment), ("lyrics", lyrics),
              ("singers", singers), ("translations", translations), ("title", title), ("artist", artist),
-             ("note", note), ("scale", f"{scale:.2f}"), ("font", font), ("size", size), ("version", version))
+             ("note", note), ("scale", f"{scale:.2f}"), ("font", font), ("size", size), ("version", version),
+             ("reading", reading))
 
 
 def qa(*, alignment: str, lyrics: str, vocals: str, language: str, model: str, version: int) -> str:

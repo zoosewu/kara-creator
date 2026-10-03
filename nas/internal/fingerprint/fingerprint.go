@@ -109,7 +109,8 @@ type RenderInput struct {
 	Scale        float64 // 字幕大小
 	Font         string  // 字型檔 sha256
 	Size         string  // 寬x高
-	Version      int
+	Version      int    // versions.render
+	Reading      int    // versions.reading：日文的假名由 worker 燒錄時自己算，讀音規則改了成品也會變
 	ASS          string // 使用者手動改過的 ASS 的 sha256（沒有時為空）
 }
 
@@ -124,7 +125,7 @@ func Render(in RenderInput) string {
 		Field{"lyrics", in.Lyrics}, Field{"singers", in.Singers}, Field{"translations", in.Translations},
 		Field{"title", in.Title}, Field{"artist", in.Artist}, Field{"note", in.Note},
 		Field{"scale", strconv.FormatFloat(in.Scale, 'f', 2, 64)}, Field{"font", in.Font}, Field{"size", in.Size},
-		Field{"version", in.Version})
+		Field{"version", in.Version}, Field{"reading", in.Reading})
 }
 
 // QA 是對時檢查的指紋。
