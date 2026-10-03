@@ -2,7 +2,10 @@
 // 移植 v1 的規則時用它，結果才會和 v1 逐字相同（Go 的 unicode.IsSpace 範圍和 Python 不同）。
 package pystr
 
-import "strings"
+import (
+	"strings"
+	"unicode"
+)
 
 // SpaceClass 是 Python re 的 \s（str 樣式）放進字元類別用的內容：和 str.isspace() 相同的字元。
 const SpaceClass = `\x{9}-\x{d}\x{1c}-\x{20}\x{85}\x{a0}\x{1680}\x{2000}-\x{200a}\x{2028}\x{2029}\x{202f}\x{205f}\x{3000}`
@@ -56,4 +59,17 @@ func SplitLines(s string) []string {
 		out = append(out, s[start:])
 	}
 	return out
+}
+
+// Casefold 同 Python str.casefold()（Unicode 版本相同時）。
+func Casefold(s string) string {
+	var sb strings.Builder
+	for _, r := range s {
+		if f, ok := casefoldSpecial[r]; ok {
+			sb.WriteString(f)
+		} else {
+			sb.WriteRune(unicode.ToLower(r))
+		}
+	}
+	return sb.String()
 }

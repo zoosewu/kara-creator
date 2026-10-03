@@ -29,7 +29,7 @@ for _name in ("SONG_OUTPUT_DIR", "SONG_LYRICS_DIR", "SONG_DATA_DIR", "SONG_HOOKS
     os.environ[_name] = str(_tmp / _name.lower())
 sys.path.insert(0, str(ROOT / "ui"))
 
-from songtool import lyrics  # noqa: E402
+from songtool import lyrics, titles  # noqa: E402
 import server as v1_server  # noqa: E402
 
 OUT = ROOT / "nas" / "testdata" / "golden"
@@ -159,12 +159,77 @@ def gen_lyrics_plain() -> list[dict]:
     return out
 
 
+# 自己編的歌手、歌名、頻道（不能用真實的）。
+TITLE_CASES = [
+    {"title": "虛構歌手『花になって』Official Video"},
+    {"title": "架空樂團【不存在的歌】歌詞版", "channel": "架空樂團 Official Channel"},
+    {"title": "Made Up Band - Imaginary Song (Official Music Video)"},
+    {"title": "Imaginary Song - Made Up Band", "channel": "Made Up Band VEVO"},
+    {"title": "虛構歌手 Fake Singer【假的歌 The Fake Song】", "channel": "虛構歌手 Fake Singer"},
+    {"title": "I love you 伝えたい Fake Artist", "channel": "Fake Artist - Topic"},
+    {"title": "Some Song (feat. Another Person)", "channel": "Somebody"},
+    {"title": "Some Song ft. Another Person | Somebody"},
+    {"title": "主唱 Lead ft. 客串 Guest - 合作的歌"},
+    {"title": "【MV】［Official］（Official Video）只有歌名"},
+    {"title": "歌名 - Official Video"},
+    {"title": "歌名｜歌手｜官方完整版"},
+    {"title": "完全沒有規則的標題"},
+    {"title": "", "channel": "Empty Title Official YouTube Channel"},
+    {"title": "Soft Left Feature 不該被切掉 - 歌手"},
+    {"title": "Feat. 開頭就是合作"},
+    {"title": "歌手《歌名》MV 首播", "uploader": "上傳者 官方頻道"},
+    {"title": "〈歌名〉歌手 4K 1080p"},
+    {"title": "\"Quoted Song\" by Someone"},
+    {"title": "OFFİCİAL ſTRANGE CAſE Song - Singer"},
+    {"title": "x", "track": "Real Track", "artists": ["", " Main Artist ", "Second"]},
+    {"title": "x", "track": "Real Track", "artist": "Only Artist ft. Guest"},
+    {"title": "x", "track": "  ", "artists": ["Someone"]},
+    {"title": "x", "track": "Track (feat. Guest)", "artists": ["主唱 Lead feat. 客串"]},
+    {"title": "歌手 - 歌名 (Remastered 2020)"},
+    {"title": "歌手 — 歌名 – 版本"},
+    {"title": "歌名 [Lyrics] [中文字幕]"},
+    {"title": "a/b/c"},
+]
+
+TITLE_TOKENS = ["虛構歌手", "架空樂團", "Fake", "Singer", "Band", "歌名", "假的歌", "Song", "I", "love", "伝えたい", "한국", "노래",
+                "『", "』", "「", "」", "【", "】", "［", "］", "[", "]", "(", ")", "（", "）", "《", "》", "〈", "〉", "“", "”", '"',
+                " - ", " – ", " — ", " | ", "｜", "|", "/", ":", "：", ",", ".", "&", "+",
+                "Official", "official video", "MV", "M/V", "Lyrics", "歌詞", "動態歌詞", "官方", "完整版", "4K", "HD", "Remaster",
+                "ft.", "feat.", "Feat", "featuring", "FT", "Soft", "left", "Lefty", "ſ", "İ", "ı", "\u212a", "_", "1080p", "Video2",
+                " ", " ", " ", "\u3000", "\t"]
+CHANNELS = ["", "", "Fake Singer - Topic", "架空樂團 Official Channel", "虛構歌手", "Singer VEVO", "Band official youtube channel",
+            "官方頻道", "Channel", "歌名"]
+
+
+def random_titles(n: int, seed: int) -> list[dict]:
+    rng = random.Random(seed)
+    out = []
+    for _ in range(n):
+        info = {"title": "".join(rng.choice(TITLE_TOKENS) + rng.choice(["", " "]) for _ in range(rng.randint(1, 12))),
+                "channel": rng.choice(CHANNELS)}
+        if rng.random() < 0.1:
+            info["track"] = rng.choice(["", "Track", "Track ft. Guest", "歌 (feat. 客)"])
+            info["artists"] = rng.choice([[], [""], ["Lead ft. Guest"], ["主唱 Lead", "Other"]])
+        out.append(info)
+    return out
+
+
+def gen_titles() -> list[dict]:
+    out = []
+    for info in TITLE_CASES + random_titles(1500, seed=4):
+        g = titles.guess(info)
+        out.append({"info": info, "guess": {"title": g.title, "artist": g.artist, "source": g.source},
+                    "channel": titles.clean_channel(info.get("channel") or "")})
+    return out
+
+
 GENERATORS = {
     "lyrics_parse": gen_lyrics_parse,
     "paren": gen_paren,
     "language": gen_language,
     "difflib": gen_difflib,
     "lyrics_plain": gen_lyrics_plain,
+    "titles": gen_titles,
 }
 
 

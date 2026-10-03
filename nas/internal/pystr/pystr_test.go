@@ -33,3 +33,11 @@ func TestFields(t *testing.T) {
 		t.Error("零寬空白在 Python 不算空白")
 	}
 }
+
+func TestCasefold(t *testing.T) {
+	for in, want := range map[string]string{"Straße": "strasse", "İ": "i̇", "ΣΑΣ": "σασ", "ǅ": "ǆ", "ꭰ": "Ꭰ", "ABC中": "abc中"} {
+		if got := Casefold(in); got != want {
+			t.Errorf("Casefold(%q) = %q，應該 %q", in, got, want)
+		}
+	}
+}
