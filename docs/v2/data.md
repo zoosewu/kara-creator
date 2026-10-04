@@ -154,7 +154,7 @@ H(欄位…)       = sha256( 每個欄位以 "\n" 串接，最後也加 "\n" )�
 | 對時 `align` | `stage=align`、`lyrics=<歌詞指紋>`、`vocals=<人聲 sha256>`、`model=large-v3`、`language=<語言>`、`version=<versions.align>` | 歌詞文字或讀音改了、人聲重新分離過、語言改了、對時方法改了 → **整首重新對時** |
 | 成品 `render`（每個 target） | `stage=render`、`target`、`media=<伴奏或來源 sha256>`、`alignment=<對時內容指紋>`、`lyrics=<歌詞指紋>`、`singers=<清單>`、`translations=<清單，不燒時為空>`、`title=<歌名>`、`artist=<演唱者>`、`note=<備註>`、`scale=<字幕大小，小數兩位>`、`font=<字型 id（sha256:index）>`、`size=<寬>x<高>`、`version=<versions.render>`、`reading=<versions.reading>`（日文假名由 worker 燒錄時自己算）；**手動改過 ASS 時**只剩 `stage`、`target`、`media`、`ass=<那份 ASS 的 sha256>`、`size`、`version`（畫面完全由那份 ASS 決定，標題畫面也在裡面） | 任何會改變畫面的東西變了 → **只重新產生字幕與燒錄** |
 | 對時檢查 `qa` | `stage=qa`、`alignment=<對時內容指紋>`、`lyrics=<歌詞指紋>`、`vocals=<人聲 sha256>`、`language`、`model`、`version=<versions.qa>` | 對時改了 → 重新檢查 |
-| 已確認 | `stage=approve`、`align=<對時指紋>`、`run=<alignment.json 的對時編號>` | **需要重新對時**才失效（2026-10-04 使用者決定）：只需重燒的更新（演唱者、翻譯、標題畫面、字型、字幕大小、手動調時間、AI 重對某幾句）都不影響確認 |
+| 已確認 | `stage=approve`、`lyrics=<歌詞指紋>`、`language`、`method=<versions.align>`、`run=<alignment.json 的對時編號>`；伴唱帶是 needs_align 時一律算失效 | **需要重新對時**才失效（2026-10-04 使用者決定）：只需重燒的更新（演唱者、翻譯、標題畫面、字型、字幕大小、手動調時間、AI 重對某幾句）都不影響確認 |
 
 標題畫面規則同 v1 `karaoke.title_card`：歌名來自手動設定、歌詞檔或標題辨識；標題辨識只能用整個影片標題（`source=fallback`）時不顯示標題畫面。
 
@@ -241,7 +241,7 @@ container 透過 bind mount 存取 APFS，clone 和硬連結能不能用要在 M
 - 每首歌的欄位：`id`、`folder`、`order`、`info`（同 song.json 的 info，`approved` 只記指紋）、`display`（實際使用的歌名與演唱者）、
   `source`（同 song.json 的 source，去掉 `file`、`sha256` 以外的本機資訊；手動放入的記 `original_name` 與 `size`）、`lyrics`、`timing`
 - `timing/<id>.json`：`lyrics_fingerprint`（歌詞指紋）、`language`、`model`、`method`（versions.align）、`lines`、`adjustments`
-- 還原（`kara-nas restore`）：重新下載 / 等手動放入 → 歌詞相同（歌詞指紋）、語言相同、方法相同就沿用對時（寫 `restored`），
+- 還原（`kara-nas restore --library … [--overwrite] [--replace 歌曲id=網址]`，伺服器要先關閉：曲庫有檔案鎖）：重新下載 / 等手動放入 → 歌詞相同（歌詞指紋）、語言相同、方法相同就沿用對時（寫 `restored`），
   不必重新對時；去人聲和成品照常重做
 - 從 v1 格式的備份還原也要支援（讀 v1 的 `lyrics_sha1` 時，用 v1 的演算法驗證歌詞沒變：
   `sha1(json.dumps([[text, [{"start","end","reading"}…]]…], ensure_ascii=False))`，預設分隔符 `", "` 與 `": "`）

@@ -79,7 +79,7 @@ func TestGolden(t *testing.T) {
 		case "qa":
 			got = QA(s("alignment"), s("lyrics"), s("vocals"), s("language"), s("model"), n("version"))
 		case "approve":
-			got = Approve(s("align_key"), s("run"))
+			got = Approve(s("lyrics"), s("language"), n("method"), s("run"))
 		case "render":
 			got = Render(RenderInput{Target: s("target"), Media: s("media"), Alignment: s("alignment"), Lyrics: s("lyrics"),
 				Singers: s("singers"), Translations: s("translations"), Title: s("title"), Artist: s("artist"), Note: s("note"),

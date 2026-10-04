@@ -212,9 +212,7 @@ func Evaluate(in Input) Result {
 	singers := fingerprint.Items(r.Singers)
 	translations := fingerprint.Items(ptrs(r.Translations))
 	if al != nil {
-		if r.AlignOK {
-			r.ApproveFP = fingerprint.Approve(r.AlignFP, al.Run)
-		}
+		r.ApproveFP = fingerprint.Approve(r.LyricsFP, r.Language, in.Versions.Align, al.Run)
 		if sep != nil {
 			r.QAFP = fingerprint.QA(r.ContentFP, r.LyricsFP, sep.Vocals.SHA256, r.Language, WhisperModel, in.Versions.QA)
 		}
@@ -269,7 +267,7 @@ func Evaluate(in Input) Result {
 	if a := sg.Info.Approved; a != nil {
 		r.LastApproval = a
 		r.Status.Approval = Stale
-		if r.ApproveFP != "" && a.Fingerprint == r.ApproveFP {
+		if r.ApproveFP != "" && a.Fingerprint == r.ApproveFP && karaoke != NeedsAlign {
 			r.Status.Approval = Approved
 		}
 	}

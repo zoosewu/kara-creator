@@ -27,8 +27,8 @@ func TestOpenRequiresInit(t *testing.T) {
 			t.Errorf("應該建立 %s：%v", d, err)
 		}
 	}
-	if _, err := Open(root, false); err != nil {
-		t.Fatalf("建立後應該可以直接開啟：%v", err)
+	if _, err := Open(root, false); !errors.Is(err, ErrLocked) {
+		t.Fatalf("同一個曲庫不能同時開兩次：%v", err)
 	}
 }
 
@@ -77,6 +77,7 @@ func TestSongsPersist(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = os.MkdirAll(filepath.Join(root, SongsDir, "downloading"), 0o755) // 還沒有紀錄的資料夾
+	s.Close()
 	s2, err := Open(root, false)
 	if err != nil {
 		t.Fatal(err)

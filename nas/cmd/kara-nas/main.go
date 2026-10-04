@@ -2,6 +2,7 @@
 //
 //	kara-nas --library /library [--init]   啟動伺服器
 //	kara-nas openapi                       輸出 OpenAPI 規格（docs/openapi.json）
+//	kara-nas restore --library /library    從資料備份重建曲庫（伺服器要先關閉）
 package main
 
 import (
@@ -28,6 +29,13 @@ func main() {
 			log.Fatal(err)
 		}
 		os.Stdout.Write(append(data, '\n'))
+		return
+	}
+	if len(os.Args) > 1 && os.Args[1] == "restore" {
+		if err := runRestore(os.Args[2:]); err != nil && !errors.Is(err, flag.ErrHelp) {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 		return
 	}
 	cfg, err := config.Parse(os.Args[1:], os.Getenv, os.Stderr)

@@ -48,6 +48,7 @@ type Change struct {
 // Store 是開啟中的曲庫。所有方法都可以同時呼叫。
 type Store struct {
 	root string
+	lock *os.File // 曲庫的獨佔鎖（同時只能有一個 kara-nas 寫曲庫）
 
 	mu    sync.Mutex
 	lib   *library.Library
@@ -81,6 +82,9 @@ func Open(root string, create bool) (*Store, error) {
 		if err := json.Unmarshal(data, s.lib); err != nil {
 			return nil, fmt.Errorf("%s：%w", s.Path(LibraryFile), err)
 		}
+	}
+	if s.lock, err = lock(root); err != nil {
+		return nil, err
 	}
 	for _, dir := range []string{SongsDir, InboxDir, ExportDir, FontsDir, WorkDir} {
 		if err := os.MkdirAll(s.Path(dir), 0o755); err != nil {
@@ -127,6 +131,14 @@ func (s *Store) loadSongs() error {
 		return s.writeJSON(s.Path(LibraryFile), s.lib)
 	}
 	return nil
+}
+
+// Close 放開曲庫的鎖（程式結束時也會自動放開）。
+func (s *Store) Close() {
+	if s.lock != nil {
+		s.lock.Close()
+		s.lock = nil
+	}
 }
 
 // Root 是曲庫根目錄。

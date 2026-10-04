@@ -27,6 +27,7 @@ func TestParseGolden(t *testing.T) {
 		Doc        json.RawMessage `json:"doc"`
 		Serialized string          `json:"serialized"`
 		Language   *string         `json:"language"`
+		V1         string          `json:"v1_align_sha1"`
 	}
 	golden(t, "lyrics_parse", &cases)
 	for i, c := range cases {
@@ -50,6 +51,9 @@ func TestParseGolden(t *testing.T) {
 		}
 		if got := DetectLanguage(doc.Texts()); got != lang {
 			t.Errorf("#%d 語言 %q，應該 %q", i, got, lang)
+		}
+		if got := V1AlignSHA1(doc); got != c.V1 {
+			t.Errorf("#%d v1 對時雜湊 %s，應該 %s", i, got, c.V1)
 		}
 	}
 }

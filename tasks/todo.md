@@ -40,7 +40,7 @@
 - [x] `download`（假的 yt-dlp 測試；更新 / 退回上一版）、`inbox`（fsnotify）、`proc`（取消時整個 process group 結束）
 - [x] `export`：clone（Linux FICLONE / macOS clonefile）→ 硬連結 → 複製；檔名規則黃金測試
 - [x] `backup`
-- [ ] `restore`（v2 與 v1 格式的備份）
+- [x] `restore`（`kara-nas restore`；v2 與 v1 格式的備份、v1 歌詞雜湊驗證、確認延續、曲庫檔案鎖）
 - [x] `fonts`：字型目錄（自己讀 name / OS/2 表）、預設字型、字型 id = sha256:index
 - [x] `app`（組裝、狀態快取、檔案監看、收尾、yt-dlp 自動更新）+ `api`：huma REST + SSE + 媒體 / 字型 + `openapi` 子命令
 - [x] 完成條件：假的 worker 跑完「下載 → 去人聲 → 對時 → 燒錄 → 檢查」（`api.TestEndToEnd`）；黃金測試通過
@@ -64,7 +64,7 @@
   - `reading` 任務只回傳自動讀音、不收手動讀音（快取 key 才能和手動讀音無關），手動讀音由 NAS 合併
 
 
-### 階段 1（2026-10-03，進行中：剩 restore）
+### 階段 1（2026-10-03 完成；restore 於 10-04 補上）
 
 - 驗證：25 個套件的測試全部通過（`go test -race ./...`）；黃金測試涵蓋歌詞、括號讀音、語言、difflib、原始歌詞對應、
   標題辨識、指紋（Go ↔ Python）、拖曳排序、shift_timing、讀音合併與編輯器檢視、匯出檔名；

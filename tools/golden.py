@@ -265,7 +265,8 @@ def gen_fingerprint() -> dict:
         stage_cases.append({"kind": "align", "args": kw, "fingerprint": fingerprint.align(**kw)})
         kw = {"alignment": sha(), "lyrics": sha(), "vocals": sha(), "language": "zh", "model": "large-v3", "version": 4}
         stage_cases.append({"kind": "qa", "args": kw, "fingerprint": fingerprint.qa(**kw)})
-        kw = {"align_key": sha(), "run": rng.choice(["", "r" + sha()[:12]])}
+        kw = {"lyrics": sha(), "language": rng.choice(["", "ja", "nan"]), "method": rng.randint(1, 9),
+              "run": rng.choice(["", "r" + sha()[:12]])}
         stage_cases.append({"kind": "approve", "args": kw, "fingerprint": fingerprint.approve(**kw)})
     return {"lyrics": lyric_cases, "alignment": align_cases, "ms": ms_cases, "items": items_cases, "stages": stage_cases}
 

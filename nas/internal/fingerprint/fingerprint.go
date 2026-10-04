@@ -134,9 +134,11 @@ func QA(alignment, lyricsFP, vocals, language, model string, version int) string
 		Field{"language", language}, Field{"model", model}, Field{"version", version})
 }
 
-// Approve 是「已確認」的指紋：綁「對時」——對時指紋（歌詞文字與讀音、人聲、語言、對時方法）加上這次整首對時的編號。
+// Approve 是「已確認」的指紋：歌詞指紋、語言、對時方法、這次整首對時的編號。
 // 只需重燒的更新（演唱者、翻譯、標題畫面、字型、字幕大小、手動調時間、AI 重對某幾句）不影響確認；
-// 需要整首重新對時的更新才會讓確認失效（確認紀錄另外保留）。
-func Approve(alignKey, run string) string {
-	return H(Field{"stage", "approve"}, Field{"align", alignKey}, Field{"run", run})
+// 整首重新對時會換編號，所以確認失效（確認紀錄另外保留）。不含人聲：從資料備份還原、沿用對時時確認才能延續
+// （需要重新對時的狀態由 planner 另外判定為失效）。
+func Approve(lyricsFP, language string, method int, run string) string {
+	return H(Field{"stage", "approve"}, Field{"lyrics", lyricsFP}, Field{"language", language}, Field{"method", method},
+		Field{"run", run})
 }
