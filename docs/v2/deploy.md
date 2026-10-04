@@ -35,6 +35,8 @@ stage 3  debian:bookworm-slim 或 alpine
 
 ### Windows 本機（現在的 PC）
 
+> 2026-10-04：host 版保留，但先不實測；實際部署由使用者自己執行，遇到問題再討論。container 版已在同一台 PC（Docker Desktop + WSL2）驗證過。
+
 - `setup.ps1` 建好 `.venv`（同 v1：Python 3.14 + PyTorch 2.11 CUDA 13.0 + requirements），另外下載預設字型到快取（其實不必：缺字型時會向 NAS 要）
 - `ai.ps1`：只執行 `.venv\Scripts\python.exe ai\worker.py @args`
 - requirements 拆成 `requirements-ai.txt`（worker 需要的：torch、demucs、stable-ts、fugashi、unidic-lite、pykakasi、pypinyin、numpy、soundfile、pillow）；

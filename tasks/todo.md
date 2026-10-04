@@ -52,7 +52,7 @@
 - [x] 和 v1 逐字相同：日文（ふるさと）、國語（茉莉花）的對時、檢查、只重對這句、這句及之後全部（同一份 speech.wav，v1 / v2 產生的 speech.wav 位元組相同）
 - [x] 正式映像檔 `deploy/ai.Dockerfile`（9.3 GB，Python 3.14 + PyTorch 2.11 cu130）建置並實際跑完一首
 - [x] `worker.ps1`（Windows；v1 的 ai.ps1 保留到搬家）
-- [ ] Windows 本機實測 `worker.ps1`（需要使用者的 PC；setup.ps1 已經裝了 worker 需要的套件）
+- 延後：Windows 本機實測 `worker.ps1`（2026-10-04 使用者決定：host 版保留但先不測，實際部署由使用者自己跑，有問題再討論）
 
 ## 階段 3：前端（Svelte）
 
