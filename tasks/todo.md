@@ -45,6 +45,14 @@
 - [x] `app`（組裝、狀態快取、檔案監看、收尾、yt-dlp 自動更新）+ `api`：huma REST + SSE + 媒體 / 字型 + `openapi` 子命令
 - [x] 完成條件：假的 worker 跑完「下載 → 去人聲 → 對時 → 燒錄 → 檢查」（`api.TestEndToEnd`）；黃金測試通過
 
+## 階段 2：Python AI worker
+
+- [x] `ai/worker.py`（協定、兩個通道、續傳、字型快取）、`ai/tasks.py`（沿用 v1 execute；讀音、字幕與燒錄）
+- [x] 真實 GPU（RTX 4070 Ti SUPER，DooD container）：下載 → 去人聲 → 對時 → NVENC 燒錄 → 檢查
+- [x] 和 v1 逐字相同：日文（ふるさと）、國語（茉莉花）的對時、檢查、只重對這句、這句及之後全部（同一份 speech.wav，v1 / v2 產生的 speech.wav 位元組相同）
+- [ ] 正式映像檔 `deploy/ai.Dockerfile` 建置完成並實際跑一次（GitHub 下載很慢）
+- [ ] Windows 本機：`ai.ps1` 改成執行 ai/worker.py、`setup.ps1` 的 requirements-ai
+
 ## 檢討
 
 ### 階段 0（2026-10-03）

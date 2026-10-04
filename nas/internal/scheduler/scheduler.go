@@ -383,7 +383,7 @@ func (s *Scheduler) Workers() []Worker {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := s.opt.Now()
-	var out []Worker
+	out := []Worker{}
 	for _, w := range s.workers {
 		cp := *w
 		cp.Online = now.Sub(w.LastSeen) < s.opt.LeaseWait+10*time.Second

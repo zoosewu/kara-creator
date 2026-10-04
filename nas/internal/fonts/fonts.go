@@ -118,7 +118,7 @@ func Scan(dir string, cache map[string]string) (*Catalog, error) {
 func (c *Catalog) List() []Font {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return append([]Font(nil), c.fonts...)
+	return append([]Font{}, c.fonts...)
 }
 
 // Get 依 id 找字型。
