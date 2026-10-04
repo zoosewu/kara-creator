@@ -207,8 +207,14 @@ class Worker:
             return state["cancel"] or state["gone"] or self.stopping.is_set()
 
         def beat() -> None:
-            while not done.wait(self.heartbeat):
-                self.progress(tid, state, state_lock)
+            # 有新紀錄時每秒送一次（畫面才看得到即時進度），否則每 heartbeat 秒送一次心跳
+            last = time.monotonic()
+            while not done.wait(1.0):
+                with state_lock:
+                    pending = bool(state["logs"])
+                if pending or time.monotonic() - last >= self.heartbeat:
+                    self.progress(tid, state, state_lock)
+                    last = time.monotonic()
 
         hb = threading.Thread(target=beat, daemon=True)
         hb.start()

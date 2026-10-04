@@ -50,8 +50,9 @@
 - [x] `ai/worker.py`（協定、兩個通道、續傳、字型快取）、`ai/tasks.py`（沿用 v1 execute；讀音、字幕與燒錄）
 - [x] 真實 GPU（RTX 4070 Ti SUPER，DooD container）：下載 → 去人聲 → 對時 → NVENC 燒錄 → 檢查
 - [x] 和 v1 逐字相同：日文（ふるさと）、國語（茉莉花）的對時、檢查、只重對這句、這句及之後全部（同一份 speech.wav，v1 / v2 產生的 speech.wav 位元組相同）
-- [ ] 正式映像檔 `deploy/ai.Dockerfile` 建置完成並實際跑一次（GitHub 下載很慢）
-- [ ] Windows 本機：`ai.ps1` 改成執行 ai/worker.py、`setup.ps1` 的 requirements-ai
+- [x] 正式映像檔 `deploy/ai.Dockerfile`（9.3 GB，Python 3.14 + PyTorch 2.11 cu130）建置並實際跑完一首
+- [x] `worker.ps1`（Windows；v1 的 ai.ps1 保留到搬家）
+- [ ] Windows 本機實測 `worker.ps1`（需要使用者的 PC；setup.ps1 已經裝了 worker 需要的套件）
 
 ## 檢討
 
