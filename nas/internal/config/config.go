@@ -17,6 +17,7 @@ type Config struct {
 	Listen      string // 監聽位址（KARA_LISTEN）
 	WorkerToken string // worker 連線用的共用 token，空字串 = 不檢查（KARA_WORKER_TOKEN）
 	Tools       string // 放 yt-dlp、deno 的資料夾，空字串 = 從 PATH 找（KARA_TOOLS）
+	Fonts       string // 內建字型資料夾，和 <library>/fonts 一起掃描（KARA_FONTS；container 映像附的預設字型）
 	Init        bool   // 曲庫不存在時建立新的（避免外接硬碟沒掛上時誤開一個空曲庫）
 }
 
@@ -38,6 +39,7 @@ func Parse(args []string, getenv func(string) string, stderr io.Writer) (Config,
 	fs.StringVar(&c.Listen, "listen", env("KARA_LISTEN", ":8765"), "監聽位址（KARA_LISTEN）")
 	fs.StringVar(&c.WorkerToken, "worker-token", env("KARA_WORKER_TOKEN", ""), "AI worker 連線用的共用 token（KARA_WORKER_TOKEN，預設不檢查）")
 	fs.StringVar(&c.Tools, "tools", env("KARA_TOOLS", ""), "放 yt-dlp、deno 的資料夾（KARA_TOOLS，預設從 PATH 找）")
+	fs.StringVar(&c.Fonts, "fonts", env("KARA_FONTS", ""), "內建字型資料夾（KARA_FONTS），和 <library>/fonts 一起掃描；同一個字型兩邊都有時用曲庫的")
 	fs.BoolVar(&c.Init, "init", false, "曲庫不存在時建立新的曲庫")
 	if err := fs.Parse(args); err != nil {
 		return Config{}, err

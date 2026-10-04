@@ -40,3 +40,9 @@
 ## 溝通
 
 - 和使用者的對話一律用繁體中文（台灣），包含長篇的階段報告；context 被壓縮後接續時也一樣，送出前先確認語言。
+
+## Docker
+
+- 空的 named volume 第一次掛載時，Docker 會把映像裡那個路徑的內容與**擁有者**複製進去（例如映像的 `/library` 是 root，volume 就變 root）。
+  測試 PUID 時先在 volume 放一個檔案再 chown；bind mount 沒有這個行為。
+- container 裡看不到主機的 `~/.gitconfig`：要 commit 的映像設系統層級的預設 `user.name` / `user.email`（repo 自己的設定仍然優先）。

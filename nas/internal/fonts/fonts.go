@@ -26,7 +26,7 @@ type Font struct {
 	ID       string `json:"id"`     // sha256:index
 	SHA256   string `json:"sha256"` // 字型檔的 sha256
 	Index    int    `json:"index"`  // .ttc 裡第幾個
-	File     string `json:"file"`   // fonts/ 底下的相對路徑
+	File     string `json:"file"`   // 字型資料夾底下的相對路徑
 	Family   string `json:"family"` // ASS 的 Fontname（name table 的 family，nameID 1）
 	FullName string `json:"full_name"`
 	Weight   int    `json:"weight"` // 400 = 一般、700 = 粗體
@@ -50,18 +50,39 @@ var Defaults = map[string]string{
 
 // Catalog 是掃描到的字型。
 type Catalog struct {
-	dir string
-
 	mu    sync.RWMutex
 	fonts []Font
 	files map[string]string // sha256 → 絕對路徑
 }
 
-// Scan 掃描字型資料夾（含子資料夾，例如掛載進來的自訂字型）。讀不懂的檔案略過。
+// Scan 依序掃描字型資料夾（含子資料夾，例如掛載進來的自訂字型；不存在的資料夾略過）。讀不懂的檔案略過，
+// 內容相同的檔案只算一次（先掃到的為準）。
 // 字型檔的 sha256 依大小與修改時間快取在 cache，下次啟動不必重算（字型檔很大）。
-func Scan(dir string, cache map[string]string) (*Catalog, error) {
-	c := &Catalog{dir: dir, files: map[string]string{}}
-	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+func Scan(dirs []string, cache map[string]string) (*Catalog, error) {
+	c := &Catalog{files: map[string]string{}}
+	for _, dir := range dirs {
+		if err := c.scan(dir, cache); err != nil {
+			return nil, err
+		}
+	}
+	sort.Slice(c.fonts, func(a, b int) bool {
+		if c.fonts[a].Family != c.fonts[b].Family {
+			return c.fonts[a].Family < c.fonts[b].Family
+		}
+		return c.fonts[a].ID < c.fonts[b].ID
+	})
+	defaults := map[string]bool{}
+	for _, name := range Defaults {
+		defaults[name] = true
+	}
+	for i := range c.fonts {
+		c.fonts[i].Default = defaults[c.fonts[i].FullName]
+	}
+	return c, nil
+}
+
+func (c *Catalog) scan(dir string, cache map[string]string) error {
+	return filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -87,6 +108,9 @@ func Scan(dir string, cache map[string]string) (*Catalog, error) {
 				cache[key] = sum
 			}
 		}
+		if _, dup := c.files[sum]; dup {
+			return nil
+		}
 		rel, _ := filepath.Rel(dir, path)
 		c.files[sum] = path
 		for i, f := range faces {
@@ -95,23 +119,6 @@ func Scan(dir string, cache map[string]string) (*Catalog, error) {
 		}
 		return nil
 	})
-	if err != nil {
-		return nil, err
-	}
-	sort.Slice(c.fonts, func(a, b int) bool {
-		if c.fonts[a].Family != c.fonts[b].Family {
-			return c.fonts[a].Family < c.fonts[b].Family
-		}
-		return c.fonts[a].ID < c.fonts[b].ID
-	})
-	defaults := map[string]bool{}
-	for _, name := range Defaults {
-		defaults[name] = true
-	}
-	for i := range c.fonts {
-		c.fonts[i].Default = defaults[c.fonts[i].FullName]
-	}
-	return c, nil
 }
 
 // List 回傳所有字型。

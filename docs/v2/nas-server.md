@@ -10,13 +10,13 @@
 ## 啟動參數
 
 ```
-kara-nas --library /Volumes/Media/kara [--data <路徑>] [--listen :8765] [--worker-token …]
-         [--tools <放 yt-dlp、deno 的資料夾>] [--open-browser]
+kara-nas --library /Volumes/Media/kara [--data <路徑>] [--export <路徑>] [--listen :8765] [--worker-token …]
+         [--tools <放 yt-dlp、deno 的資料夾>] [--fonts <內建字型資料夾>] [--init]
 kara-nas openapi            # 輸出 OpenAPI 規格（docs/openapi.json，CI 檢查是否過期）
 kara-nas restore [--make]   # 從資料備份重建曲庫（v1 scripts/restore.py）
 ```
 
-每個參數都有對應的環境變數（`KARA_LIBRARY`、`KARA_DATA`、`KARA_LISTEN`、`KARA_WORKER_TOKEN`、`KARA_TOOLS`），container 用。
+每個參數都有對應的環境變數（`KARA_LIBRARY`、`KARA_DATA`、`KARA_EXPORT`、`KARA_LISTEN`、`KARA_WORKER_TOKEN`、`KARA_TOOLS`、`KARA_FONTS`），container 用。
 預設監聽所有網路介面（NAS 的用途就是給區域網路用，不需要登入，決策 10）。
 
 關閉（SIGINT / SIGTERM）：停止接新請求 → 取消下載（yt-dlp 子程序終止）與 NAS 本機的 ffmpeg → 把排隊中的工作寫到磁碟 → 1 秒內結束。

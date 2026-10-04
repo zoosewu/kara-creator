@@ -17,19 +17,34 @@ Go 執行檔本身照樣可以在 macOS 原生編譯執行（開發、除錯用�
 `deploy/nas.Dockerfile`，多階段建置：
 
 ```
-stage 1  node:lts      → npm ci && npm run build（前端）
-stage 2  golang        → go build（CGO_ENABLED=0，-trimpath -ldflags "-s -w"）
-stage 3  debian:bookworm-slim 或 alpine
-         + ffmpeg（靜態版）、yt-dlp 單一執行檔、deno、git、openssh-client、tini
-         + Noto Sans CJK 預設字型（OFL 授權，可以放進映像）
-         ENTRYPOINT tini -- kara-nas
+web    node:24（建置機器的架構）   → npm ci && npm run build（前端）
+go     golang:1.27（建置機器的架構）→ 交叉編譯 kara-nas（CGO_ENABLED=0，-trimpath -ldflags "-s -w"）
+fetch  debian:trixie-slim          → yt-dlp 單一執行檔（依目標架構）、Noto Sans CJK Bold
+最後   debian:trixie-slim + git、openssh-client、tini、tzdata
+       + ffmpeg / ffprobe（mwader/static-ffmpeg）、deno（denoland/deno:bin）
+       ENTRYPOINT tini -- nas-entrypoint.sh（處理 PUID / PGID 與 SSH 金鑰後執行 kara-nas）
 ```
 
-- 映像目標 < 300 MB；架構 `linux/arm64` 與 `linux/amd64`（`docker buildx`）
-- volume：`/library`（整個曲庫，**必須是同一個 volume**，匯出才能 clone / 硬連結）、`/data`（備份 repo）、`/fonts/custom`（自訂字型，選填）、
-  `/root/.ssh`（push 備份用，唯讀）
-- `PUID` / `PGID`：寫出的檔案擁有者對應到 NAS 使用者，SMB 那邊才改得動
+- 架構 `linux/arm64` 與 `linux/amd64`；前端與 Go 用交叉編譯，arm64 映像在 x86 電腦上也能很快建好
+- 大小（2026-10-04，amd64）：下載約 270 MB、解壓後約 660 MB；最大的是 ffmpeg + ffprobe 靜態版（約 280 MB，NAS 要轉 mp3 / aac / vorbis / opus / flac）、deno（約 95 MB）
+- 映像裡的工具與字型：`KARA_TOOLS=/opt/kara/tools`（yt-dlp、deno；yt-dlp 每天自己更新，重建 container 後回到映像的版本再更新）、
+  `KARA_FONTS=/opt/kara/fonts`（預設字型，和曲庫的 `fonts/` 一起掃描，同一個檔案用曲庫的）
+- volume：`/library`（整個曲庫，含 `data/`、`export/`、`fonts/`；**export 必須在同一個掛載點**，匯出才能 clone / 硬連結）、
+  `/ssh`（push 備份用的金鑰，唯讀，選填；入口腳本複製到家目錄並改成 600）
+- `PUID` / `PGID`（選填）：用這個身分執行，寫出的檔案擁有者對應到 NAS 使用者，SMB 那邊才改得動。沒設就用 root
+  （Mac 的 OrbStack 寫進 bind mount 的檔案本來就屬於 Mac 的使用者）
 - `TZ`：時區（紀錄時間用）
+
+### 部署步驟（Mac mini）
+
+```sh
+git clone <repo> && cd kara-creator/deploy
+# 編輯 compose.nas.yml 的曲庫路徑（外接硬碟），需要的話設定 KARA_WORKER_TOKEN、SSH 金鑰
+docker compose -f compose.nas.yml run --rm kara-nas --init   # 只有第一次：建立新的曲庫，看到「NAS 伺服器啟動」後按 Ctrl+C
+docker compose -f compose.nas.yml up -d --build
+```
+
+之後更新：`git pull && docker compose -f compose.nas.yml up -d --build`。
 
 ## AI 伺服器
 
@@ -59,6 +74,13 @@ ENTRYPOINT python ai/worker.py
 ### compose 範例
 
 `deploy/compose.nas.yml`（NAS）、`deploy/compose.ai.yml`（GPU 電腦）。兩邊分開，因為通常不在同一台。
+
+```sh
+cd deploy
+KARA_NAS=http://mac-mini.local:8765 KARA_WORKER_NAME=pc-4070 docker compose -f compose.ai.yml up -d --build
+```
+
+模型與快取放 named volume（`kara-models`、`kara-ai-cache`），已經有就沿用。
 
 ## 開發環境（container 內）
 

@@ -6,7 +6,7 @@
 
 - [x] Q1–Q15 結論寫回 docs/v2；移除 hook（Q5）
 - [x] 開發環境：Go 1.27.1、Node 24 LTS、Python 3.14（`.venv-linux`，CPU 版 PyTorch 2.11）、Chromium（Playwright 已有）
-- [ ] ffmpeg（最新靜態版，`~/.local/bin`）
+- [x] ffmpeg（最新靜態版，`~/.local/bin`）
 
 ## 階段 0：骨架
 
@@ -60,9 +60,24 @@
 - [x] 歌詞編輯器（四種檢視、讀音、翻譯、時間微調）、播放畫面（即時字幕、鍵盤、AI 重對、確認）
 - [x] 確認與匯出：只需重燒 / 需重新對時、確認紀錄與改了哪幾句、只匯出已確認的、按了才匯出（待匯出 / 待移除）
 - [x] Playwright 截圖與互動腳本驗證（亮 / 暗、手機寬度、AI 離線、NAS 斷線重連）
-- [ ] 附上歌詞、新歌放進選取的資料夾、台語 / 粵語每字一格：用新下載的歌實測
+- [x] 附上歌詞、新歌放進選取的資料夾（階段 5 的 container 測試用 API 實測）
+- [ ] 台語 / 粵語每字一格：用新的歌實測
 
-## 檢討
+## 階段 4：搬遷（延後）
+
+2026-10-04 使用者決定：先把系統做完、放上生產環境，之後再用 `kara-nas restore` 從 v1 的資料備份搬 metadata（使用者有原始影片，
+不需要搬影片、去人聲與成品）。原本「在 Windows 上跑的 Python 搬遷工具」取消。上線後要討論：`--sources`（用現有影片不重新下載）、
+v1 的已確認要不要帶過來、手動改過的 .ass。
+
+## 階段 5：打包
+
+- [x] 內建字型資料夾（`--fonts` / `KARA_FONTS`，和 `<library>/fonts` 一起掃描）；映像附 Noto Sans CJK Bold（固定版本）
+- [x] `deploy/nas.Dockerfile`：前端 → Go → debian slim + ffmpeg / ffprobe、yt-dlp、deno、git、ssh、tini、字型；`PUID` / `PGID`
+- [x] `deploy/compose.nas.yml`、`deploy/compose.ai.yml`
+- [x] 在這裡實際跑 amd64 映像：曲庫沒掛上時拒絕啟動、`--init`、檔案擁有者、worker 連上做完一首、匯出、yt-dlp 更新、備份
+- [x] arm64：buildx 建置並用模擬跑起來（Mac 上實際部署由使用者執行）
+- [x] deploy.md 寫部署步驟
+
 
 ### 階段 0（2026-10-03）
 
@@ -98,4 +113,14 @@
   - worker 上傳的檔案是 0600，硬連結到匯出資料夾後 SMB 的其他使用者讀不到 → 上傳完改成 0644
   - worker 說 bye 之後「最後連線」顯示成 08:06（零值時間）→ 另外記 gone，last_seen 保留真實時間
   - 「儲存並製作伴唱帶」「更新伴唱帶」「完整歌詞」送出空的歌曲 id（關閉後 props 變空）→ 元件建立時記下 id，App 用 {#key}
+
+### 階段 5（2026-10-04）
+
+- 在開發環境實際跑 NAS 映像（amd64）+ 正式 AI 映像（GPU）：曲庫沒掛上時拒絕啟動、`--init`、PUID / PGID（行程與寫出的檔案擁有者）、
+  貼網址附歌詞放進資料夾 → 下載（容器內 yt-dlp + deno）→ 去人聲 → 對時 → NVENC 燒錄（映像內建字型）→ 檢查、
+  確認 → 匯出（硬連結，同一個 inode）、資料備份 commit + push、SSH 金鑰權限、`docker stop` 1.2 秒
+- arm64 映像用 buildx 建置、在模擬下啟動並通過 /healthz（Mac 上實際部署由使用者執行）
+- 實測發現並處理：空的 named volume 會沿用映像的擁有者（只影響測試；bind mount 不會）；PUID 寫不進曲庫時入口腳本說明原因；
+  data/ repo 沒設定 git 身分時 commit 失敗 → 映像設系統層級的預設身分（repo 自己的設定優先）
+- 映像大小：下載約 270 MB、解壓約 660 MB（ffmpeg / ffprobe 靜態版佔 280 MB）
 

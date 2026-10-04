@@ -1,0 +1,32 @@
+# NAS 伺服器（Mac mini：OrbStack；或 Linux NAS）。
+#
+#   cd deploy
+#   docker compose -f compose.nas.yml up -d --build                 # 已經有曲庫
+#   docker compose -f compose.nas.yml run --rm kara-nas --init      # 第一次：建立新的曲庫（啟動後按 Ctrl+C）
+#
+# 網頁：http://<這台>:8765
+services:
+  kara-nas:
+    image: kara-nas:latest
+    build:
+      context: ..
+      dockerfile: deploy/nas.Dockerfile
+    container_name: kara-nas
+    restart: unless-stopped
+    ports:
+      - "8765:8765"
+    environment:
+      TZ: Asia/Taipei
+      # AI 伺服器連線用的共用 token（兩邊要一樣；空的 = 不檢查，只在信任的區域網路這樣用）
+      KARA_WORKER_TOKEN: ${KARA_WORKER_TOKEN:-}
+      # Linux NAS：用 NAS 使用者的身分寫檔（`id` 查 uid / gid），SMB 那邊才改得動。
+      # Mac 的 OrbStack 不必設：寫進外接硬碟的檔案本來就屬於 Mac 的使用者
+      # PUID: "1000"
+      # PGID: "1000"
+    volumes:
+      # 整個曲庫（歌、data/ 資料備份、export/ 匯出、fonts/ 自訂字型）。
+      # export/ 要和曲庫在同一個掛載點，匯出才能用 clone / 硬連結（不佔空間）
+      - /Volumes/外接硬碟/kara:/library
+      # 資料備份 push 用的 SSH 金鑰（選填；沒有就只在本機 commit）
+      # - ~/.ssh/kara_backup:/ssh:ro
+    stop_grace_period: 10s

@@ -17,8 +17,13 @@ func TestScanNoto(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = os.WriteFile(filepath.Join(dir, "壞掉的.ttf"), []byte("not a font"), 0o644)
+	// 內建字型資料夾裡有同一個檔案：只算一次，曲庫的優先
+	builtin := t.TempDir()
+	if err := os.Symlink(notoBold, filepath.Join(builtin, "內建.ttc")); err != nil {
+		t.Fatal(err)
+	}
 	cache := map[string]string{}
-	c, err := Scan(dir, cache)
+	c, err := Scan([]string{dir, builtin, filepath.Join(dir, "不存在")}, cache)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,13 +54,16 @@ func TestScanNoto(t *testing.T) {
 	if p, ok := c.Path(ja.SHA256); !ok || filepath.Base(p) != "NotoSansCJK-Bold.ttc" {
 		t.Fatal(p)
 	}
-	if len(cache) != 1 {
+	if single, _ := Scan([]string{dir}, nil); len(c.List()) != len(single.List()) {
+		t.Fatalf("同一個檔案只算一次：%d ≠ %d", len(c.List()), len(single.List()))
+	}
+	if len(cache) != 2 {
 		t.Fatalf("sha256 要快取：%v", cache)
 	}
 }
 
 func TestEmpty(t *testing.T) {
-	c, err := Scan(t.TempDir(), nil)
+	c, err := Scan([]string{t.TempDir()}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

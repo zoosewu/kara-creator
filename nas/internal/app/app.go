@@ -85,7 +85,11 @@ func New(cfg config.Config) (*App, error) {
 		}
 	}
 
-	if a.Fonts, err = fonts.Scan(st.Path(store.FontsDir), a.loadFontCache()); err != nil {
+	fontDirs := []string{st.Path(store.FontsDir)}
+	if cfg.Fonts != "" {
+		fontDirs = append(fontDirs, cfg.Fonts)
+	}
+	if a.Fonts, err = fonts.Scan(fontDirs, a.loadFontCache()); err != nil {
 		return nil, err
 	}
 	a.saveFontCache()
