@@ -59,7 +59,7 @@ type App struct {
 	flush    *time.Timer // 合併短時間內的多次變動，再送 song 事件
 	wrapup   *time.Timer
 	inflight map[string]chan struct{} // 正在算的讀音（快取鍵 → 算完時關閉）
-	names    map[string]string        // 每首歌在匯出資料夾裡的相對路徑（Library() 時更新）
+	names    map[string]string        // 每首歌在匯出資料夾裡的相對路徑（refreshNames 更新）
 	ytdlp    string                   // yt-dlp 版本
 	started  time.Time
 }

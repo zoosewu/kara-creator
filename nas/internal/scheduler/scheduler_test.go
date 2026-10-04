@@ -385,6 +385,25 @@ func TestByeAndRestart(t *testing.T) {
 	}
 }
 
+func TestByeKeepsLastSeen(t *testing.T) {
+	e := newEnv(t, Options{})
+	w := e.raw("pc")
+	if ws := e.s.Workers(); len(ws) != 1 || !ws[0].Online {
+		t.Fatalf("%+v", ws)
+	}
+	if resp, _ := w.post("/bye", wp.Bye{Instance: w.instance}); resp.StatusCode != http.StatusNoContent {
+		t.Fatal(resp.Status)
+	}
+	// 說了 bye 立刻離線，但「最後連線」要是剛剛，不是零值（畫面會顯示成西元 1 年）
+	if ws := e.s.Workers(); ws[0].Online || time.Since(ws[0].LastSeen) > time.Minute {
+		t.Fatalf("%+v", ws[0])
+	}
+	e.raw("pc")
+	if ws := e.s.Workers(); !ws[0].Online {
+		t.Fatal("重新 hello 要回到線上")
+	}
+}
+
 func TestVersionAndToken(t *testing.T) {
 	e := newEnv(t, Options{Token: "secret"})
 	old := kara.Current

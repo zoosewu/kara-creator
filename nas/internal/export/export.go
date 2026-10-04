@@ -138,6 +138,7 @@ type Result struct {
 type Exporter struct {
 	Root string // export/ 的路徑
 	mu   sync.Mutex
+	held map[string]string // 自己放的檔案 → 歌曲 id（.export.json 的記憶體副本；nil = 還沒讀）
 }
 
 // Sync 讓 export/ 和目前的曲庫一致：新增完成的歌、改名或換資料夾的歌移到新位置、重新製作過的歌更新成新檔。
@@ -145,19 +146,19 @@ func (x *Exporter) Sync(lib *library.Library, songs []Song) (Result, error) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 	names := Names(lib, songs)
-	wanted := map[string]string{}
+	wanted, owner := map[string]string{}, map[string]string{}
 	for _, s := range songs {
 		if rel, ok := names[s.ID]; ok && s.Video != "" {
 			if _, err := os.Stat(s.Video); err == nil {
-				wanted[rel] = s.Video
+				wanted[rel], owner[rel] = s.Video, s.ID
 			}
 		}
 	}
-	managed, err := x.readRecord()
+	managed, err := x.record()
 	if err != nil {
 		return Result{}, err
 	}
-	var res Result
+	res := Result{Added: []string{}, Removed: []string{}, Skipped: []string{}}
 	rels := make([]string, 0, len(wanted))
 	for rel := range wanted {
 		rels = append(rels, rel)
@@ -170,7 +171,7 @@ func (x *Exporter) Sync(lib *library.Library, songs []Song) (Result, error) {
 				res.Kept++
 				continue
 			}
-			if !managed[rel] {
+			if _, ok := managed[rel]; !ok {
 				res.Skipped = append(res.Skipped, rel)
 				continue
 			}
@@ -198,9 +199,9 @@ func (x *Exporter) Sync(lib *library.Library, songs []Song) (Result, error) {
 		res.Removed = append(res.Removed, rel)
 		prune(filepath.Dir(p), x.Root)
 	}
-	placed := map[string]bool{}
+	placed := map[string]string{}
 	for rel := range wanted {
-		placed[rel] = true
+		placed[rel] = owner[rel]
 	}
 	for _, rel := range res.Skipped {
 		delete(placed, rel)
@@ -214,42 +215,56 @@ func (x *Exporter) Sync(lib *library.Library, songs []Song) (Result, error) {
 }
 
 type record struct {
-	Files []string `json:"files"`
+	Files map[string]string `json:"files"` // 相對路徑 → 歌曲 id
 }
 
-func (x *Exporter) readRecord() (map[string]bool, error) {
-	out := map[string]bool{}
-	data, err := os.ReadFile(filepath.Join(x.Root, Record))
-	if errors.Is(err, fs.ErrNotExist) {
-		return out, nil
+// record 回傳自己放的檔案（呼叫端持有 x.mu）；第一次從 .export.json 讀。
+func (x *Exporter) record() (map[string]string, error) {
+	if x.held != nil {
+		return x.held, nil
 	}
-	if err != nil {
+	out := map[string]string{}
+	data, err := os.ReadFile(filepath.Join(x.Root, Record))
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return nil, err
 	}
 	var r record
-	if err := json.Unmarshal(data, &r); err != nil {
-		return out, nil // 壞掉的清單當成空的（只會讓舊檔不被刪，不會刪到使用者的檔案）
+	if err == nil && json.Unmarshal(data, &r) == nil && r.Files != nil {
+		out = r.Files // 壞掉的清單當成空的（只會讓舊檔不被刪，不會刪到使用者的檔案）
 	}
-	for _, f := range r.Files {
-		out[f] = true
-	}
+	x.held = out
 	return out, nil
 }
 
-func (x *Exporter) writeRecord(files map[string]bool) error {
-	r := record{Files: []string{}}
-	for f := range files {
-		r.Files = append(r.Files, f)
-	}
-	sort.Strings(r.Files)
-	data, err := json.MarshalIndent(r, "", "  ")
+func (x *Exporter) writeRecord(files map[string]string) error {
+	data, err := json.MarshalIndent(record{Files: files}, "", "  ") // map 的鍵會排序
 	if err != nil {
 		return err
 	}
 	if err := os.MkdirAll(x.Root, 0o755); err != nil {
 		return err
 	}
-	return store.WriteFile(filepath.Join(x.Root, Record), append(data, '\n'))
+	if err := store.WriteFile(filepath.Join(x.Root, Record), append(data, '\n')); err != nil {
+		return err
+	}
+	x.held = files
+	return nil
+}
+
+// Holds 表示這首歌目前在匯出資料夾裡有自己放的檔案（取消確認後按匯出才會拿掉）。
+func (x *Exporter) Holds(id string) bool {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	held, err := x.record()
+	if err != nil {
+		return false
+	}
+	for _, owner := range held {
+		if owner == id {
+			return true
+		}
+	}
+	return false
 }
 
 // same：硬連結到同一個檔案，或大小與修改時間都相同（clone 與複製會保留修改時間）。

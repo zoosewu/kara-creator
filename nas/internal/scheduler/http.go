@@ -246,6 +246,10 @@ func (s *Scheduler) upload(w http.ResponseWriter, r *http.Request) {
 	}
 	h := sha256.New()
 	size, err := io.Copy(io.MultiWriter(f, h), r.Body)
+	if err == nil {
+		// CreateTemp 是 0600；成品會被硬連結到匯出資料夾，要讓 SMB 的其他使用者讀得到
+		err = f.Chmod(0o644)
+	}
 	f.Close()
 	if err != nil {
 		os.Remove(f.Name())
@@ -395,7 +399,7 @@ func (s *Scheduler) bye(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	wk.Tasks = []WorkerTask{}
-	wk.LastSeen = time.Time{}
+	wk.LastSeen, wk.gone = s.opt.Now(), true
 	s.event(wk.Name)
 	w.WriteHeader(http.StatusNoContent)
 }

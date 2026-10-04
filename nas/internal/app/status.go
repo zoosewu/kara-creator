@@ -32,13 +32,28 @@ type SongView struct {
 	Folder       string         `json:"folder" doc:"所在資料夾 id；最上層為空字串"`
 	Order        int            `json:"order" doc:"同一層內的順序"`
 	Status       planner.Status `json:"status"`
-	Translations bool           `json:"has_translation" doc:"歌詞裡有翻譯"`
+	Translations int            `json:"translation_lines" doc:"歌詞裡有翻譯的句數"`
+	LyricsMeta   LyricsMeta     `json:"lyrics_meta" doc:"歌詞檔的 # title / # artist（資訊對話框提示留空時用什麼）"`
+	Font         *FontView      `json:"font" doc:"成品用的字型（播放畫面的即時字幕用同一個字型預覽）；找不到字型時為 null"`
 	Job          *jobs.Summary  `json:"job" doc:"還沒結束的工作（沒有時為 null）"`
 	Approval     ApprovalView   `json:"approval"`
 	Export       string         `json:"export" doc:"在匯出資料夾裡的相對路徑（不論伴唱帶做好了沒）"`
-	Exported     string         `json:"exported" enum:"exported,pending," doc:"exported = 已匯出最新的成品；pending = 已確認但還沒匯出（或成品更新了）；空字串 = 沒確認，不匯出"`
+	Exported     string         `json:"exported" enum:"exported,pending,remove," doc:"exported = 已匯出最新的成品；pending = 已確認但還沒匯出（或成品更新了、改了名）；remove = 取消確認了，下次匯出會從匯出資料夾拿掉；空字串 = 沒確認，不匯出"`
 	Media        []MediaView    `json:"media" doc:"可以播放的版本，第一個是預設（最終成品優先）"`
 	Path         string         `json:"path" doc:"這首歌的資料夾（NAS 上的路徑，可以複製）"`
+}
+
+// LyricsMeta 是歌詞檔的歌曲資訊。
+type LyricsMeta struct {
+	Title  string `json:"title"`
+	Artist string `json:"artist"`
+}
+
+// FontView 是成品用的字型。
+type FontView struct {
+	ID     string `json:"id" doc:"字型 id（sha256:index）"`
+	Family string `json:"family"`
+	URL    string `json:"url" doc:"字型檔（@font-face 用）"`
 }
 
 // ApprovalView 是「已確認」的詳細狀態。
@@ -109,6 +124,16 @@ func (a *App) flushDirty() {
 	}
 	a.dirty, a.flush = map[string]bool{}, nil
 	a.mu.Unlock()
+	// 改了歌名或資料夾：自己和同名編號受影響的歌，匯出檔名都可能變了
+	seen := map[string]bool{}
+	for _, id := range ids {
+		seen[id] = true
+	}
+	for _, id := range a.refreshNames() {
+		if !seen[id] {
+			ids = append(ids, id)
+		}
+	}
 	sort.Strings(ids)
 	for _, id := range ids {
 		if v, err := a.Song(id); err == nil {
@@ -147,11 +172,14 @@ func (a *App) withJob(v *SongView) *SongView {
 	cp.Export = a.names[v.ID]
 	a.mu.Unlock()
 	cp.Exported = ""
-	if cp.Approval.Status == planner.Approved && cp.Export != "" {
+	switch {
+	case cp.Approval.Status == planner.Approved && cp.Export != "":
 		cp.Exported = "pending"
 		if src := a.exportVideo(v.ID); src != "" && a.Exporter.Exported(cp.Export, src) {
 			cp.Exported = "exported"
 		}
+	case a.Exporter.Holds(v.ID):
+		cp.Exported = "remove"
 	}
 	return &cp
 }
@@ -186,9 +214,15 @@ func (a *App) compute(id string) (*SongView, error) {
 		v.Folder, v.Order = place.Folder, place.Order
 	}
 	if in.Lyrics != nil {
+		v.LyricsMeta = LyricsMeta{Title: in.Lyrics.Meta["title"], Artist: in.Lyrics.Meta["artist"]}
 		for _, ln := range in.Lyrics.LyricLines() {
-			v.Translations = v.Translations || ln.Translation != ""
+			if ln.Translation != "" {
+				v.Translations++
+			}
 		}
+	}
+	if r.FontOK {
+		v.Font = &FontView{ID: r.FontID(), Family: r.Font.Family, URL: "/fonts/" + r.Font.SHA256}
 	}
 	// 可以播放的版本，依重要性排序（最終成品優先）
 	add := func(kind, file string) {
@@ -238,23 +272,34 @@ func (a *App) Library() Library {
 		out.Folders = append(out.Folders, FolderView{f.ID, f.Name, f.Parent, f.Order})
 	}
 	sort.Slice(out.Folders, func(i, j int) bool { return out.Folders[i].ID < out.Folders[j].ID })
-	var exp []export.Song
+	a.refreshNames()
 	for _, id := range a.Store.SongIDs() {
-		v, err := a.Song(id)
-		if err != nil {
-			continue
+		if v, err := a.Song(id); err == nil {
+			out.Songs = append(out.Songs, v)
 		}
-		out.Songs = append(out.Songs, v)
-		exp = append(exp, export.Song{ID: id, Title: v.Title, Artist: v.Artist})
-	}
-	names := export.Names(lib, exp)
-	a.mu.Lock()
-	a.names = names
-	a.mu.Unlock()
-	for i, v := range out.Songs {
-		out.Songs[i] = a.withJob(v)
 	}
 	return out
+}
+
+// refreshNames 依目前所有歌的歌名與資料夾重算匯出檔名，回傳檔名變了的歌。
+func (a *App) refreshNames() []string {
+	var exp []export.Song
+	for _, id := range a.Store.SongIDs() {
+		if v, err := a.Song(id); err == nil {
+			exp = append(exp, export.Song{ID: id, Title: v.Title, Artist: v.Artist})
+		}
+	}
+	names := export.Names(a.Store.Library(), exp)
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	var changed []string
+	for id, rel := range names {
+		if a.names[id] != rel {
+			changed = append(changed, id)
+		}
+	}
+	a.names = names
+	return changed
 }
 
 // ---- 檔案監看：使用者直接改了 songs/<id>/ 裡的檔案（例如用 Aegisub 改字幕、透過 SMB 改歌詞）--------

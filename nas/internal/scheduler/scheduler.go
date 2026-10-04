@@ -126,6 +126,7 @@ type Worker struct {
 	Online    bool          `json:"online"`
 	Tasks     []WorkerTask  `json:"tasks"`
 	cached    map[string]bool
+	gone      bool // 說過 bye（不必等心跳逾時就算離線；重新 hello 會換成新的 Worker）
 }
 
 // WorkerTask 是 worker 手上的一件任務。
@@ -386,7 +387,7 @@ func (s *Scheduler) Workers() []Worker {
 	out := []Worker{}
 	for _, w := range s.workers {
 		cp := *w
-		cp.Online = now.Sub(w.LastSeen) < s.opt.LeaseWait+10*time.Second
+		cp.Online = !w.gone && now.Sub(w.LastSeen) < s.opt.LeaseWait+10*time.Second
 		cp.Tasks = append([]WorkerTask{}, w.Tasks...)
 		cp.cached = nil
 		out = append(out, cp)

@@ -27,7 +27,7 @@ v2 的紀錄**只用相對路徑和內容雜湊**，整個資料夾搬到哪裡�
       original.mp4        原曲 + 字幕（targets 有 original 時，Q13）
   inbox/                  手動放入的影音檔（取代 v1 直接丟進 output/downloads/）
   export/                 依曲庫整理的成品（給 karaoke 播放軟體讀）
-    .export.json          匯出工具自己管理的檔案清單
+    .export.json          匯出工具自己管理的檔案清單（{"files": {相對路徑: 歌曲 id}}）
   fonts/                  字型檔：預設的開源字型 + 使用者自訂（可以另外掛載）
   cache/                  可以整個刪掉的衍生檔
     work/                 給 AI 的暫存輸入（抽出的 wav、speech.wav），以 sha256 命名
@@ -205,7 +205,7 @@ NAS 在記憶體裡保留所有歌的狀態，**只在有變動時重算該首�
 
 2026-10-04 使用者決定：**只匯出「已確認」的歌，而且只在使用者按「匯出」時才同步**（`POST /api/v1/export`），
 處理完不會自動匯出。目的地用 `--export`（`KARA_EXPORT`）指定，預設 `<library>/export`。
-每首歌的摘要有 `exported`：exported（已匯出最新成品）／pending（已確認但還沒匯出，或成品更新了）／空（沒確認）。
+每首歌的摘要有 `exported`：exported（已匯出最新成品）／pending（已確認但還沒匯出，或成品更新了、改了名）／remove（取消確認了，匯出資料夾還有舊檔，下次匯出拿掉）／空（沒確認）。
 按匯出時，取消確認、改名或換資料夾的歌，舊的匯出檔會一併拿掉。
 
 規則同 v1 `export.py`：資料夾結構同曲庫、檔名「歌手 - 歌名.mp4」、同名加 (2)（依所有歌排，編號才穩定）、只管理 `.export.json` 列的檔案。

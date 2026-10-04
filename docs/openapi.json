@@ -95,10 +95,7 @@
             "items": {
               "type": "string"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           }
         },
         "required": [
@@ -142,10 +139,7 @@
               "format": "int64",
               "type": "integer"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "count": {
             "description": "總共確認過幾次",
@@ -239,10 +233,7 @@
             "items": {
               "$ref": "#/components/schemas/Line"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "meta": {
             "additionalProperties": {
@@ -270,10 +261,7 @@
             "items": {
               "$ref": "#/components/schemas/EditorLine"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "meta": {
             "additionalProperties": {
@@ -299,10 +287,7 @@
             "items": {
               "$ref": "#/components/schemas/Ruby"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "segments": {
             "items": {
@@ -373,10 +358,7 @@
             "items": {
               "$ref": "#/components/schemas/ErrorDetail"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "instance": {
             "description": "A URI reference that identifies the specific occurrence of the problem.",
@@ -546,6 +528,28 @@
         ],
         "type": "object"
       },
+      "FontView": {
+        "additionalProperties": false,
+        "properties": {
+          "family": {
+            "type": "string"
+          },
+          "id": {
+            "description": "字型 id（sha256:index）",
+            "type": "string"
+          },
+          "url": {
+            "description": "字型檔（@font-face 用）",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "family",
+          "url"
+        ],
+        "type": "object"
+      },
       "Guess": {
         "additionalProperties": false,
         "properties": {
@@ -592,10 +596,7 @@
             "items": {
               "$ref": "#/components/schemas/Approval"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "approved": {
             "$ref": "#/components/schemas/Approval"
@@ -616,10 +617,7 @@
             "items": {
               "type": "string"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "title": {
             "type": "string"
@@ -727,10 +725,7 @@
               "type": "string"
             },
             "minItems": 1,
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "steps": {
             "description": "步驟：separate、karaoke、check、retime",
@@ -738,10 +733,7 @@
               "type": "string"
             },
             "minItems": 1,
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           }
         },
         "required": [
@@ -766,19 +758,13 @@
             "items": {
               "$ref": "#/components/schemas/Summary"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "errors": {
             "items": {
               "type": "string"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "skipped": {
             "additionalProperties": {
@@ -811,19 +797,13 @@
             "items": {
               "$ref": "#/components/schemas/FolderView"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "jobs": {
             "items": {
               "$ref": "#/components/schemas/Summary"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "settings": {
             "$ref": "#/components/schemas/Settings"
@@ -832,19 +812,13 @@
             "items": {
               "$ref": "#/components/schemas/SongView"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "workers": {
             "items": {
               "$ref": "#/components/schemas/Worker"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           }
         },
         "required": [
@@ -866,10 +840,7 @@
             "items": {
               "$ref": "#/components/schemas/Ruby"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "singer": {
             "type": [
@@ -935,10 +906,7 @@
             "items": {
               "type": "string"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "next": {
             "description": "下次從這一行開始取",
@@ -950,6 +918,22 @@
           "lines",
           "next",
           "job"
+        ],
+        "type": "object"
+      },
+      "LyricsMeta": {
+        "additionalProperties": false,
+        "properties": {
+          "artist": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "artist"
         ],
         "type": "object"
       },
@@ -1001,20 +985,14 @@
             "items": {
               "type": "string"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "pending_readings": {
             "items": {
               "format": "int64",
               "type": "integer"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "plain": {
             "type": "string"
@@ -1086,10 +1064,7 @@
               "type": "string"
             },
             "minItems": 1,
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "keep_present": {
             "type": "boolean"
@@ -1158,10 +1133,7 @@
             "items": {
               "type": "string"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "start": {
             "format": "double",
@@ -1209,10 +1181,7 @@
             "items": {
               "$ref": "#/components/schemas/QALine"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           }
         },
         "required": [
@@ -1238,10 +1207,7 @@
             "items": {
               "type": "string"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "kept": {
             "description": "已經是最新、沒有動的",
@@ -1257,20 +1223,14 @@
             "items": {
               "type": "string"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "skipped": {
             "description": "目的地已經有不是這個程式放的同名檔，沒有覆蓋",
             "items": {
               "type": "string"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           }
         },
         "required": [
@@ -1453,10 +1413,11 @@
             "type": "string"
           },
           "exported": {
-            "description": "exported = 已匯出最新的成品；pending = 已確認但還沒匯出（或成品更新了）；空字串 = 沒確認，不匯出",
+            "description": "exported = 已匯出最新的成品；pending = 已確認但還沒匯出（或成品更新了、改了名）；remove = 取消確認了，下次匯出會從匯出資料夾拿掉；空字串 = 沒確認，不匯出",
             "enum": [
               "exported",
               "pending",
+              "remove",
               ""
             ],
             "type": "string"
@@ -1465,13 +1426,13 @@
             "description": "所在資料夾 id；最上層為空字串",
             "type": "string"
           },
+          "font": {
+            "$ref": "#/components/schemas/FontView",
+            "description": "成品用的字型（播放畫面的即時字幕用同一個字型預覽）；找不到字型時為 null"
+          },
           "guess": {
             "$ref": "#/components/schemas/Guess",
             "description": "自動辨識的歌名與演唱者（資訊對話框的提示）"
-          },
-          "has_translation": {
-            "description": "歌詞裡有翻譯",
-            "type": "boolean"
           },
           "id": {
             "description": "歌曲 id：YouTube 影片 id、其他網站「網站-影片 id」、手動放入 local-xxxxxxxx",
@@ -1489,15 +1450,16 @@
             "description": "實際的演唱語言（手動指定 \u003e 依歌詞文字判斷）；判斷不出來時為空",
             "type": "string"
           },
+          "lyrics_meta": {
+            "$ref": "#/components/schemas/LyricsMeta",
+            "description": "歌詞檔的 # title / # artist（資訊對話框提示留空時用什麼）"
+          },
           "media": {
             "description": "可以播放的版本，第一個是預設（最終成品優先）",
             "items": {
               "$ref": "#/components/schemas/MediaView"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "order": {
             "description": "同一層內的順序",
@@ -1517,6 +1479,11 @@
           "title": {
             "description": "實際使用的歌名（手動 \u003e 歌詞檔的 # title \u003e 自動辨識）",
             "type": "string"
+          },
+          "translation_lines": {
+            "description": "歌詞裡有翻譯的句數",
+            "format": "int64",
+            "type": "integer"
           }
         },
         "required": [
@@ -1530,7 +1497,9 @@
           "folder",
           "order",
           "status",
-          "has_translation",
+          "translation_lines",
+          "lyrics_meta",
+          "font",
           "job",
           "approval",
           "export",
@@ -1693,10 +1662,7 @@
             "items": {
               "type": "string"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "title": {
             "type": "string"
@@ -1762,10 +1728,7 @@
             "items": {
               "$ref": "#/components/schemas/Worker"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "ytdlp": {
             "description": "yt-dlp 的版本",
@@ -1810,10 +1773,7 @@
             "items": {
               "$ref": "#/components/schemas/Word"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           }
         },
         "required": [
@@ -1841,20 +1801,14 @@
             "items": {
               "$ref": "#/components/schemas/Adjustment"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "lines": {
             "description": "還沒對時時為空",
             "items": {
               "$ref": "#/components/schemas/TimingLine"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "pushed": {
             "description": "這次一起被推動的句子（從 0 起算）",
@@ -1862,10 +1816,7 @@
               "format": "int64",
               "type": "integer"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           }
         },
         "required": [
@@ -1934,20 +1885,14 @@
             "items": {
               "type": "string"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "pending_readings": {
             "items": {
               "format": "int64",
               "type": "integer"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "plain": {
             "type": "string"
@@ -1994,10 +1939,7 @@
             "items": {
               "type": "string"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "disabled": {
             "type": "boolean"
@@ -2009,10 +1951,7 @@
             "items": {
               "type": "string"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "last_seen": {
             "format": "date-time",
@@ -2028,19 +1967,13 @@
             "items": {
               "$ref": "#/components/schemas/WorkerTask"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "version_diff": {
             "items": {
               "type": "string"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "version_ok": {
             "type": "boolean"
@@ -2157,10 +2090,7 @@
                   "items": {
                     "$ref": "#/components/schemas/FolderView"
                   },
-                  "type": [
-                    "array",
-                    "null"
-                  ]
+                  "type": "array"
                 }
               }
             },
@@ -2322,10 +2252,7 @@
                   "items": {
                     "$ref": "#/components/schemas/Font"
                   },
-                  "type": [
-                    "array",
-                    "null"
-                  ]
+                  "type": "array"
                 }
               }
             },
@@ -2360,10 +2287,7 @@
                   "items": {
                     "$ref": "#/components/schemas/Summary"
                   },
-                  "type": [
-                    "array",
-                    "null"
-                  ]
+                  "type": "array"
                 }
               }
             },
@@ -2758,10 +2682,7 @@
                   "items": {
                     "$ref": "#/components/schemas/SongView"
                   },
-                  "type": [
-                    "array",
-                    "null"
-                  ]
+                  "type": "array"
                 }
               }
             },
@@ -3373,10 +3294,7 @@
                   "items": {
                     "$ref": "#/components/schemas/Worker"
                   },
-                  "type": [
-                    "array",
-                    "null"
-                  ]
+                  "type": "array"
                 }
               }
             },

@@ -286,6 +286,24 @@ func TestEndToEnd(t *testing.T) {
 	if song.Exported != "exported" {
 		t.Fatalf("%q", song.Exported)
 	}
+	// 改名：匯出檔名跟著變，要重新匯出（舊檔拿掉、新檔放上）；改回自動再匯出一次
+	renamed := filepath.Join(lib, "export", "日文", "虛構歌手 - 改過的歌名.mp4")
+	for _, step := range []struct{ title, file, gone string }{{"改過的歌名", renamed, exported}, {"", exported, renamed}} {
+		c.do("PATCH", "/api/v1/songs/dQw4w9WgXcQ", map[string]any{"title": step.title}, &song)
+		waitFor(t, "改名後待匯出", func() bool {
+			c.do("GET", "/api/v1/songs/dQw4w9WgXcQ", nil, &song)
+			return song.Exported == "pending"
+		})
+		if code := c.do("POST", "/api/v1/export", nil, &exp); code != 200 || len(exp.Added) != 1 || len(exp.Removed) != 1 {
+			t.Fatalf("%d %+v", code, exp)
+		}
+		if _, err := os.Stat(step.file); err != nil {
+			t.Fatalf("改名後匯出：%v", err)
+		}
+		if _, err := os.Stat(step.gone); err == nil {
+			t.Fatal("舊檔名要拿掉")
+		}
+	}
 
 	// 4c. 只需重燒的更新（手動調時間）：確認保留
 	if code := c.do("PATCH", "/api/v1/songs/dQw4w9WgXcQ/timing/lines/0", map[string]any{"delta": 0.1}, &timing); code != 200 {
@@ -310,9 +328,17 @@ func TestEndToEnd(t *testing.T) {
 	}
 	// 取消確認後再按匯出：匯出檔拿掉
 	c.do("PUT", "/api/v1/songs/dQw4w9WgXcQ/approval", map[string]any{"approved": false}, &song)
+	waitFor(t, "待移除", func() bool {
+		c.do("GET", "/api/v1/songs/dQw4w9WgXcQ", nil, &song)
+		return song.Exported == "remove"
+	})
 	c.do("POST", "/api/v1/export", nil, &exp)
 	if _, err := os.Stat(exported); err == nil {
 		t.Fatal("沒有確認的歌，匯出時要拿掉")
+	}
+	c.do("GET", "/api/v1/songs/dQw4w9WgXcQ", nil, &song)
+	if song.Exported != "" {
+		t.Fatalf("拿掉之後不再顯示：%q", song.Exported)
 	}
 
 	// 5. 錯誤：detail 是繁中

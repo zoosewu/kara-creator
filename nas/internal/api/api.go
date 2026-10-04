@@ -30,6 +30,8 @@ var dist embed.FS
 const Prefix = "/api/v1"
 
 func init() {
+	// 回傳的清單一律是陣列（沒有資料時是 []，不是 null），前端的型別才不必到處處理 null。
+	huma.DefaultArrayNullable = false
 	// huma 內建的訊息是英文：detail 換成中文，細節（哪個欄位不對）留在 errors 裡。
 	orig := huma.NewError
 	huma.NewError = func(status int, msg string, errs ...error) huma.StatusError {

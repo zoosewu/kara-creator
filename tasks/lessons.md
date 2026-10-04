@@ -24,3 +24,15 @@
 
 - 測試裡直接組 `config.Config` 不會套用 Parse 的預設值：路徑欄位是空字串時會寫到目前目錄。`app.New` 自己補預設值。
 - SSE 這類長連線要在 `httptest.Server.Close()` 之前斷開，否則 Close 會一直等。
+
+## 前端（Svelte 5）
+
+- props 是即時的 getter：父元件把 `ui.editor` 清成 null 關掉對話框後，元件裡還在跑的 async 函式讀到的 `id` 也變成 null。
+  「關閉後再送出請求」的元件，在建立時就把 id 記成常數（父元件用 `{#key}` 保證一個元件只對應一首歌）。
+- 截圖前切換主題要等 CSS transition 跑完（按鈕有 `transition: background .15s`），否則會拍到白底白字的中間狀態，誤判成配色錯誤。
+- 互動測試讀 toast 時要等文字「變了」再讀，否則會讀到上一個動作的訊息。
+
+## 檔案權限
+
+- `os.CreateTemp` 建立的檔案是 0600。會被硬連結 / clone 到其他地方給別人讀的檔案（匯出資料夾經 SMB 分享），寫完要 Chmod 0644。
+

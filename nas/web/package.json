@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build && node -e \"require('fs').writeFileSync('../internal/api/dist/.gitkeep', '')\"",
     "preview": "vite preview",
-    "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json"
+    "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
+    "types": "npx -y openapi-typescript@7 ../../docs/openapi.json -o src/lib/api-types.ts"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.0",

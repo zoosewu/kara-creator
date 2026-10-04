@@ -150,8 +150,10 @@ func TestKaraokeFlow(t *testing.T) {
 	e.karaoke("separate,align,render,qa")
 	sg, _ := e.st.Song("abc")
 	for _, name := range []string{"instrumental.mp4", "vocals.flac", "alignment.json", "qa.json", "karaoke.ass", "karaoke.mp4"} {
-		if _, err := os.Stat(e.st.SongPath("abc", name)); err != nil {
+		if fi, err := os.Stat(e.st.SongPath("abc", name)); err != nil {
 			t.Errorf("應該有 %s：%v", name, err)
+		} else if fi.Mode().Perm()&0o044 != 0o044 {
+			t.Errorf("%s 要讓其他使用者讀得到（會硬連結到匯出資料夾）：%v", name, fi.Mode())
 		}
 	}
 	if info, err := e.p.d.Media.Probe(ctx, e.st.SongPath("abc", "instrumental.mp4")); err != nil || !info.HasVideo {
