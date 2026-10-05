@@ -37,14 +37,12 @@ fetch  debian:trixie-slim          → yt-dlp 單一執行檔（依目標架構�
 
 ### 部署步驟（Mac mini）
 
-```sh
-git clone <repo> && cd kara-creator/deploy
-# 編輯 compose.nas.yml 的曲庫路徑（外接硬碟），需要的話設定 KARA_WORKER_TOKEN、SSH 金鑰
-docker compose -f compose.nas.yml run --rm kara-nas --init   # 只有第一次：建立新的曲庫，看到「NAS 伺服器啟動」後按 Ctrl+C
-docker compose -f compose.nas.yml up -d --build
-```
+見根目錄 README「部署 NAS 伺服器」：下載 `compose.nas.yml`、在同一個資料夾寫 `.env`（`KARA_LIBRARY_DIR` 等）、
+第一次 `run --rm kara-nas --init`，之後 `up -d`；更新是 `pull` 再 `up -d`。不必 clone 程式碼。
 
-之後更新：`git pull && docker compose -f compose.nas.yml up -d --build`。
+映像由 CI（`.github/workflows/images.yml`）在 main 有變動時建置並推到 ghcr.io：NAS 是 amd64 + arm64，
+AI 是 amd64（PyTorch 那層用 registry 快取，只改程式碼時不必重新上傳）。自己建置：
+`docker buildx build --platform linux/arm64 -f deploy/nas.Dockerfile -t ghcr.io/zoosewu/kara-creator-nas --load .`
 
 ## AI 伺服器
 
@@ -75,10 +73,7 @@ ENTRYPOINT python ai/worker.py
 
 `deploy/compose.nas.yml`（NAS）、`deploy/compose.ai.yml`（GPU 電腦）。兩邊分開，因為通常不在同一台。
 
-```sh
-cd deploy
-KARA_NAS=http://mac-mini.local:8765 KARA_WORKER_NAME=pc-4070 docker compose -f compose.ai.yml up -d --build
-```
+同樣用 `.env`（`KARA_NAS`、`KARA_WORKER_NAME`、`KARA_WORKER_TOKEN`），見根目錄 README「部署 AI 伺服器」。
 
 模型與快取放 named volume（`kara-models`、`kara-ai-cache`），已經有就沿用。
 

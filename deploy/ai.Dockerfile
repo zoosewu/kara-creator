@@ -1,8 +1,7 @@
 # AI worker（CUDA）。模型與快取放 volume，重建映像不必重新下載。
 #
-#   docker build -f deploy/ai.Dockerfile -t kara-ai .
-#   docker run --gpus all -e KARA_NAS=http://NAS:8765 -e KARA_WORKER_NAME=pc-4070 \
-#     -v kara-ai-cache:/cache -v kara-models:/models kara-ai
+#   docker build -f deploy/ai.Dockerfile -t ghcr.io/zoosewu/kara-creator-ai .
+#   執行方式見 deploy/compose.ai.yml（CI 會自動建好推到 ghcr.io）
 #
 # PyTorch 的 cu130 wheel 自帶 CUDA 函式庫，底層用一般的 Ubuntu 即可（驅動由 nvidia-container-runtime 掛進來）。
 FROM ubuntu:24.04
@@ -27,10 +26,11 @@ RUN mkdir -p /opt/ffmpeg && curl -fsSL https://github.com/BtbN/FFmpeg-Builds/rel
 
 # Python 3.14 + PyTorch（CUDA 13.0）+ 其他套件
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-COPY requirements-ai.txt constraints.txt /tmp/
+# PyTorch 單獨一層（最大、最少變動）：只改其他套件或程式時不必重新下載與上傳
 RUN uv venv -p 3.14 /opt/venv \
-    && uv pip install --no-cache torch==2.11.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu130 \
-    && uv pip install --no-cache -r /tmp/requirements-ai.txt -c /tmp/constraints.txt \
+    && uv pip install --no-cache torch==2.11.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu130
+COPY requirements-ai.txt constraints.txt /tmp/
+RUN uv pip install --no-cache -r /tmp/requirements-ai.txt -c /tmp/constraints.txt \
        --extra-index-url https://download.pytorch.org/whl/cu130 --index-strategy unsafe-best-match
 
 WORKDIR /app

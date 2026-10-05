@@ -1,0 +1,106 @@
+# 建置 container 映像並推到 GitHub Container Registry（ghcr.io）。
+#   - NAS（網頁 UI + 曲庫）：ghcr.io/zoosewu/kara-creator-nas（linux/amd64、linux/arm64）
+#   - AI 伺服器（CUDA）：  ghcr.io/zoosewu/kara-creator-ai（linux/amd64）
+# main 有相關變動時推 latest 與 sha-xxxxxxx；推 v* tag 時另外推版本號。PR 只建置 NAS 映像、不推送（AI 映像太大）。
+name: images
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths:
+      - nas/**
+      - ai/**
+      - songtool/**
+      - deploy/**
+      - versions.json
+      - versions.go
+      - go.mod
+      - go.sum
+      - requirements-ai.txt
+      - constraints.txt
+      - .dockerignore
+      - .github/workflows/images.yml
+  pull_request:
+    paths:
+      - nas/**
+      - deploy/nas*
+      - .github/workflows/images.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: images-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  nas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/kara-creator-nas
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+            type=semver,pattern={{version}}
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deploy/nas.Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=nas
+          cache-to: type=gha,scope=nas,mode=max
+
+  ai:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      # 映像約 9 GB（PyTorch CUDA）：先清掉用不到的預裝軟體騰出空間
+      - name: 騰出硬碟空間
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          sudo docker image prune -af
+          df -h /
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/kara-creator-ai
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+            type=semver,pattern={{version}}
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deploy/ai.Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # PyTorch 那層好幾 GB，放 registry 的快取（gha 快取只有 10 GB）
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/kara-creator-ai:buildcache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/kara-creator-ai:buildcache,mode=max

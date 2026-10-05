@@ -25,3 +25,4 @@ __pycache__/
 nas/internal/api/dist/*
 !nas/internal/api/dist/.gitkeep
 node_modules/
+deploy/empty-ssh/

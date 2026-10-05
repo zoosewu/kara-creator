@@ -131,4 +131,4 @@
 - **加語言**：`catalog.LANGUAGES`、`reading.split`、`ass.DEFAULT_FONTS`、前端 `LANGUAGE_NAMES`
 - **標題畫面**：`karaoke.title_card()` 回傳 [歌名, 演唱者]（有備註時才加第三項，避免舊紀錄全部變成需更新），`ass.build()` 產生
 - **改字幕樣式**：`songtool/ass.py` 的 `Style`；樣式 key 改變會讓伴唱帶顯示需更新
-- **待辦**：`TODO.md`；完成或新增功能後同步更新它與 README
+- **待辦**：`TODO.md`；完成或新增功能後同步更新它。README 只放架構、部署與基本用法（保持精簡），細節寫在 `docs/v2/`

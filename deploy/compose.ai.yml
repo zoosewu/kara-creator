@@ -1,19 +1,17 @@
 # AI 伺服器（有 NVIDIA 顯示卡的電腦；Windows 用 Docker Desktop + WSL2）。
+# 設定放在同一個資料夾的 .env（見 README）：
 #
-#   cd deploy
-#   KARA_NAS=http://mac-mini.local:8765 docker compose -f compose.ai.yml up -d --build
+#   docker compose -f compose.ai.yml up -d                       # 啟動
+#   docker compose -f compose.ai.yml pull && docker compose -f compose.ai.yml up -d   # 更新
 #
-# 第一次處理時會下載模型（Whisper、MMS、Demucs，約 5 GB）到 kara-models，之後重建映像不必重新下載。
+# 第一次處理時會下載模型（Whisper、MMS、Demucs，約 5 GB）到 kara-models，之後更新映像不必重新下載。
 services:
   kara-ai:
-    image: kara-ai:latest
-    build:
-      context: ..
-      dockerfile: deploy/ai.Dockerfile
+    image: ghcr.io/zoosewu/kara-creator-ai:${KARA_TAG:-latest}
     container_name: kara-ai
     restart: unless-stopped
     environment:
-      KARA_NAS: ${KARA_NAS:?請設定 KARA_NAS，例如 http://mac-mini.local:8765}
+      KARA_NAS: ${KARA_NAS:?請在 .env 設定 KARA_NAS，例如 http://mac-mini.local:8765}
       KARA_WORKER_NAME: ${KARA_WORKER_NAME:-pc-gpu}
       KARA_WORKER_TOKEN: ${KARA_WORKER_TOKEN:-}
     volumes:

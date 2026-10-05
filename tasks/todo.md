@@ -78,6 +78,14 @@ v1 的已確認要不要帶過來、手動改過的 .ass。
 - [x] arm64：buildx 建置並用模擬跑起來（Mac 上實際部署由使用者執行）
 - [x] deploy.md 寫部署步驟
 
+## 部署整理（2026-10-05）
+
+- [x] README 重寫（精簡：架構、NAS / AI 的 docker compose、AI 在 Windows host 執行、基本用法）；舊 README 移到 docs/v1.md
+- [x] CI 自動建置映像推到 ghcr.io（`.github/workflows/images.yml`；NAS amd64 + arm64、AI amd64）
+- [x] compose 改用 ghcr.io 的映像，設定放 `.env`
+- [ ] 第一次推上 main 後確認 Actions 跑完、映像拉得下來（套件 visibility 可能要手動設成 Public）
+
+## 檢討
 
 ### 階段 0（2026-10-03）
 

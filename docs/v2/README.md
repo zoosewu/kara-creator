@@ -95,4 +95,4 @@
 - 這份規格是和使用者逐項討論後寫成的。**規格沒寫到、或寫得模稜兩可的地方，先問使用者**，不要自己決定後默默實作
 - 討論出新結論時，**同步更新這個目錄**（規格是之後工作的依據）
 - 開發環境、測試資料、黃金測試的做法見 [deploy.md](deploy.md)
-- v1 的行為細節以程式碼為準：`songtool/*.py`、`ui/server.py`、`ui/api_v1.py`、`ui/static/app.js`；使用方式見根目錄 README
+- v1 的行為細節以程式碼為準：`songtool/*.py`、`ui/server.py`、`ui/api_v1.py`、`ui/static/app.js`；使用方式見 [docs/v1.md](../v1.md)（v1 的舊 README）

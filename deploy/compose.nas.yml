@@ -1,32 +1,28 @@
-# NAS 伺服器（Mac mini：OrbStack；或 Linux NAS）。
+# NAS 伺服器（網頁 UI + 曲庫；Mac mini 的 OrbStack 或 Linux NAS）。
+# 設定放在同一個資料夾的 .env（見 README）：
 #
-#   cd deploy
-#   docker compose -f compose.nas.yml up -d --build                 # 已經有曲庫
-#   docker compose -f compose.nas.yml run --rm kara-nas --init      # 第一次：建立新的曲庫（啟動後按 Ctrl+C）
-#
-# 網頁：http://<這台>:8765
+#   docker compose -f compose.nas.yml run --rm kara-nas --init   # 只有第一次：建立新的曲庫（看到「NAS 伺服器啟動」後按 Ctrl+C）
+#   docker compose -f compose.nas.yml up -d                      # 啟動；網頁 http://<這台>:8765
+#   docker compose -f compose.nas.yml pull && docker compose -f compose.nas.yml up -d   # 更新
 services:
   kara-nas:
-    image: kara-nas:latest
-    build:
-      context: ..
-      dockerfile: deploy/nas.Dockerfile
+    image: ghcr.io/zoosewu/kara-creator-nas:${KARA_TAG:-latest}
     container_name: kara-nas
     restart: unless-stopped
     ports:
-      - "8765:8765"
+      - "${KARA_PORT:-8765}:8765"
     environment:
-      TZ: Asia/Taipei
+      TZ: ${TZ:-Asia/Taipei}
       # AI 伺服器連線用的共用 token（兩邊要一樣；空的 = 不檢查，只在信任的區域網路這樣用）
       KARA_WORKER_TOKEN: ${KARA_WORKER_TOKEN:-}
-      # Linux NAS：用 NAS 使用者的身分寫檔（`id` 查 uid / gid），SMB 那邊才改得動。
+      # Linux NAS：用曲庫資料夾擁有者的身分寫檔（`ls -ln` 查 uid / gid），SMB 那邊才改得動。
       # Mac 的 OrbStack 不必設：寫進外接硬碟的檔案本來就屬於 Mac 的使用者
-      # PUID: "1000"
-      # PGID: "1000"
+      PUID: ${PUID:-}
+      PGID: ${PGID:-}
     volumes:
       # 整個曲庫（歌、data/ 資料備份、export/ 匯出、fonts/ 自訂字型）。
       # export/ 要和曲庫在同一個掛載點，匯出才能用 clone / 硬連結（不佔空間）
-      - /Volumes/外接硬碟/kara:/library
-      # 資料備份 push 用的 SSH 金鑰（選填；沒有就只在本機 commit）
-      # - ~/.ssh/kara_backup:/ssh:ro
+      - ${KARA_LIBRARY_DIR:?請在 .env 設定 KARA_LIBRARY_DIR（曲庫資料夾）}:/library
+      # 資料備份 push 用的 SSH 金鑰資料夾（唯讀）；沒設定時掛一個空資料夾，只在本機 commit
+      - ${KARA_SSH_DIR:-./empty-ssh}:/ssh:ro
     stop_grace_period: 10s
