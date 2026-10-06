@@ -279,10 +279,14 @@ def _serialize_lyric(line: Line) -> str:
         before = line.text[:r.start]
         # 能用簡寫（前面連續漢字剛好就是要標注的範圍）就用簡寫，比較好讀。
         short = all(_BASE.match(c) for c in base) and not (before and _BASE.match(before[-1]))
-        # 漢字配羅馬字、音節數等於字數時，簡寫也不會標錯範圍（見 _parse_lyric）。
+        # 漢字配羅馬字時，簡寫只標最後「音節數」個字（見 _parse_lyric）：
+        # 音節數等於字數時簡寫也不會標錯範圍；比字數少時（例如 {人形|doll}）簡寫會縮成「形」，要用完整寫法。
         syllables = _syllables(r.reading)
-        if syllables and all(_HAN.match(c) for c in base) and len(syllables) == len(base):
-            short = True
+        if syllables and base and _HAN.match(base[0]):
+            if all(_HAN.match(c) for c in base) and len(syllables) == len(base):
+                short = True
+            elif len(syllables) < len(base):
+                short = False
         parts.append(line.text[pos:r.start])
         parts.append(f"{base}{{{r.reading}}}" if short else f"{{{base}|{r.reading}}}")
         pos = r.end

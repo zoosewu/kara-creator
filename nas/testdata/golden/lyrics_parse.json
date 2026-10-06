@@ -526,6 +526,56 @@
   "v1_align_sha1": "4e7c17ae4f803f1691e98392ae5797c3ecd927a7"
  },
  {
+  "input": "{人形|doll}が踊る\n{今日|today}も\n台灣{Tâi}人\n",
+  "doc": {
+   "meta": {},
+   "lines": [
+    {
+     "kind": "lyric",
+     "text": "人形が踊る",
+     "singer": null,
+     "rubies": [
+      {
+       "start": 0,
+       "end": 2,
+       "reading": "doll"
+      }
+     ],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "今日も",
+     "singer": null,
+     "rubies": [
+      {
+       "start": 0,
+       "end": 2,
+       "reading": "today"
+      }
+     ],
+     "translation": ""
+    },
+    {
+     "kind": "lyric",
+     "text": "台灣人",
+     "singer": null,
+     "rubies": [
+      {
+       "start": 1,
+       "end": 2,
+       "reading": "Tâi"
+      }
+     ],
+     "translation": ""
+    }
+   ]
+  },
+  "serialized": "{人形|doll}が踊る\n{今日|today}も\n台灣{Tâi}人\n",
+  "language": "ja",
+  "v1_align_sha1": "226a476e0b7bdacc2d059d2cc9e6f5ee30aae640"
+ },
+ {
   "input": "第一句\n> 第一句的翻譯\n>  第二行翻譯\n> \n第二句\n\n> 前面是空行，當成註解\n",
   "doc": {
    "meta": {},

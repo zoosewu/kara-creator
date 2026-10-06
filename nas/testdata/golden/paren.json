@@ -75,6 +75,11 @@
   "converted": "歌詞{go1 ci4}\n粵語{jyut6 jyu5}啊\n一{jat1}二{ji6}\n"
  },
  {
+  "input": "{人形|doll}が踊る\n{今日|today}も\n台灣{Tâi}人\n",
+  "readings": [],
+  "converted": "{人形|doll}が踊る\n{今日|today}も\n台灣{Tâi}人\n"
+ },
+ {
   "input": "第一句\n> 第一句的翻譯\n>  第二行翻譯\n> \n第二句\n\n> 前面是空行，當成註解\n",
   "readings": [],
   "converted": "第一句\n> 第一句的翻譯\n>  第二行翻譯\n> \n第二句\n\n> 前面是空行，當成註解\n"

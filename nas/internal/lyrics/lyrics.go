@@ -253,9 +253,14 @@ func serializeLyric(ln Line) string {
 		before := slice(text, 0, r.Start)
 		// 能用簡寫（前面連續漢字剛好就是要標注的範圍）就用簡寫，比較好讀。
 		short := all(base, isBase) && !(len(before) > 0 && isBase(before[len(before)-1]))
-		// 漢字配羅馬字、音節數等於字數時，簡寫也不會標錯範圍（見 parseLyric）。
-		if syl, _ := syllables(r.Reading); len(syl) > 0 && all(base, isHan) && len(syl) == len(base) {
-			short = true
+		// 漢字配羅馬字時，簡寫只標最後「音節數」個字（見 parseLyric）：
+		// 音節數等於字數時簡寫也不會標錯範圍；比字數少時（例如 {人形|doll}）簡寫會縮成「形」，要用完整寫法。
+		if syl, _ := syllables(r.Reading); len(syl) > 0 && len(base) > 0 && isHan(base[0]) {
+			if all(base, isHan) && len(syl) == len(base) {
+				short = true
+			} else if len(syl) < len(base) {
+				short = false
+			}
 		}
 		sb.WriteString(string(slice(text, pos, r.Start)))
 		if short {
