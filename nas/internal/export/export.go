@@ -179,7 +179,7 @@ func (x *Exporter) Sync(lib *library.Library, songs []Song) (Result, error) {
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 			return res, err
 		}
-		method, err := place(src, dest)
+		method, err := Place(src, dest)
 		if err != nil {
 			return res, err
 		}
@@ -280,8 +280,8 @@ func same(dest, src string) bool {
 	return os.SameFile(a, b) || a.Size() == b.Size() && a.ModTime().Unix() == b.ModTime().Unix()
 }
 
-// place 依序嘗試 clone → 硬連結 → 複製。目的地已有檔案時先放到暫存名稱再取代，播放軟體不會讀到一半的檔案。
-func place(src, dest string) (string, error) {
+// Place 依序嘗試 clone → 硬連結 → 複製（匯出、從舊資料搬來的影片都用它）。目的地已有檔案時先放到暫存名稱再取代，播放軟體不會讀到一半的檔案。
+func Place(src, dest string) (string, error) {
 	tmp := dest + ".kara-tmp"
 	_ = os.Remove(tmp)
 	method := "clone"
