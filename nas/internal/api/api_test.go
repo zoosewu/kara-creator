@@ -187,6 +187,10 @@ func TestEndToEnd(t *testing.T) {
 		"lyrics": "[男] 自己編的第一句\n> 翻譯\n[女] 第二句\n"}, &job); code != 202 {
 		t.Fatal(code)
 	}
+	// YouTube 的網址：按下去的當下歌詞就存進曲庫了（還沒開始下載）
+	if data, err := os.ReadFile(filepath.Join(lib, "songs", "dQw4w9WgXcQ", "lyrics.txt")); err != nil || !strings.Contains(string(data), "自己編的第一句") {
+		t.Fatalf("歌詞要先存起來：%q %v", data, err)
+	}
 	var js struct {
 		Status string
 		Error  string

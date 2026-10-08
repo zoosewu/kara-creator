@@ -45,6 +45,8 @@ kara-nas restore [--overwrite] [--replace 歌曲id=網址]   # 從資料備份�
 - 用 yt-dlp 官方的單一執行檔（macOS：`yt-dlp_macos`；Linux：`yt-dlp_linux` / `yt-dlp_linux_aarch64`），放 `--tools`。
   它內含 Python，**NAS 上不必安裝 Python**。需要 deno（解 YouTube 的 JS）與 ffmpeg（合併影音）
 - 流程：
+  0. 新增時附上的歌詞先存進 `songs/<id>/lyrics.txt`：YouTube 的網址按下去的當下就存（網址裡就有 id），其他網站在取得資訊之後、下載影片之前存。
+     下載失敗也不會遺失，之後同一個網址下載成功就直接有歌詞（曲庫裡已經有這首歌時不蓋掉現有的歌詞）
   1. `yt-dlp -J --no-playlist <網址>` 取得資訊 → 算出歌曲 id → 已經有這首就略過
   2. 下載到 `songs/<id>/.downloading/`：格式（`VideoFormat` 優先 H.264 + AAC，合併成 mp4；只要音訊時用 `AudioFormat`，不轉檔）；
      用 `--newline --progress-template` 解析進度；取消時終止子程序（`.part` 留著下次續傳）；

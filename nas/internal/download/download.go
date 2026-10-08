@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -132,7 +133,14 @@ func (d *Downloader) Download(ctx context.Context, req Request) (Result, error) 
 		return Result{}, errors.New("網址沒有可下載的內容")
 	}
 	id := SongID(in.Extractor, in.ID)
-	if sg, ok := d.Store.Song(id); ok {
+	sg, existing := d.Store.Song(id)
+	if !existing {
+		// 還沒在曲庫裡：先把一起送來的歌詞存起來，下載影片失敗也不會遺失，下次用同樣的網址下載就直接有歌詞
+		if err := d.KeepLyrics(id, req.Lyrics, logf); err != nil {
+			return Result{}, err
+		}
+	}
+	if existing {
 		if _, err := os.Stat(d.Store.SongPath(id, sg.Source.File.Name)); err == nil {
 			logf("已下載過，略過下載")
 			return Result{ID: id, Title: sg.Source.Title, Skipped: true}, d.saveLyrics(id, req.Lyrics, logf)
@@ -221,7 +229,58 @@ func (d *Downloader) Download(ctx context.Context, req Request) (Result, error) 
 		return Result{}, err
 	}
 	logf("下載完成：%s", in.Title)
+	if !existing {
+		return Result{ID: id, Title: in.Title}, nil // 歌詞在下載之前就存好了
+	}
 	return Result{ID: id, Title: in.Title}, d.saveLyrics(id, req.Lyrics, logf)
+}
+
+// YouTubeID 從 YouTube 的網址取出歌曲 id（不連網）；不是 YouTube 的網址回傳 false。
+// 新增歌曲時用它在按下去的當下就存歌詞（其他網站要等 yt-dlp 取得資訊才知道 id）。
+func YouTubeID(raw string) (string, bool) {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return "", false
+	}
+	host := strings.TrimPrefix(strings.ToLower(u.Hostname()), "www.")
+	var vid string
+	switch host {
+	case "youtu.be":
+		vid = strings.Trim(u.Path, "/")
+	case "youtube.com", "m.youtube.com", "music.youtube.com":
+		vid = u.Query().Get("v")
+		for _, prefix := range []string{"/shorts/", "/live/", "/embed/"} {
+			if rest, ok := strings.CutPrefix(u.Path, prefix); ok {
+				vid = strings.Trim(rest, "/")
+			}
+		}
+	}
+	if !youtubeID.MatchString(vid) {
+		return "", false
+	}
+	return SongID("Youtube", vid), true
+}
+
+var youtubeID = regexp.MustCompile(`^[A-Za-z0-9_-]{11}$`)
+
+// KeepLyrics 把新增歌曲時一起送來的歌詞存到 songs/<id>/lyrics.txt（曲庫裡還沒有這首歌時；有的話不動，下載完由 saveLyrics 決定）。
+// 還沒下載完的歌只有這個檔、沒有 song.json，曲庫不會顯示它；之後同一個網址下載成功時就直接用這份歌詞。
+// 上次留下的歌詞會被這次送來的取代（以最新的為準）。
+func (d *Downloader) KeepLyrics(id, text string, logf func(string, ...any)) error {
+	if strings.TrimSpace(text) == "" {
+		return nil
+	}
+	if _, ok := d.Store.Song(id); ok {
+		return nil
+	}
+	if err := os.MkdirAll(d.Store.SongPath(id), 0o755); err != nil {
+		return err
+	}
+	if err := store.WriteFile(d.Store.SongPath(id, song.FileLyrics), []byte(lyrics.Serialize(lyrics.Parse(text)))); err != nil {
+		return err
+	}
+	logf("歌詞已先存進曲庫（下載失敗也不會遺失）")
+	return nil
 }
 
 // saveLyrics 存一起送來的歌詞（已經有歌詞時不覆蓋）。

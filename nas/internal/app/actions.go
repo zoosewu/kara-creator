@@ -10,6 +10,7 @@ import (
 	"time"
 
 	kara "github.com/zoosewu/kara-creator"
+	"github.com/zoosewu/kara-creator/nas/internal/download"
 	"github.com/zoosewu/kara-creator/nas/internal/jobs"
 	"github.com/zoosewu/kara-creator/nas/internal/library"
 	"github.com/zoosewu/kara-creator/nas/internal/lyrics"
@@ -76,6 +77,12 @@ func (a *App) AddSong(req AddRequest) (jobs.Summary, error) {
 	if req.Folder != "" {
 		if _, ok := a.Store.Library().Folders[req.Folder]; !ok {
 			return jobs.Summary{}, notFound("找不到資料夾")
+		}
+	}
+	// YouTube 的網址不用連網就知道歌曲 id：按下去的當下就把歌詞存進曲庫（其他網站在下載時取得資訊後存）
+	if id, ok := download.YouTubeID(url); ok {
+		if err := a.Down.KeepLyrics(id, req.Lyrics, func(string, ...any) {}); err != nil {
+			return jobs.Summary{}, err
 		}
 	}
 	steps := []string{jobs.StepDownload}

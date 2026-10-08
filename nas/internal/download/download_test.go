@@ -221,3 +221,58 @@ func TestDownloadRetry403(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 }
+
+func TestYouTubeID(t *testing.T) {
+	for in, want := range map[string]string{
+		"https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PL1": "dQw4w9WgXcQ",
+		"https://youtu.be/dQw4w9WgXcQ?t=10":                    "dQw4w9WgXcQ",
+		"https://m.youtube.com/watch?v=dQw4w9WgXcQ":            "dQw4w9WgXcQ",
+		"https://music.youtube.com/watch?v=dQw4w9WgXcQ":        "dQw4w9WgXcQ",
+		"https://www.youtube.com/shorts/dQw4w9WgXcQ":           "dQw4w9WgXcQ",
+		"https://www.youtube.com/live/dQw4w9WgXcQ?si=x":        "dQw4w9WgXcQ",
+		"https://www.youtube.com/playlist?list=PL1":            "",
+		"https://www.bilibili.com/video/BV1x":                  "",
+		"https://youtu.be/短":                                   "",
+	} {
+		got, ok := YouTubeID(in)
+		if got != want || ok != (want != "") {
+			t.Errorf("%s → %q %v，應該 %q", in, got, ok, want)
+		}
+	}
+}
+
+func TestLyricsKeptWhenDownloadFails(t *testing.T) {
+	e := newEnv(t)
+	dir := t.TempDir()
+	t.Setenv("FAKE_403", filepath.Join(dir, "403"))
+	t.Setenv("FAKE_403_ALWAYS", "1")
+	lyricsPath := e.st.SongPath("dQw4w9WgXcQ", song.FileLyrics)
+	// 下載影片失敗：歌詞在取得資訊之後就存了，曲庫裡還沒有這首歌
+	if _, err := e.d.Download(context.Background(), Request{URL: "https://youtu.be/x", Lyrics: "第一版的歌詞"}); err == nil {
+		t.Fatal("應該下載失敗")
+	}
+	if data, _ := os.ReadFile(lyricsPath); !strings.Contains(string(data), "第一版的歌詞") {
+		t.Fatalf("下載失敗也要留著歌詞：%q", data)
+	}
+	if _, ok := e.st.Song("dQw4w9WgXcQ"); ok {
+		t.Fatal("還沒下載完，曲庫裡不該有這首歌")
+	}
+	// 再送一次、附上新的歌詞：以最新的為準
+	_, _ = e.d.Download(context.Background(), Request{URL: "https://youtu.be/x", Lyrics: "第二版的歌詞"})
+	// 這次不附歌詞、下載成功：直接用留著的歌詞
+	t.Setenv("FAKE_403_ALWAYS", "")
+	t.Setenv("FAKE_403", "")
+	if _, err := e.d.Download(context.Background(), Request{URL: "https://youtu.be/x"}); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(lyricsPath); !strings.Contains(string(data), "第二版的歌詞") {
+		t.Fatalf("%q", data)
+	}
+	// 已經在曲庫裡的歌：附上的歌詞不蓋掉現有的
+	if err := e.d.KeepLyrics("dQw4w9WgXcQ", "不該寫進去", func(string, ...any) {}); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(lyricsPath); strings.Contains(string(data), "不該寫進去") {
+		t.Fatal("曲庫裡已經有的歌，歌詞不能被蓋掉")
+	}
+}
