@@ -305,6 +305,35 @@ func TestEndToEnd(t *testing.T) {
 		}
 	}
 
+	// 4b-2. 原曲音訊：設定打開後變成待匯出；匯出時產生 m4a（AAC 直接複製）放在伴唱帶旁邊；關掉後再匯出就拿掉
+	original := filepath.Join(lib, "export", "日文", "虛構歌手 - 自己編的歌_original.m4a")
+	for _, on := range []bool{true, false} {
+		if code := c.do("PATCH", "/api/v1/settings", map[string]any{"export_original": on}, nil); code != 200 {
+			t.Fatal(code)
+		}
+		waitFor(t, "設定改了就待匯出", func() bool {
+			c.do("GET", "/api/v1/songs/dQw4w9WgXcQ", nil, &song)
+			return song.Exported == "pending"
+		})
+		if code := c.do("POST", "/api/v1/export", nil, &exp); code != 200 {
+			t.Fatalf("%d %+v", code, exp)
+		}
+		_, err := os.Stat(original)
+		if on != (err == nil) {
+			t.Fatalf("原曲音訊（設定 %v）：%v %+v", on, err, exp)
+		}
+		if on {
+			info, err := tools.Probe(context.Background(), original)
+			if err != nil || info.Audio != "aac" || info.HasVideo {
+				t.Fatalf("原曲音訊要是只有 AAC 音軌的 m4a：%+v %v", info, err)
+			}
+		}
+		c.do("GET", "/api/v1/songs/dQw4w9WgXcQ", nil, &song)
+		if song.Exported != "exported" {
+			t.Fatalf("匯出之後（設定 %v）：%q", on, song.Exported)
+		}
+	}
+
 	// 4c. 只需重燒的更新（手動調時間）：確認保留
 	if code := c.do("PATCH", "/api/v1/songs/dQw4w9WgXcQ/timing/lines/0", map[string]any{"delta": 0.1}, &timing); code != 200 {
 		t.Fatal(code)

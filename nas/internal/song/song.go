@@ -30,7 +30,7 @@ const (
 	KindLocal = "local"
 )
 
-// 成品種類（Q13）。
+// 成品種類。
 const (
 	TargetInstrumental = "instrumental" // 伴唱帶：伴奏 + 字幕
 	TargetOriginal     = "original"     // 原曲 + 字幕（UI 沒有入口，只有 API）
@@ -142,7 +142,7 @@ type RenderStage struct {
 	Video   FileRef `json:"video"`
 }
 
-// ASSRef 是成品的字幕。Manual = 使用者用 Aegisub 改過（Q15），之後燒錄改用這份、不重新產生。
+// ASSRef 是成品的字幕。Manual = 使用者用 Aegisub 改過，之後燒錄改用這份、不重新產生。
 type ASSRef struct {
 	FileRef
 	Manual bool `json:"manual"`

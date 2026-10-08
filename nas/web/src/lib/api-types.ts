@@ -15,7 +15,7 @@ export interface paths {
         put?: never;
         /**
          * 匯出
-         * @description 把「已確認」的伴唱帶依曲庫結構同步到匯出資料夾（檔名「歌手 - 歌名.mp4」）。只在呼叫時執行，不會自動匯出；取消確認、改名或換資料夾的歌，舊的匯出檔會在這時移除。
+         * @description 把「已確認」的伴唱帶依曲庫結構同步到匯出資料夾（檔名「歌手 - 歌名.mp4」；設定打開時加上原曲音訊「歌手 - 歌名_original.m4a」）。只在呼叫時執行，不會自動匯出；取消確認、改名或換資料夾的歌，舊的匯出檔會在這時移除。
          */
         post: operations["export"];
         delete?: never;
@@ -932,6 +932,8 @@ export interface components {
             readonly $schema?: string;
             /** @description 新放的（含更新） */
             added: string[];
+            /** @description 原曲音訊做不出來的歌（例如來源沒有音軌），這次只匯出伴唱帶 */
+            failed: string[];
             /**
              * Format: int64
              * @description 已經是最新、沒有動的
@@ -968,6 +970,8 @@ export interface components {
              * @example https://example.com/api/v1/schemas/Settings.json
              */
             readonly $schema?: string;
+            /** @description 匯出時也匯出原曲音訊（有人聲，m4a，檔名加 _original） */
+            export_original: boolean;
             fonts: {
                 [key: string]: string;
             };
@@ -981,6 +985,8 @@ export interface components {
              * @example https://example.com/api/v1/schemas/SettingsUpdate.json
              */
             readonly $schema?: string;
+            /** @description 匯出時也匯出原曲音訊（m4a，檔名加 _original） */
+            export_original?: boolean;
             /** @description 語言 → 字型 id；null = 改回預設字型 */
             fonts?: {
                 [key: string]: string | null;
@@ -1024,7 +1030,7 @@ export interface components {
             /** @description 在匯出資料夾裡的相對路徑（不論伴唱帶做好了沒） */
             export: string;
             /**
-             * @description exported = 已匯出最新的成品；pending = 已確認但還沒匯出（或成品更新了、改了名）；remove = 取消確認了，下次匯出會從匯出資料夾拿掉；空字串 = 沒確認，不匯出
+             * @description exported = 已匯出最新的成品；pending = 已確認但還沒匯出（或成品更新了、改了名、原曲音訊的設定改了）；remove = 取消確認了，下次匯出會從匯出資料夾拿掉；空字串 = 沒確認，不匯出
              * @enum {string}
              */
             exported: "exported" | "pending" | "remove" | "";

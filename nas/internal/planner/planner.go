@@ -235,7 +235,7 @@ func Evaluate(in Input) Result {
 		r.RenderPlain[target], r.RenderFP[target] = plain, plain
 		rec := sg.Stages.Render[target]
 		files := in.Render[target]
-		// 使用者手改過 ASS（Q15）：產生 ASS 時的內容到現在都沒變，就沿用手改的 ASS
+		// 使用者手改過 ASS：產生 ASS 時的內容到現在都沒變，就沿用手改的 ASS
 		if rec != nil && files.ASSOK && (files.ASSHash != rec.ASS.SHA256 || rec.ASS.Manual) && rec.Content == plain {
 			ri.ASS = files.ASSHash
 			r.RenderFP[target] = fingerprint.Render(ri)

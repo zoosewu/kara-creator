@@ -37,6 +37,8 @@ type Place struct {
 type Settings struct {
 	SubtitleScale float64           `json:"subtitle_scale"` // 字幕大小，1 = 100%
 	Fonts         map[string]string `json:"fonts"`          // 語言 → 字型 id（sha256:index）；沒設的語言用預設字型
+	// ExportOriginal：匯出時也匯出原曲音訊（「歌手 - 歌名_original.m4a」）
+	ExportOriginal bool `json:"export_original" doc:"匯出時也匯出原曲音訊（有人聲，m4a，檔名加 _original）"`
 }
 
 // Library 是 library.json 的內容。

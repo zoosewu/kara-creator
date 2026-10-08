@@ -1209,6 +1209,13 @@
             },
             "type": "array"
           },
+          "failed": {
+            "description": "原曲音訊做不出來的歌（例如來源沒有音軌），這次只匯出伴唱帶",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "kept": {
             "description": "已經是最新、沒有動的",
             "format": "int64",
@@ -1237,7 +1244,8 @@
           "added",
           "removed",
           "kept",
-          "skipped"
+          "skipped",
+          "failed"
         ],
         "type": "object"
       },
@@ -1311,6 +1319,10 @@
             "readOnly": true,
             "type": "string"
           },
+          "export_original": {
+            "description": "匯出時也匯出原曲音訊（有人聲，m4a，檔名加 _original）",
+            "type": "boolean"
+          },
           "fonts": {
             "additionalProperties": {
               "type": "string"
@@ -1324,7 +1336,8 @@
         },
         "required": [
           "subtitle_scale",
-          "fonts"
+          "fonts",
+          "export_original"
         ],
         "type": "object"
       },
@@ -1339,6 +1352,10 @@
             "format": "uri",
             "readOnly": true,
             "type": "string"
+          },
+          "export_original": {
+            "description": "匯出時也匯出原曲音訊（m4a，檔名加 _original）",
+            "type": "boolean"
           },
           "fonts": {
             "additionalProperties": {
@@ -1413,7 +1430,7 @@
             "type": "string"
           },
           "exported": {
-            "description": "exported = 已匯出最新的成品；pending = 已確認但還沒匯出（或成品更新了、改了名）；remove = 取消確認了，下次匯出會從匯出資料夾拿掉；空字串 = 沒確認，不匯出",
+            "description": "exported = 已匯出最新的成品；pending = 已確認但還沒匯出（或成品更新了、改了名、原曲音訊的設定改了）；remove = 取消確認了，下次匯出會從匯出資料夾拿掉；空字串 = 沒確認，不匯出",
             "enum": [
               "exported",
               "pending",
@@ -2049,7 +2066,7 @@
   "paths": {
     "/api/v1/export": {
       "post": {
-        "description": "把「已確認」的伴唱帶依曲庫結構同步到匯出資料夾（檔名「歌手 - 歌名.mp4」）。只在呼叫時執行，不會自動匯出；取消確認、改名或換資料夾的歌，舊的匯出檔會在這時移除。",
+        "description": "把「已確認」的伴唱帶依曲庫結構同步到匯出資料夾（檔名「歌手 - 歌名.mp4」；設定打開時加上原曲音訊「歌手 - 歌名_original.m4a」）。只在呼叫時執行，不會自動匯出；取消確認、改名或換資料夾的歌，舊的匯出檔會在這時移除。",
         "operationId": "export",
         "responses": {
           "200": {

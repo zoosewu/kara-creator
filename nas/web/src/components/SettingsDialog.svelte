@@ -18,6 +18,7 @@
   let scale = $state(Math.round((store.settings.subtitle_scale ?? 1) * 100))
   let fonts = $state<Font[]>([])
   let chosen = $state<Record<string, string>>({ ...(store.settings.fonts ?? {}) })
+  let exportOriginal = $state(store.settings.export_original ?? false)
   let system = $state<System | null>(null)
   let box = $state<HTMLDivElement>()
   let boxHeight = $state(0)
@@ -49,7 +50,7 @@
     e.preventDefault()
     const fontBody: Record<string, string | null> = {}
     for (const [l] of LANGS) if ((chosen[l] ?? '') !== (store.settings.fonts?.[l] ?? '')) fontBody[l] = chosen[l] || null
-    if (await store.attempt(() => api('/settings', { method: 'PATCH', body: { subtitle_scale: scale / 100, fonts: fontBody } }), '已儲存設定')) close()
+    if (await store.attempt(() => api('/settings', { method: 'PATCH', body: { subtitle_scale: scale / 100, fonts: fontBody, export_original: exportOriginal } }), '已儲存設定')) close()
   }
 
   async function rollback() {
@@ -106,6 +107,17 @@
         字型檔放在 NAS 曲庫的 fonts 資料夾。{fontChanged ? '換了字型的語言，做好的伴唱帶會顯示只需重燒（已確認不受影響）。' : ''}{fonts.length
           ? ''
           : ' 目前沒有找到字型檔。'}
+      </p>
+
+      <h3 class="field">匯出</h3>
+      <label class="check-field"><input type="checkbox" bind:checked={exportOriginal} /> 也匯出原曲音訊</label>
+      <p class="hint">
+        已確認的歌除了伴唱帶，另外放一份原曲（有人聲）的音訊「歌手 - 歌名_original.m4a」在旁邊。{exportOriginal !==
+        (store.settings.export_original ?? false)
+          ? exportOriginal
+            ? '下次按「匯出」時加上。'
+            : '下次按「匯出」時把已經匯出的原曲音訊拿掉。'
+          : ''}
       </p>
 
       {#if system}

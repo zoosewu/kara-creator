@@ -53,6 +53,18 @@
     }
   }
 
+  // 已完成的階段合併成一個「✓ 3/4」（省空間），沒完成的照樣分開顯示
+  let stageViews = $derived(STAGES.map(([k, label]) => ({ k, label, ...stageView(k, song.status[k] as string) })))
+  let doneCount = $derived(stageViews.filter((v) => v.cls === 'done').length)
+  let doneTip = $derived(stageViews.map((v) => `${v.label}：${stageState(v)}`).join('\n'))
+
+  /** 提示裡一個階段的狀態（「伴唱帶需重燒」→「需重燒」，避免重複階段名稱）。 */
+  function stageState(v: { cls: string; label: string; text: string; tip: string }) {
+    if (v.cls === 'done') return '已完成'
+    const rest = v.text.startsWith(v.label) ? v.text.slice(v.label.length) : v.text
+    return rest && rest !== '中' ? rest : v.tip
+  }
+
   let meta = $derived(
     [
       song.title !== song.source.title ? song.source.title : '',
@@ -191,8 +203,10 @@
     <div class="song-bottom">
       <div class="stages-wrap">
         <ol class="stages">
-          {#each STAGES as [k]}
-            {@const v = stageView(k, song.status[k] as string)}
+          {#if doneCount}
+            <li class="stage summary" style="--done: {doneCount / STAGES.length}" title={doneTip}><i></i>✓ {doneCount}/{STAGES.length}</li>
+          {/if}
+          {#each stageViews.filter((v) => v.cls !== 'done') as v (v.k)}
             <li class="stage {v.cls}" title={v.tip}><i></i>{v.text}</li>
           {/each}
         </ol>

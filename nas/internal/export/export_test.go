@@ -131,3 +131,48 @@ func TestSync(t *testing.T) {
 }
 
 func ptr(s string) *string { return &s }
+
+func TestSyncOriginal(t *testing.T) {
+	dir := t.TempDir()
+	root := filepath.Join(dir, "export")
+	write := func(name, content string) string {
+		p := filepath.Join(dir, name)
+		_ = os.WriteFile(p, []byte(content), 0o644)
+		return p
+	}
+	lib := library.New()
+	lib.EnsureSong("a", library.Root)
+	lib.EnsureSong("b", library.Root)
+	x := &Exporter{Root: root}
+	// 同名的兩首：原曲音訊跟著伴唱帶編號
+	songs := []Song{
+		{ID: "a", Title: "歌", Artist: "歌手", Video: write("a.mp4", "伴唱帶 a"), Original: write("a.m4a", "原曲 a")},
+		{ID: "b", Title: "歌", Artist: "歌手", Video: write("b.mp4", "伴唱帶 b"), Original: write("b.m4a", "原曲 b")},
+	}
+	res, err := x.Sync(lib, songs)
+	if err != nil || len(res.Added) != 4 {
+		t.Fatalf("%+v %v", res, err)
+	}
+	for name, want := range map[string]string{"歌手 - 歌_original.m4a": "原曲 a", "歌手 - 歌 (2)_original.m4a": "原曲 b"} {
+		if data, _ := os.ReadFile(filepath.Join(root, name)); string(data) != want {
+			t.Errorf("%s：%q", name, data)
+		}
+	}
+	if !x.Exported("歌手 - 歌 (2)_original.m4a", songs[1].Original) || OriginalName("日文/歌手 - 歌.mp4") != "日文/歌手 - 歌_original.m4a" {
+		t.Fatal("原曲音訊的匯出狀態")
+	}
+	// 關掉原曲音訊：下次匯出拿掉，伴唱帶留著
+	for i := range songs {
+		songs[i].Original = ""
+	}
+	res, _ = x.Sync(lib, songs)
+	if len(res.Removed) != 2 || res.Kept != 2 {
+		t.Fatalf("%+v", res)
+	}
+	if _, err := os.Stat(filepath.Join(root, "歌手 - 歌_original.m4a")); !os.IsNotExist(err) {
+		t.Fatal("原曲音訊要拿掉")
+	}
+	if !x.Holds("a") {
+		t.Fatal("伴唱帶還在")
+	}
+}

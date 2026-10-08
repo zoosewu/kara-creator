@@ -516,8 +516,9 @@ func skipReason(v *SongView, req JobRequest, busy map[string]jobs.Summary) strin
 
 // SettingsUpdate 是修改全域設定（PATCH）。
 type SettingsUpdate struct {
-	SubtitleScale *float64           `json:"subtitle_scale,omitempty" minimum:"0.6" maximum:"1.6" doc:"字幕大小（1 = 預設）"`
-	Fonts         map[string]*string `json:"fonts,omitempty" doc:"語言 → 字型 id；null = 改回預設字型"`
+	SubtitleScale  *float64           `json:"subtitle_scale,omitempty" minimum:"0.6" maximum:"1.6" doc:"字幕大小（1 = 預設）"`
+	Fonts          map[string]*string `json:"fonts,omitempty" doc:"語言 → 字型 id；null = 改回預設字型"`
+	ExportOriginal *bool              `json:"export_original,omitempty" doc:"匯出時也匯出原曲音訊（m4a，檔名加 _original）"`
 }
 
 // UpdateSettings 修改全域設定。改了會影響成品的設定之後，做好的伴唱帶顯示需更新（只重燒）。
@@ -530,6 +531,9 @@ func (a *App) UpdateSettings(u SettingsUpdate) (library.Settings, error) {
 				return invalid("字幕大小要在 60%%–160%% 之間")
 			}
 			l.Settings.SubtitleScale = scale
+		}
+		if u.ExportOriginal != nil {
+			l.Settings.ExportOriginal = *u.ExportOriginal
 		}
 		for lang, id := range u.Fonts {
 			if _, ok := song.Languages[lang]; !ok && lang != "ko" {

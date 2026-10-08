@@ -332,10 +332,10 @@ func register(api huma.API, a *app.App) {
 		})
 
 	huma.Register(api, op("export", http.MethodPost, "/export", "匯出",
-		"把「已確認」的伴唱帶依曲庫結構同步到匯出資料夾（檔名「歌手 - 歌名.mp4」）。只在呼叫時執行，不會自動匯出；"+
+		"把「已確認」的伴唱帶依曲庫結構同步到匯出資料夾（檔名「歌手 - 歌名.mp4」；設定打開時加上原曲音訊「歌手 - 歌名_original.m4a」）。只在呼叫時執行，不會自動匯出；"+
 			"取消確認、改名或換資料夾的歌，舊的匯出檔會在這時移除。", tLibrary),
 		func(ctx context.Context, _ *struct{}) (*body[export.Result], error) {
-			res, err := a.Export()
+			res, err := a.Export(ctx)
 			if err != nil {
 				return nil, fail(err)
 			}

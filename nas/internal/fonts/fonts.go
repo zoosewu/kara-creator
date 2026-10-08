@@ -39,7 +39,7 @@ func (f Font) Proto() wp.Font { return wp.Font{SHA256: f.SHA256, Family: f.Famil
 // ID 組出字型 id。
 func ID(sha string, index int) string { return sha + ":" + strconv.Itoa(index) }
 
-// Defaults 是每種語言的預設字型（Q11，用完整名稱 nameID 4 找：family 相同的粗細只差在完整名稱；
+// Defaults 是每種語言的預設字型（用完整名稱 nameID 4 找：family 相同的粗細只差在完整名稱；
 // 開源 SIL OFL，安裝時下載到 fonts/）。
 // 英文用日文版（內含拉丁字母）；判斷不出語言時也用日文版。
 var Defaults = map[string]string{

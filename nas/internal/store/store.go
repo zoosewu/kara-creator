@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"maps"
 	"os"
 	"path/filepath"
 	"sort"
@@ -159,6 +160,15 @@ func (s *Store) Library() *library.Library {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.lib.Clone()
+}
+
+// Settings 回傳全域設定的複本（不必複製整個曲庫）。
+func (s *Store) Settings() library.Settings {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := s.lib.Settings
+	out.Fonts = maps.Clone(out.Fonts)
+	return out
 }
 
 // Song 回傳一首歌的紀錄複本。

@@ -86,15 +86,22 @@
 
   async function doExport() {
     exporting = true
-    const res = await store.run(() => api<{ added: string[]; removed: string[]; kept: number; skipped: string[] }>('/export', { method: 'POST' }))
+    const res = await store.run(() =>
+      api<{ added: string[]; removed: string[]; kept: number; skipped: string[]; failed: string[] }>('/export', { method: 'POST' }),
+    )
     exporting = false
     if (!res) return
+    // 開了原曲音訊時一首歌有兩個檔案，所以用「個檔案」數
     const parts = [
-      res.added.length ? `新增或更新 ${res.added.length} 首` : '',
-      res.removed.length ? `移除 ${res.removed.length} 首` : '',
-      res.kept ? `${res.kept} 首已是最新` : '',
+      res.added.length ? `新增或更新 ${res.added.length} 個檔案` : '',
+      res.removed.length ? `移除 ${res.removed.length} 個檔案` : '',
+      res.kept ? `${res.kept} 個已是最新` : '',
     ].filter(Boolean)
-    store.notify(`匯出完成：${parts.join('、') || '沒有已確認的伴唱帶'}` + (res.skipped.length ? `；${res.skipped.length} 首因為目的地已有同名的其他檔案而略過` : ''), res.skipped.length > 0)
+    const problems = [
+      res.skipped.length ? `${res.skipped.length} 個檔案因為目的地已有同名的其他檔案而略過` : '',
+      res.failed.length ? `${res.failed.join('、')} 的原曲音訊做不出來（只匯出伴唱帶）` : '',
+    ].filter(Boolean)
+    store.notify(`匯出完成：${parts.join('、') || '沒有已確認的伴唱帶'}` + (problems.length ? `；${problems.join('；')}` : ''), problems.length > 0)
   }
 </script>
 
@@ -143,7 +150,7 @@
         class="btn small"
         class:primary={pendingExport > 0}
         disabled={exporting}
-        title="把「已確認」的伴唱帶同步到匯出資料夾（只匯出已確認的，只在按這裡時同步；括號是待匯出 + 待移除的歌數）"
+        title="把「已確認」的伴唱帶（設定打開時加上原曲音訊）同步到匯出資料夾（只匯出已確認的，只在按這裡時同步；括號是待匯出 + 待移除的歌數）"
         onclick={doExport}><Icon name="export" />匯出{pendingExport ? `（${pendingExport}）` : ''}</button
       >
     </div>

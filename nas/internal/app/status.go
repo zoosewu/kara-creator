@@ -38,7 +38,7 @@ type SongView struct {
 	Job          *jobs.Summary  `json:"job" doc:"還沒結束的工作（沒有時為 null）"`
 	Approval     ApprovalView   `json:"approval"`
 	Export       string         `json:"export" doc:"在匯出資料夾裡的相對路徑（不論伴唱帶做好了沒）"`
-	Exported     string         `json:"exported" enum:"exported,pending,remove," doc:"exported = 已匯出最新的成品；pending = 已確認但還沒匯出（或成品更新了、改了名）；remove = 取消確認了，下次匯出會從匯出資料夾拿掉；空字串 = 沒確認，不匯出"`
+	Exported     string         `json:"exported" enum:"exported,pending,remove," doc:"exported = 已匯出最新的成品；pending = 已確認但還沒匯出（或成品更新了、改了名、原曲音訊的設定改了）；remove = 取消確認了，下次匯出會從匯出資料夾拿掉；空字串 = 沒確認，不匯出"`
 	Media        []MediaView    `json:"media" doc:"可以播放的版本，第一個是預設（最終成品優先）"`
 	Path         string         `json:"path" doc:"這首歌的資料夾（NAS 上的路徑，可以複製）"`
 }
@@ -175,13 +175,28 @@ func (a *App) withJob(v *SongView) *SongView {
 	switch {
 	case cp.Approval.Status == planner.Approved && cp.Export != "":
 		cp.Exported = "pending"
-		if src := a.exportVideo(v.ID); src != "" && a.Exporter.Exported(cp.Export, src) {
+		if a.exportedAll(v.ID, cp.Export) {
 			cp.Exported = "exported"
 		}
 	case a.Exporter.Holds(v.ID):
 		cp.Exported = "remove"
 	}
 	return &cp
+}
+
+// exportedAll 表示這首歌該匯出的檔案（伴唱帶；設定打開時加上原曲音訊）都已經是最新的，
+// 設定關掉了但原曲音訊還在匯出資料夾時也不算（下次匯出會拿掉）。
+func (a *App) exportedAll(id, rel string) bool {
+	video := a.exportVideo(id)
+	if video == "" || !a.Exporter.Exported(rel, video) {
+		return false
+	}
+	original := export.OriginalName(rel)
+	if !a.Store.Settings().ExportOriginal {
+		return !a.Exporter.Has(original)
+	}
+	src := a.originalAudio(id)
+	return src != "" && a.Exporter.Exported(original, src)
 }
 
 // Evaluate 讀檔並判斷一首歌的狀態（不經過快取）。

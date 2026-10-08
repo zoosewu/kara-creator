@@ -4,9 +4,10 @@
 //
 // 資料夾結構與曲庫相同（只用資料夾名稱），檔名是卡拉 OK 軟體慣用的「歌手 - 歌名」（沒有歌手就只有歌名）。
 // 同一個資料夾裡歌手與歌名都相同時，依曲庫順序在後面的加上 (2)、(3)…。
-// 放置方式依序嘗試 clone（不佔空間、各自獨立）→ 硬連結 → 複製（Q2）。
+// 放置方式依序嘗試 clone（不佔空間、各自獨立）→ 硬連結 → 複製。
 // 只管理自己放進去的檔案（記在 export/.export.json），不會動到使用者另外放的東西。
-// 只匯出使用者「已確認」的歌，而且只在使用者按「匯出」時同步（呼叫端決定 Song.Video）。
+// 設定打開時也匯出原曲音訊：「歌手 - 歌名_original.m4a」，和伴唱帶放在一起。
+// 只匯出使用者「已確認」的歌，而且只在使用者按「匯出」時同步（呼叫端決定 Song.Video、Song.Original）。
 package export
 
 import (
@@ -61,10 +62,16 @@ func folderName(name string) string {
 
 // Song 是一首歌在匯出時需要的資料。
 type Song struct {
-	ID     string
-	Title  string // 實際使用的歌名與演唱者
-	Artist string
-	Video  string // 伴唱帶成品的路徑；還沒做好時為空
+	ID       string
+	Title    string // 實際使用的歌名與演唱者
+	Artist   string
+	Video    string // 伴唱帶成品的路徑；還沒做好時為空
+	Original string // 原曲音訊（m4a）的路徑；不匯出時為空
+}
+
+// OriginalName 是原曲音訊的匯出路徑：伴唱帶的檔名去掉副檔名、加上「_original.m4a」。
+func OriginalName(rel string) string {
+	return strings.TrimSuffix(rel, path.Ext(rel)) + "_original.m4a"
 }
 
 type sortKey struct {
@@ -132,6 +139,7 @@ type Result struct {
 	Kept    int      `json:"kept" doc:"已經是最新、沒有動的"`
 	Skipped []string `json:"skipped" doc:"目的地已經有不是這個程式放的同名檔，沒有覆蓋"`
 	Method  string   `json:"method,omitempty" doc:"放置方式：clone / link / copy"`
+	Failed  []string `json:"failed" doc:"原曲音訊做不出來的歌（例如來源沒有音軌），這次只匯出伴唱帶"`
 }
 
 // Exporter 同步 export/。
@@ -148,9 +156,16 @@ func (x *Exporter) Sync(lib *library.Library, songs []Song) (Result, error) {
 	names := Names(lib, songs)
 	wanted, owner := map[string]string{}, map[string]string{}
 	for _, s := range songs {
-		if rel, ok := names[s.ID]; ok && s.Video != "" {
-			if _, err := os.Stat(s.Video); err == nil {
-				wanted[rel], owner[rel] = s.Video, s.ID
+		rel, ok := names[s.ID]
+		if !ok {
+			continue
+		}
+		for dest, src := range map[string]string{rel: s.Video, OriginalName(rel): s.Original} {
+			if src == "" {
+				continue
+			}
+			if _, err := os.Stat(src); err == nil {
+				wanted[dest], owner[dest] = src, s.ID
 			}
 		}
 	}
@@ -158,7 +173,7 @@ func (x *Exporter) Sync(lib *library.Library, songs []Song) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	res := Result{Added: []string{}, Removed: []string{}, Skipped: []string{}}
+	res := Result{Added: []string{}, Removed: []string{}, Skipped: []string{}, Failed: []string{}}
 	rels := make([]string, 0, len(wanted))
 	for rel := range wanted {
 		rels = append(rels, rel)
@@ -249,6 +264,15 @@ func (x *Exporter) writeRecord(files map[string]string) error {
 	}
 	x.held = files
 	return nil
+}
+
+// Has 表示 rel 是匯出資料夾裡自己放的檔案。
+func (x *Exporter) Has(rel string) bool {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	held, err := x.record()
+	_, ok := held[rel]
+	return err == nil && ok
 }
 
 // Holds 表示這首歌目前在匯出資料夾裡有自己放的檔案（取消確認後按匯出才會拿掉）。

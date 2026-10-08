@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -71,12 +72,13 @@ type Info struct {
 	HasVideo bool    // 有真正的影像軌（內嵌封面圖不算）
 	Width    int
 	Height   int
+	Audio    string // 第一條音軌的編碼（例如 aac、opus）；沒有音軌時為空
 }
 
 // Probe 讀媒體資訊。
 func (t Tools) Probe(ctx context.Context, path string) (Info, error) {
 	out, err := t.run(ctx, t.FFprobe, "-v", "error", "-show_entries",
-		"format=duration:stream=codec_type,width,height:stream_disposition=attached_pic", "-of", "json", path)
+		"format=duration:stream=codec_type,codec_name,width,height:stream_disposition=attached_pic", "-of", "json", path)
 	if err != nil {
 		return Info{}, err
 	}
@@ -86,6 +88,7 @@ func (t Tools) Probe(ctx context.Context, path string) (Info, error) {
 		} `json:"format"`
 		Streams []struct {
 			CodecType   string `json:"codec_type"`
+			CodecName   string `json:"codec_name"`
 			Width       int    `json:"width"`
 			Height      int    `json:"height"`
 			Disposition struct {
@@ -101,9 +104,11 @@ func (t Tools) Probe(ctx context.Context, path string) (Info, error) {
 		info.Duration = math.Round(d*1000) / 1000
 	}
 	for _, s := range p.Streams {
-		if s.CodecType == "video" && s.Disposition.AttachedPic != 1 {
+		if s.CodecType == "video" && s.Disposition.AttachedPic != 1 && !info.HasVideo {
 			info.HasVideo, info.Width, info.Height = true, s.Width, s.Height
-			break
+		}
+		if s.CodecType == "audio" && info.Audio == "" {
+			info.Audio = s.CodecName
 		}
 	}
 	return info, nil
@@ -124,7 +129,30 @@ func (t Tools) SpeechWav(ctx context.Context, src, dst string) error {
 	return err
 }
 
-// EncodeFLAC 把 wav 存成 FLAC（人聲，Q7）。
+// ExportAudio 把來源的第一條音軌存成 m4a（匯出原曲音訊用）：AAC 直接複製（不重新編碼），其他編碼轉成 AAC 320k。
+// 先寫到暫存檔再改名，寫到一半中斷不會留下壞掉的檔案。
+func (t Tools) ExportAudio(ctx context.Context, src, dst string) error {
+	info, err := t.Probe(ctx, src)
+	if err != nil {
+		return err
+	}
+	if info.Audio == "" {
+		return errors.New("來源沒有音軌")
+	}
+	codec := []string{"-c:a", "aac", "-b:a", "320k"}
+	if info.Audio == "aac" {
+		codec = []string{"-c:a", "copy"}
+	}
+	tmp := dst + ".tmp"
+	args := append([]string{"-y", "-v", "error", "-i", src, "-vn", "-map", "0:a:0"}, codec...)
+	if _, err := t.run(ctx, t.FFmpeg, append(args, "-movflags", "+faststart", "-f", "ipod", tmp)...); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	return os.Rename(tmp, dst)
+}
+
+// EncodeFLAC 把 wav 存成 FLAC（人聲）。
 func (t Tools) EncodeFLAC(ctx context.Context, src, dst string) error {
 	_, err := t.run(ctx, t.FFmpeg, "-y", "-v", "error", "-i", src, "-map", "0:a:0", "-c:a", "flac", dst)
 	return err

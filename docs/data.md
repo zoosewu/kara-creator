@@ -29,6 +29,7 @@
   cache/                  可以整個刪掉的衍生檔
     work/                 給 AI 的暫存輸入（抽出的 wav、speech.wav），以 sha256 命名
     readings.jsonl        讀音快取
+    original/             匯出用的原曲音訊（<來源 sha256>.m4a）
 ```
 
 資料備份（git repo）的位置另外指定（`--data`，預設 `<library>/data`），格式見「資料備份」。
@@ -105,7 +106,8 @@ id 決定資料夾名稱，之後不會改變。歌名、資料夾、順序都�
   "version": 2,
   "folders": [ { "id": "a1b2c3d4", "name": "日文", "parent": null, "order": 1 } ],
   "songs":   { "dQw4w9WgXcQ": { "folder": "a1b2c3d4", "order": 3 } },
-  "settings": { "subtitle_scale": 1.0, "fonts": { "ja": "<字型 id>", "zh": "…" } }   // 字型 id = 字型檔 sha256:第幾個字型
+  "settings": { "subtitle_scale": 1.0, "fonts": { "ja": "<字型 id>", "zh": "…" },   // 字型 id = 字型檔 sha256:第幾個字型
+                "export_original": false }                                       // 匯出時也匯出原曲音訊
 }
 ```
 
@@ -208,6 +210,11 @@ NAS 在記憶體裡保留所有歌的狀態，**只在有變動時重算該首�
 目的地用 `--export`（`KARA_EXPORT`）指定，預設 `<library>/export`。資料夾結構同曲庫、檔名「歌手 - 歌名.mp4」、
 同名加 (2)（依所有歌排，編號才穩定）；只管理 `.export.json` 記的檔案（`{"files": {相對路徑: 歌曲 id}}`），不動使用者另外放的東西。
 只匯出 `instrumental` 成品；匯出的是按下匯出當時的成品。
+
+**原曲音訊**（設定的 `export_original`）：打開時，已確認的歌另外匯出一份原曲（有人聲）的音訊「歌手 - 歌名_original.m4a」，
+放在伴唱帶旁邊（同名編號跟著伴唱帶：「… (2)_original.m4a」）。按匯出時才從來源檔產生，存在 `cache/original/<來源 sha256>.m4a`
+（來源的音軌是 AAC 就直接複製、不重新編碼；其他編碼轉成 AAC 320k）。設定關掉時，下次匯出把這些檔案拿掉；
+設定改了也會讓歌變成待匯出。來源沒有音軌時只匯出伴唱帶，並在匯出結果的 `failed` 列出。
 
 放置方式依序嘗試，失敗就換下一種，不必事先設定：
 

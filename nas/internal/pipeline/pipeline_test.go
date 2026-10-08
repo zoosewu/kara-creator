@@ -231,7 +231,7 @@ func TestKaraokeFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// 原曲＋字幕（Q13）：多一個成品；拿掉之後舊檔刪除
+	// 原曲＋字幕：多一個成品；拿掉之後舊檔刪除
 	_ = e.st.EditSong("abc", func(s *song.Song) error { s.Info.Targets = []string{"instrumental", "original"}; return nil })
 	e.karaoke("render")
 	if _, err := os.Stat(e.st.SongPath("abc", "original.mp4")); err != nil {

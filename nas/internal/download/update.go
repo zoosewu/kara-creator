@@ -19,7 +19,7 @@ func (d *Downloader) Version(ctx context.Context) (string, error) {
 // prev 是更新前留下的上一版執行檔。
 func (d *Downloader) prev() string { return d.YTDLP + ".prev" }
 
-// Update 更新 yt-dlp（Q10：啟動時與每天一次）。更新前把目前的執行檔留成 .prev，新版有問題時可以退回。
+// Update 更新 yt-dlp（啟動時與每天一次）。更新前把目前的執行檔留成 .prev，新版有問題時可以退回。
 // 回傳更新前後的版本（相同代表已經是最新版）。
 func (d *Downloader) Update(ctx context.Context) (before, after string, err error) {
 	if before, err = d.Version(ctx); err != nil {

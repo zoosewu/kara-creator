@@ -223,6 +223,7 @@ func (a *App) runWrapup(reason string) {
 
 // exportSongs 是匯出用的歌曲清單：檔名依所有歌排（同名編號才穩定），但只有「已確認」而且有伴唱帶的歌會放檔案。
 func (a *App) exportSongs() []export.Song {
+	original := a.Store.Settings().ExportOriginal
 	var out []export.Song
 	for _, id := range a.Store.SongIDs() {
 		v, err := a.Song(id)
@@ -232,6 +233,9 @@ func (a *App) exportSongs() []export.Song {
 		s := export.Song{ID: id, Title: v.Title, Artist: v.Artist}
 		if v.Approval.Status == planner.Approved {
 			s.Video = a.exportVideo(id)
+			if original {
+				s.Original = a.originalAudio(id)
+			}
 		}
 		out = append(out, s)
 	}
@@ -250,14 +254,47 @@ func (a *App) exportVideo(id string) string {
 	return ""
 }
 
-// Export 把已確認的伴唱帶同步到匯出資料夾（使用者按「匯出」時才執行）。
-func (a *App) Export() (export.Result, error) {
-	res, err := a.Exporter.Sync(a.Store.Library(), a.exportSongs())
+// originalAudio 是原曲音訊（m4a）的路徑：cache/original/<來源 sha256>.m4a（匯出時才產生；來源換了就換一個檔）。
+func (a *App) originalAudio(id string) string {
+	sg, ok := a.Store.Song(id)
+	if !ok || sg.Source.File.SHA256 == "" {
+		return ""
+	}
+	return a.Store.Path(store.CacheDir, "original", sg.Source.File.SHA256+".m4a")
+}
+
+// Export 把已確認的伴唱帶（設定打開時加上原曲音訊）同步到匯出資料夾（使用者按「匯出」時才執行）。
+func (a *App) Export(ctx context.Context) (export.Result, error) {
+	songs := a.exportSongs()
+	var failed []string
+	for i, s := range songs {
+		if s.Original == "" {
+			continue
+		}
+		if _, err := os.Stat(s.Original); err == nil {
+			continue
+		}
+		sg, _ := a.Store.Song(s.ID)
+		err := os.MkdirAll(filepath.Dir(s.Original), 0o755)
+		if err == nil {
+			err = a.Media.ExportAudio(ctx, a.Store.SongPath(s.ID, sg.Source.File.Name), s.Original)
+		}
+		if err != nil {
+			if ctx.Err() != nil {
+				return export.Result{}, ctx.Err()
+			}
+			log.Printf("原曲音訊做不出來（%s）：%v", s.ID, err)
+			failed = append(failed, s.Title)
+			songs[i].Original = ""
+		}
+	}
+	res, err := a.Exporter.Sync(a.Store.Library(), songs)
+	res.Failed = append(res.Failed, failed...)
 	a.invalidateAll() // 每首歌的「已匯出」狀態
 	return res, err
 }
 
-// ---- yt-dlp 更新（Q10）----------------------------------------------------------
+// ---- yt-dlp 更新----------------------------------------------------------
 
 func (a *App) updater(ctx context.Context) {
 	for {
