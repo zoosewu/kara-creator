@@ -57,3 +57,10 @@
 - 「不改行為」的重構要先錄下重構前的輸出再動手（docs/deploy.md「worker 的 GPU 回歸比對」）；GPU 上不是位元確定的步驟（Demucs）
   先量「舊程式自己跑兩次」的差異當基準，不能直接要求逐位元相同。
 - 對照新舊程式的雜訊（例如 ffmpeg 的 Broken pipe）時，用同一件任務分別跑新舊兩版比較，不要憑印象判斷是不是新增的。
+
+## commit 前
+
+- 跑完整的 CI 檢查，不只是測試：`gofmt -l .`（CI 會擋）、`go vet`、`go test`、前端 `npm run check`、worker 的 `ruff check` 與 `pytest`。
+  2026-10-06 的 restore --sources 只跑了測試，gofmt 沒過，CI 失敗了兩天才發現。
+- push 之後查 Actions 的結果（`xh https://api.github.com/repos/zoosewu/kara-creator/actions/runs`），不要假設會過。
+
