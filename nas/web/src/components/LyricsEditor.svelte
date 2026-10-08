@@ -488,7 +488,7 @@
         }}
       /> 秒<span class="muted">（負數往前）</span></label
     >
-    {#if dirty}<div class="time-warn">歌詞有尚未儲存的修改：儲存後會重新對時，這裡調整的時間會被取代。</div>{/if}
+    {#if dirty}<div class="time-warn">歌詞有尚未儲存的修改：建議先儲存。改過的句子之後會重對（手動調過的只保留開頭），其他句子的時間不動。</div>{/if}
     <div class="pop-actions">
       <button type="button" class="btn small" disabled={!listenSource()} title="從新的開始時間前 1 秒播放人聲，確認這句是不是從那裡開始唱" onclick={listen}>試聽</button>
       <button type="button" class="btn small primary" disabled={!time.delta} onclick={applyTime}>套用</button>

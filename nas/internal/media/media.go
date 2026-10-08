@@ -152,6 +152,17 @@ func (t Tools) ExportAudio(ctx context.Context, src, dst string) error {
 	return os.Rename(tmp, dst)
 }
 
+// Clip 剪出 wav 的 [t0, t1)（t1 為 nil 代表到結尾），格式不變（局部重對時只把那一段人聲交給 AI）。
+func (t Tools) Clip(ctx context.Context, src, dst string, t0 float64, t1 *float64) error {
+	args := []string{"-y", "-v", "error", "-ss", strconv.FormatFloat(t0, 'f', 3, 64)}
+	if t1 != nil {
+		args = append(args, "-t", strconv.FormatFloat(*t1-t0, 'f', 3, 64))
+	}
+	args = append(args, "-i", src, "-c:a", "pcm_s16le", "-map_metadata", "-1", "-fflags", "+bitexact", "-flags:a", "+bitexact", dst)
+	_, err := t.run(ctx, t.FFmpeg, args...)
+	return err
+}
+
 // EncodeFLAC 把 wav 存成 FLAC（人聲）。
 func (t Tools) EncodeFLAC(ctx context.Context, src, dst string) error {
 	_, err := t.run(ctx, t.FFmpeg, "-y", "-v", "error", "-i", src, "-map", "0:a:0", "-c:a", "flac", dst)

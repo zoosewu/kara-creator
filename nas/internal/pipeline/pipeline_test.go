@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -19,6 +20,7 @@ import (
 	"github.com/zoosewu/kara-creator/nas/internal/scheduler"
 	"github.com/zoosewu/kara-creator/nas/internal/song"
 	"github.com/zoosewu/kara-creator/nas/internal/store"
+	"github.com/zoosewu/kara-creator/nas/internal/timing"
 	wp "github.com/zoosewu/kara-creator/nas/internal/workerproto"
 )
 
@@ -216,12 +218,12 @@ func TestKaraokeFlow(t *testing.T) {
 	}
 	e.karaoke("render,qa")
 
-	// 改歌詞文字：整首重新對時
+	// 改歌詞文字：只重對改過的那一句（其他句子不動，見 TestPartialRealign）
 	e.writeLyrics("[女] 自己編的第一句改了\n[女] 第二句\n")
 	if err := e.p.Retime(ctx, "abc", 0, "line", e.run()); err == nil || !strings.Contains(err.Error(), "歌詞改過") {
 		t.Fatalf("歌詞改過不能 AI 重對：%v", err)
 	}
-	e.karaoke("align,render,qa")
+	e.karaoke("align_line,render,qa")
 
 	// 單獨檢查：沒變就略過，force 才重做
 	if err := e.p.Check(ctx, "abc", false, e.run()); err != nil || e.ai.take() != "" {
@@ -281,5 +283,101 @@ func TestCancelled(t *testing.T) {
 	}
 	if r := e.status(); r.Status.Separate != planner.Pending {
 		t.Fatal("取消時不該留下紀錄")
+	}
+}
+
+func TestPartialRealign(t *testing.T) {
+	e := newEnv(t)
+	alignment := func() *timing.Alignment {
+		t.Helper()
+		al, err := planner.ReadAlignment(e.st, "abc")
+		if err != nil || al == nil {
+			t.Fatal(err)
+		}
+		return al
+	}
+	e.writeLyrics("第一句\n第二句\n第三句\n")
+	e.karaoke("separate,align,render,qa")
+	if al := alignment(); len(al.LineLyrics) != 3 {
+		t.Fatalf("對時要記下逐句的歌詞：%+v", al.LineLyrics)
+	}
+
+	// 手動把第三句往前移 0.05 秒
+	al := alignment()
+	if _, err := al.Shift(2, -0.05, false, "t"); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.p.writeAlignment("abc", al); err != nil {
+		t.Fatal(err)
+	}
+	e.karaoke("render,qa")
+	before := alignment()
+
+	// 改第三句的字：只重對這句，保留手動調的開頭；第一、二句完全不動
+	e.writeLyrics("第一句\n第二句\n第三句改了\n")
+	if r := e.status(); r.Status.Karaoke != planner.NeedsAlign || r.AlignPatch == nil || r.AlignPatch.Realign() != 1 {
+		t.Fatalf("%+v %+v", r.Status, r.AlignPatch)
+	}
+	e.karaoke("align_line,render,qa")
+	after := alignment()
+	if !reflect.DeepEqual(after.Lines[:2], before.Lines[:2]) || after.Lines[2].Start != before.Lines[2].Start || after.Run != before.Run {
+		t.Fatalf("沒改的句子不動、手動調過的保留開頭：\n%+v\n%+v", before.Lines, after.Lines)
+	}
+	if timing.LineText(after.Lines[2]) != "第三句改了" {
+		t.Fatalf("%+v", after.Lines[2])
+	}
+
+	// 連續改兩句：把那一段人聲剪出來一起對，時間加回去；第三句不動
+	before = after
+	e.writeLyrics("第一句改\n第二句改\n第三句改了\n")
+	e.karaoke("align,render,qa")
+	after = alignment()
+	var spec scheduler.Spec
+	for _, s := range e.ai.specs {
+		if s.Kind == wp.KindAlign {
+			spec = s
+		}
+	}
+	if texts := spec.Params.(wp.AlignParams).Texts; len(texts) != 2 {
+		t.Fatalf("只送改過的兩句：%v", texts)
+	}
+	if !reflect.DeepEqual(after.Lines[2], before.Lines[2]) || after.Lines[1].End > before.Lines[2].Start || after.Lines[0].Start < 0 {
+		t.Fatalf("範圍在第三句之前：%+v", after.Lines)
+	}
+
+	// 拿掉一句：不需要 AI
+	e.writeLyrics("第一句改\n第三句改了\n")
+	e.karaoke("render,qa")
+	if after := alignment(); len(after.Lines) != 2 || !reflect.DeepEqual(after.Lines[1], before.Lines[2]) {
+		t.Fatalf("%+v", after.Lines)
+	}
+
+	// 新增一句（前後句之間有空檔）：只對新的這句
+	before = alignment()
+	e.writeLyrics("第一句改\n新的一句\n第三句改了\n")
+	e.karaoke("align_line,render,qa")
+	after = alignment()
+	if len(after.Lines) != 3 || !reflect.DeepEqual(after.Lines[0], before.Lines[0]) || !reflect.DeepEqual(after.Lines[2], before.Lines[1]) {
+		t.Fatalf("%+v", after.Lines)
+	}
+
+	// 新增一句但前後句之間沒有空檔：整首重新對時
+	al = alignment()
+	gap := &al.Lines[0]
+	gap.End = al.Lines[1].Start - 0.05
+	gap.Words[len(gap.Words)-1].End = gap.End
+	if err := e.p.writeAlignment("abc", al); err != nil {
+		t.Fatal(err)
+	}
+	e.writeLyrics("第一句改\n又一句\n新的一句\n第三句改了\n")
+	e.karaoke("align,render,qa")
+	if al := alignment(); len(al.Lines) != 4 || al.Run == before.Run {
+		t.Fatalf("%+v", al)
+	}
+	e.mu.Lock()
+	log := strings.Join(e.l, "\n")
+	e.mu.Unlock()
+	if !strings.Contains(log, "沒有空檔，改成整首重新對時") {
+		t.Fatal(log)
 	}
 }

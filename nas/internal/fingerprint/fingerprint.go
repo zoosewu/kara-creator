@@ -59,6 +59,19 @@ func Lyrics(texts []string, rubies [][]lyrics.Ruby) string {
 	return sum(strings.Join(parts, "\x1e"))
 }
 
+// LineLyrics 是每一句各自的歌詞指紋（改歌詞時逐句比對，只重對改到的句子）。
+func LineLyrics(texts []string, rubies [][]lyrics.Ruby) []string {
+	out := make([]string, len(texts))
+	for i, text := range texts {
+		var rs [][]lyrics.Ruby
+		if i < len(rubies) {
+			rs = [][]lyrics.Ruby{rubies[i]}
+		}
+		out[i] = Lyrics([]string{text}, rs)
+	}
+	return out
+}
+
 // Alignment 是對時內容指紋：每句與每個字的時間（毫秒）與字。
 func Alignment(lines []workerproto.Line) string {
 	parts := make([]string, len(lines))

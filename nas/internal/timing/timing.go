@@ -17,9 +17,10 @@ import (
 
 // Alignment 是 alignment.json 的內容。
 type Alignment struct {
-	Key         string       `json:"key"`      // 對時指紋（fingerprint.Align）；變了就整首重新對時
-	Lyrics      string       `json:"lyrics"`   // 對時當下的歌詞指紋：AI 重對前確認歌詞沒改過
-	Language    string       `json:"language"` // 對時當下的語言、方法（versions.align）、模型：資料備份還原時用
+	Key         string       `json:"key"`                   // 對時指紋（fingerprint.Align）；變了就整首重新對時
+	Lyrics      string       `json:"lyrics"`                // 對時當下的歌詞指紋：AI 重對前確認歌詞沒改過
+	LineLyrics  []string     `json:"line_lyrics,omitempty"` // 對時當下每句歌詞的指紋：改歌詞時逐句比對，只重對改到的句子
+	Language    string       `json:"language"`              // 對時當下的語言、方法（versions.align）、模型：資料備份還原時用
 	Method      int          `json:"method"`
 	Model       string       `json:"model"`
 	Run         string       `json:"run"` // 這次整首對時的編號：整首重新對時才會換（手動調整、AI 重對某幾句不換），「已確認」綁它
@@ -245,6 +246,7 @@ func (a *Alignment) Clone() *Alignment {
 		c.Lines[i] = ln
 	}
 	c.Adjustments = append([]Adjustment(nil), a.Adjustments...)
+	c.LineLyrics = append([]string(nil), a.LineLyrics...)
 	if a.Restored != nil {
 		r := *a.Restored
 		c.Restored = &r

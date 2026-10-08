@@ -41,7 +41,11 @@
       case 'needs_render':
         return { cls: 'needs_render', text: '伴唱帶需重燒', tip: '只需重新燒錄（不重新對時）；已確認不受影響' }
       case 'needs_align':
-        return { cls: 'needs_align', text: '伴唱帶需重新對時', tip: '歌詞、人聲、語言或對時方法有變動，會整首重新對時；已確認會失效' }
+        if (song.align_patch)
+          return song.align_patch.realign
+            ? { cls: 'needs_align', text: `伴唱帶需重對 ${song.align_patch.realign} 句`, tip: '歌詞改了：只重對改過的句子，其他句子的時間（含手動調整）不動；手動調過的句子保留開頭。已確認會失效' }
+            : { cls: 'needs_align', text: '伴唱帶需更新', tip: '拿掉了句子：不必重新對時，其他句子的時間不動。已確認會失效' }
+        return { cls: 'needs_align', text: '伴唱帶需重新對時', tip: '人聲、語言或對時方法有變動，會整首重新對時（手動調整的時間會被取代）；已確認會失效' }
       case 'missing':
         return k === 'download'
           ? { cls: 'missing', text: '來源不見了', tip: '來源檔不見了，請重新下載或放回 inbox' }
@@ -81,7 +85,7 @@
   })
 
   let karaokeLabel = $derived(
-    karaoke === 'needs_render' ? '重新燒錄' : karaoke === 'needs_align' ? '重新對時並更新' : '製作伴唱帶',
+    karaoke === 'needs_render' ? '重新燒錄' : karaoke === 'needs_align' ? (song.align_patch ? '更新伴唱帶' : '重新對時並更新') : '製作伴唱帶',
   )
 
   const EXPORT_CHIP: Record<string, { text: string; tip: string }> = {

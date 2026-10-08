@@ -82,6 +82,26 @@
         ],
         "type": "object"
       },
+      "AlignPatch": {
+        "additionalProperties": false,
+        "properties": {
+          "realign": {
+            "description": "要重對的句子數",
+            "format": "int64",
+            "type": "integer"
+          },
+          "removed": {
+            "description": "拿掉的句子數",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "realign",
+          "removed"
+        ],
+        "type": "object"
+      },
       "Approval": {
         "additionalProperties": false,
         "properties": {
@@ -1418,6 +1438,10 @@
             "readOnly": true,
             "type": "string"
           },
+          "align_patch": {
+            "$ref": "#/components/schemas/AlignPatch",
+            "description": "改了歌詞、只需重對改到的句子時（其他句子的時間含手動調整都不動）：要重對幾句、拿掉幾句；整首重新對時或不需要對時時為 null"
+          },
           "approval": {
             "$ref": "#/components/schemas/ApprovalView"
           },
@@ -1519,6 +1543,7 @@
           "font",
           "job",
           "approval",
+          "align_patch",
           "export",
           "exported",
           "media",
@@ -2921,7 +2946,7 @@
     },
     "/api/v1/songs/{id}/lines/{n}": {
       "patch": {
-        "description": "立刻存檔。改了文字要重新對時。",
+        "description": "立刻存檔。改了文字之後，製作伴唱帶時只重對這一句（手動調過的保留開頭）。",
         "operationId": "edit-line",
         "parameters": [
           {
@@ -3029,7 +3054,7 @@
         ]
       },
       "put": {
-        "description": "改了歌詞文字或讀音，製作伴唱帶時會整首重新對時。",
+        "description": "改了歌詞文字或讀音：製作伴唱帶時只重對改過的句子，其他句子的時間（含手動調整）不動；人聲、語言或對時方法也改了時才整首重新對時。",
         "operationId": "put-lyrics",
         "parameters": [
           {

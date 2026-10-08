@@ -155,6 +155,7 @@ func (a *App) WorkerHandler() http.Handler { return a.Sched.Handler() }
 
 // Run 開始執行：排程器、工作佇列、手動放入、檔案監看、yt-dlp 更新。ctx 結束時停止。
 func (a *App) Run(ctx context.Context) {
+	a.backfillLineLyrics()
 	go a.Sched.Run(ctx)
 	a.Jobs.Start()
 	go func() {
@@ -169,6 +170,28 @@ func (a *App) Run(ctx context.Context) {
 	}()
 	go a.watchSongs(ctx)
 	go a.updater(ctx)
+}
+
+// backfillLineLyrics 替還沒有逐句歌詞紀錄（line_lyrics）的對時補上：目前的歌詞和對時當下相同時，
+// 每句的指紋就是目前歌詞的。之後改歌詞才能只重對改到的句子。在檔案監看開始之前做。
+func (a *App) backfillLineLyrics() {
+	n := 0
+	for _, id := range a.Store.SongIDs() {
+		in, r, err := a.Evaluate(id)
+		al := in.Alignment
+		if err != nil || al == nil || len(al.LineLyrics) > 0 || al.Lyrics != r.LyricsFP || len(al.Lines) != len(r.LineLyrics) {
+			continue
+		}
+		al.LineLyrics = r.LineLyrics
+		if err := writeJSON(a.Store.SongPath(id, song.FileAlignment), al); err != nil {
+			log.Printf("補上逐句的歌詞紀錄失敗（%s）：%v", id, err)
+			continue
+		}
+		n++
+	}
+	if n > 0 {
+		log.Printf("補上逐句的歌詞紀錄：%d 首（之後改歌詞只重對改到的句子）", n)
+	}
 }
 
 // Shutdown 關閉：處理中的工作停下（下次啟動繼續），存檔。

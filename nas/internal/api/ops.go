@@ -191,7 +191,7 @@ func register(api huma.API, a *app.App) {
 			return &body[app.LyricsViews]{v}, nil
 		})
 
-	huma.Register(api, op("put-lyrics", http.MethodPut, "/songs/{id}/lyrics", "儲存歌詞", "改了歌詞文字或讀音，製作伴唱帶時會整首重新對時。", tLyrics),
+	huma.Register(api, op("put-lyrics", http.MethodPut, "/songs/{id}/lyrics", "儲存歌詞", "改了歌詞文字或讀音：製作伴唱帶時只重對改過的句子，其他句子的時間（含手動調整）不動；人聲、語言或對時方法也改了時才整首重新對時。", tLyrics),
 		func(ctx context.Context, in *lyricsPut) (*body[app.LyricsViews], error) {
 			v, err := a.SaveLyrics(in.ID, in.Body.Text)
 			if err != nil {
@@ -232,7 +232,7 @@ func register(api huma.API, a *app.App) {
 		})
 
 	huma.Register(api, op("edit-line", http.MethodPatch, "/songs/{id}/lines/{n}", "改一句的文字或演唱者",
-		"立刻存檔。改了文字要重新對時。", tLyrics),
+		"立刻存檔。改了文字之後，製作伴唱帶時只重對這一句（手動調過的保留開頭）。", tLyrics),
 		func(ctx context.Context, in *lineIn) (*body[app.LyricsViews], error) {
 			v, err := a.EditLine(in.ID, in.N, in.Body)
 			if err != nil {

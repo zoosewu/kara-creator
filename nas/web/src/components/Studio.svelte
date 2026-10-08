@@ -523,7 +523,11 @@
         {#if lyricIdx.length && !timing.length}
           <div class="studio-warn">還沒有對時結果：製作伴唱帶之後才有每句的時間與字幕預覽，現在可以先邊聽邊修改歌詞。</div>
         {:else if lyricIdx.length && (mismatch || textChanged)}
-          <div class="studio-warn">歌詞文字和目前的對時結果不同：按「更新伴唱帶」會重新對時（約一分鐘），這裡手動調整的時間會被取代。建議先改完文字並更新伴唱帶，再回來調時間。</div>
+          <div class="studio-warn">
+            {song.align_patch
+              ? `歌詞文字和目前的對時結果不同：按「更新伴唱帶」只重對改過的 ${song.align_patch.realign} 句，其他句子的時間（含手動調整）不動。`
+              : '歌詞文字和目前的對時結果不同：按「更新伴唱帶」會整首重新對時（約一分鐘），這裡手動調整的時間會被取代。建議先改完文字並更新伴唱帶，再回來調時間。'}
+          </div>
         {/if}
         {#if qaIndexes.length}
           {@const wrong = qaIndexes.filter((i) => qa.get(i)!.status === 'wrong').length}

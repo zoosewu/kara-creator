@@ -37,6 +37,7 @@ type SongView struct {
 	Font         *FontView      `json:"font" doc:"成品用的字型（播放畫面的即時字幕用同一個字型預覽）；找不到字型時為 null"`
 	Job          *jobs.Summary  `json:"job" doc:"還沒結束的工作（沒有時為 null）"`
 	Approval     ApprovalView   `json:"approval"`
+	AlignPatch   *AlignPatch    `json:"align_patch" doc:"改了歌詞、只需重對改到的句子時（其他句子的時間含手動調整都不動）：要重對幾句、拿掉幾句；整首重新對時或不需要對時時為 null"`
 	Export       string         `json:"export" doc:"在匯出資料夾裡的相對路徑（不論伴唱帶做好了沒）"`
 	Exported     string         `json:"exported" enum:"exported,pending,remove," doc:"exported = 已匯出最新的成品；pending = 已確認但還沒匯出（或成品更新了、改了名、原曲音訊的設定改了）；remove = 取消確認了，下次匯出會從匯出資料夾拿掉；空字串 = 沒確認，不匯出"`
 	Media        []MediaView    `json:"media" doc:"可以播放的版本，第一個是預設（最終成品優先）"`
@@ -54,6 +55,12 @@ type FontView struct {
 	ID     string `json:"id" doc:"字型 id（sha256:index）"`
 	Family string `json:"family"`
 	URL    string `json:"url" doc:"字型檔（@font-face 用）"`
+}
+
+// AlignPatch 是改了歌詞之後的局部重對。
+type AlignPatch struct {
+	Realign int `json:"realign" doc:"要重對的句子數"`
+	Removed int `json:"removed" doc:"拿掉的句子數"`
 }
 
 // ApprovalView 是「已確認」的詳細狀態。
@@ -217,6 +224,9 @@ func (a *App) compute(id string) (*SongView, error) {
 	v := &SongView{ID: id, Title: r.Title, Artist: r.Artist, Guess: r.Guess, Info: sg.Info, Language: r.Language,
 		Status: r.Status, Path: a.Store.SongPath(id), Media: []MediaView{}}
 	v.Approval = ApprovalView{Status: r.Status.Approval, Count: len(sg.Info.History), Changed: r.ChangedSinceApproval}
+	if r.AlignPatch != nil && r.Status.Karaoke == planner.NeedsAlign {
+		v.AlignPatch = &AlignPatch{Realign: r.AlignPatch.Realign(), Removed: r.AlignPatch.Removed}
+	}
 	if r.LastApproval != nil {
 		v.Approval.At = r.LastApproval.At
 	}

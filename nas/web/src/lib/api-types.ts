@@ -306,7 +306,7 @@ export interface paths {
         head?: never;
         /**
          * 改一句的文字或演唱者
-         * @description 立刻存檔。改了文字要重新對時。
+         * @description 立刻存檔。改了文字之後，製作伴唱帶時只重對這一句（手動調過的保留開頭）。
          */
         patch: operations["edit-line"];
         trace?: never;
@@ -325,7 +325,7 @@ export interface paths {
         get: operations["get-lyrics"];
         /**
          * 儲存歌詞
-         * @description 改了歌詞文字或讀音，製作伴唱帶時會整首重新對時。
+         * @description 改了歌詞文字或讀音：製作伴唱帶時只重對改過的句子，其他句子的時間（含手動調整）不動；人聲、語言或對時方法也改了時才整首重新對時。
          */
         put: operations["put-lyrics"];
         post?: never;
@@ -509,6 +509,18 @@ export interface components {
             pushed?: number[];
             retime?: string;
             text: string;
+        };
+        AlignPatch: {
+            /**
+             * Format: int64
+             * @description 要重對的句子數
+             */
+            realign: number;
+            /**
+             * Format: int64
+             * @description 拿掉的句子數
+             */
+            removed: number;
         };
         Approval: {
             at: string;
@@ -1024,6 +1036,8 @@ export interface components {
              * @example https://example.com/api/v1/schemas/SongView.json
              */
             readonly $schema?: string;
+            /** @description 改了歌詞、只需重對改到的句子時（其他句子的時間含手動調整都不動）：要重對幾句、拿掉幾句；整首重新對時或不需要對時時為 null */
+            align_patch: components["schemas"]["AlignPatch"];
             approval: components["schemas"]["ApprovalView"];
             /** @description 實際使用的演唱者 */
             artist: string;

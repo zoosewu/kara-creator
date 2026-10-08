@@ -328,7 +328,7 @@ func (p *Pipeline) Karaoke(ctx context.Context, id string, opt KaraokeOptions, r
 	switch {
 	case r.RestoredUsable && !opt.Realign && !opt.Force:
 		al := in.Alignment.Clone()
-		al.Key, al.Lyrics, al.Restored = r.AlignFP, r.LyricsFP, nil
+		al.Key, al.Lyrics, al.LineLyrics, al.Restored = r.AlignFP, r.LyricsFP, r.LineLyrics, nil
 		al.Language, al.Method, al.Model = r.Language, p.d.Versions.Align, planner.WhisperModel
 		if al.Run == "" {
 			al.Run = newRun() // 從資料備份還原的對時：沿用備份裡的編號（確認狀態才能延續）
@@ -340,6 +340,16 @@ func (p *Pipeline) Karaoke(ctx context.Context, id string, opt KaraokeOptions, r
 			return err
 		}
 		run.log("  . 沿用資料備份裡的對時（不重新對時）")
+		changed = true
+	case r.AlignPatch != nil && !opt.Realign && !opt.Force:
+		err := p.patchAlign(ctx, id, in, r, run)
+		if errors.Is(err, timing.ErrNoRoom) {
+			run.log("  . 新的句子%s，改成整首重新對時", err)
+			err = p.align(ctx, id, in, r, run)
+		}
+		if err != nil {
+			return err
+		}
 		changed = true
 	case !r.AlignOK || opt.Realign || opt.Force:
 		if err := p.align(ctx, id, in, r, run); err != nil {
@@ -424,11 +434,123 @@ func (p *Pipeline) align(ctx context.Context, id string, in planner.Input, r pla
 	if err := json.Unmarshal(res.Raw, &out); err != nil {
 		return fmt.Errorf("AI 回傳的對時結果讀不懂：%w", err)
 	}
-	if err := p.writeAlignment(id, &timing.Alignment{Key: r.AlignFP, Lyrics: r.LyricsFP, Language: r.Language,
-		Method: p.d.Versions.Align, Model: planner.WhisperModel, Run: newRun(), Lines: out.Lines}); err != nil {
+	if err := p.writeAlignment(id, &timing.Alignment{Key: r.AlignFP, Lyrics: r.LyricsFP, LineLyrics: r.LineLyrics,
+		Language: r.Language, Method: p.d.Versions.Align, Model: planner.WhisperModel, Run: newRun(), Lines: out.Lines}); err != nil {
 		return err
 	}
 	return p.recordAlign(id, r.AlignFP, res.Worker)
+}
+
+// patchAlign 是改了歌詞之後的局部重對（timing.Patch）：只重對改到的句子，其他句子的時間（含手動調整）不動。
+// 一句用 align_line；連續好幾句時把那一段人聲剪出來用 align，時間再加回去。前後句之間沒有空檔時回傳 timing.ErrNoRoom。
+func (p *Pipeline) patchAlign(ctx context.Context, id string, in planner.Input, r planner.Result, run Run) error {
+	patch := r.AlignPatch
+	type window struct {
+		t0 float64
+		t1 *float64
+	}
+	windows := make([]window, len(patch.Gaps))
+	for i, g := range patch.Gaps { // 先確定每一段都放得下，再交給 AI
+		t0, t1, err := patch.Window(g)
+		if err != nil {
+			return err
+		}
+		windows[i] = window{t0, t1}
+	}
+	removed := ""
+	if patch.Removed > 0 {
+		removed = fmt.Sprintf("、拿掉 %d 句", patch.Removed)
+	}
+	run.log("  . 歌詞改了：只重對改到的 %d 句%s，其他句子的時間（含手動調整）不動", patch.Realign(), removed)
+	texts, rubies := lyricsParams(in.Lyrics)
+	proto := toProto(rubies)
+	worker := "（只拿掉句子）"
+	var speech scheduler.Input
+	if len(patch.Gaps) > 0 {
+		var err error
+		if speech, err = p.speechWav(ctx, id, in.Song.Stages.Separate.Vocals); err != nil {
+			return err
+		}
+	}
+	for i, g := range patch.Gaps {
+		w := windows[i]
+		end := "結尾"
+		if w.t1 != nil {
+			end = fmt.Sprintf("%.2fs", *w.t1)
+		}
+		pinned := ""
+		if len(g.Pins) > 0 {
+			pinned = "，手動調過的句子保留開頭"
+		}
+		which := fmt.Sprintf("第 %d 句", g.From+1)
+		if g.To-g.From > 1 {
+			which = fmt.Sprintf("第 %d–%d 句", g.From+1, g.To)
+		}
+		run.log("  . 重對%s（%.2fs–%s%s）", which, w.t0, end, pinned)
+		var lines []wp.Line
+		if g.To-g.From == 1 {
+			res, err := p.d.AI.Submit(ctx, run.spec(scheduler.Spec{Kind: wp.KindAlignLine, Song: id,
+				Inputs: map[string]scheduler.Input{wp.InputAudio: speech},
+				Params: wp.AlignLineParams{Text: texts[g.From], Rubies: proto[g.From], T0: w.t0, T1: w.t1, Language: r.Language}}))
+			if err != nil {
+				return err
+			}
+			var out wp.AlignLineResult
+			err = json.Unmarshal(res.Raw, &out)
+			res.Cleanup()
+			if err != nil {
+				return fmt.Errorf("AI 回傳的對時結果讀不懂：%w", err)
+			}
+			lines, worker = []wp.Line{out.Line}, res.Worker
+		} else {
+			clip, err := p.clipWav(ctx, speech, w.t0, w.t1)
+			if err != nil {
+				return err
+			}
+			res, err := p.d.AI.Submit(ctx, run.spec(scheduler.Spec{Kind: wp.KindAlign, Song: id,
+				Inputs: map[string]scheduler.Input{wp.InputAudio: clip},
+				Params: wp.AlignParams{Texts: texts[g.From:g.To], Rubies: proto[g.From:g.To], Language: r.Language,
+					Model: planner.WhisperModel}}))
+			_ = os.Remove(clip.Path)
+			if err != nil {
+				return err
+			}
+			var out wp.AlignResult
+			err = json.Unmarshal(res.Raw, &out)
+			res.Cleanup()
+			if err != nil {
+				return fmt.Errorf("AI 回傳的對時結果讀不懂：%w", err)
+			}
+			timing.Offset(out.Lines, w.t0)
+			lines, worker = out.Lines, res.Worker
+		}
+		if err := patch.Fill(g, lines); err != nil {
+			return err
+		}
+	}
+	al := in.Alignment.Clone()
+	if err := al.Apply(patch, r.AlignFP, r.LyricsFP, r.LineLyrics, p.now()); err != nil {
+		return err
+	}
+	if err := p.writeAlignment(id, al); err != nil {
+		return err
+	}
+	return p.recordAlign(id, r.AlignFP, worker)
+}
+
+// clipWav 剪出人聲的一段，交給 AI（用完就刪）。
+func (p *Pipeline) clipWav(ctx context.Context, speech scheduler.Input, t0 float64, t1 *float64) (scheduler.Input, error) {
+	release, err := p.local(ctx)
+	if err != nil {
+		return scheduler.Input{}, err
+	}
+	defer release()
+	path := p.workFile(fmt.Sprintf("clip-%s-%d.wav", speech.SHA256[:16], time.Now().UnixNano()))
+	if err := p.d.Media.Clip(ctx, speech.Path, path, t0, t1); err != nil {
+		_ = os.Remove(path)
+		return scheduler.Input{}, err
+	}
+	return inputOf(path)
 }
 
 // newRun 產生整首對時的編號。
@@ -694,6 +816,7 @@ func (p *Pipeline) Retime(ctx context.Context, id string, line int, mode string,
 	inputs := map[string]scheduler.Input{wp.InputAudio: speech}
 	proto := toProto(rubies)
 	next := al.Clone()
+	next.LineLyrics = r.LineLyrics
 	if mode == timing.RetimeFrom {
 		res, err := p.d.AI.Submit(ctx, run.spec(scheduler.Spec{Kind: wp.KindAlignFrom, Song: id, Inputs: inputs,
 			Params: wp.AlignFromParams{AlignParams: wp.AlignParams{Texts: texts, Rubies: proto, Language: r.Language,

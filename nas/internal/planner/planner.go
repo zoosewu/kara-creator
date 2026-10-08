@@ -117,6 +117,11 @@ type Result struct {
 
 	// RestoredUsable：alignment.json 是從資料備份還原的，歌詞、語言、方法都相同，可以直接沿用（不重新對時）。
 	RestoredUsable bool
+	// LineLyrics：目前歌詞每一句的指紋。
+	LineLyrics []string
+	// AlignPatch：對時之後只改了歌詞（人聲、語言、方法、模型都沒變）而且有逐句的歌詞紀錄時，只重對改到的句子的計畫；
+	// 其他情況是 nil（要重新對時就整首重對）。
+	AlignPatch *timing.Patch
 }
 
 // Evaluate 判斷狀態與指紋。
@@ -182,6 +187,13 @@ func Evaluate(in Input) Result {
 	r.AlignOK = al != nil && r.AlignFP != "" && al.Key == r.AlignFP && sg.Stages.Align != nil && sg.Stages.Align.Key == r.AlignFP
 	r.RestoredUsable = al != nil && al.Restored != nil && al.Restored.Lyrics == r.LyricsFP &&
 		al.Restored.Language == r.Language && al.Restored.Method == in.Versions.Align
+	r.LineLyrics = fingerprint.LineLyrics(texts, rubies)
+	if !r.AlignOK && al != nil && al.Restored == nil && r.AlignFP != "" && sg.Stages.Align != nil && sg.Stages.Align.Key == al.Key &&
+		al.Key == fingerprint.Align(al.Lyrics, sep.Vocals.SHA256, WhisperModel, r.Language, in.Versions.Align) {
+		if patch, err := al.PlanPatch(r.LineLyrics); err == nil {
+			r.AlignPatch = patch
+		}
+	}
 
 	// 成品的內容（演唱者、翻譯要和對時的句數相同才能一句一句對上）
 	lineCount := -1
