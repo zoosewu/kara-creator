@@ -112,7 +112,11 @@ class Worker:
 
     def hello(self) -> None:
         kinds = [k for ch in self.channels for k in (HEAVY if ch == "heavy" else INTERACTIVE)]
-        body = {"name": self.name, "instance": self.instance, "versions": versions(), "hardware": self.hardware(),
+        hardware = self.hardware()
+        if "heavy" in self.channels and "gpu" not in hardware:
+            print("[!] 偵測不到 CUDA 顯示卡：去人聲、對時會用 CPU，非常慢。Windows 直接執行請重新執行 setup.ps1"
+                  "（會檢查並重裝 CUDA 版的 PyTorch）；container 請確認有 --gpus all", flush=True)
+        body = {"name": self.name, "instance": self.instance, "versions": versions(), "hardware": hardware,
                 "kinds": kinds, "channels": self.channels, "cached": self.cached()}
         while not self.stopping.is_set():
             try:

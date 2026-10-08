@@ -36,15 +36,45 @@ if (Test-Path (Join-Path $ffmpegBin "ffmpeg.exe")) {
 
 # ---- Python 環境（.venv）：PyTorch CUDA 版 + kara-worker（editable，git pull 後直接生效）------
 $python = Join-Path $root ".venv\Scripts\python.exe"
+$pip = @("-m", "pip", "install", "--no-warn-script-location")
 if (-not (Test-Path $python)) {
     Write-Host "建立 Python $PythonVersion 環境"
     py "-$PythonVersion" -m venv (Join-Path $root ".venv")
-    & $python -m pip install --no-warn-script-location --upgrade pip
-    & $python -m pip install --no-warn-script-location torch==2.11.0 torchaudio==2.11.0 --index-url "https://download.pytorch.org/whl/$Cuda"
+    & $python @pip --upgrade pip
+    if ($LASTEXITCODE -ne 0) { throw "更新 pip 失敗" }
 }
+
+# 跑一段 Python，回傳 (成功與否, 輸出)。外部程式寫到 stderr 時，Windows PowerShell 5 在 Stop 模式會當成例外，所以暫時放寬
+function Invoke-Py([string]$code) {
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    $out = & $python -c $code 2>&1 | Out-String
+    $ok = $LASTEXITCODE -eq 0
+    $ErrorActionPreference = $prev
+    return @($ok, $out.Trim())
+}
+
+# PyTorch 一定要是 CUDA 版、而且 torchaudio 載入得了：每次都檢查。上次安裝中斷，或被其他套件換成 PyPI 的 CPU 版時重裝
+$check = Invoke-Py "import torch, torchaudio; print(torch.version.cuda or '')"
+if (-not $check[0] -or -not $check[1]) {
+    Write-Host "安裝 PyTorch（CUDA 版：$Cuda）"
+    & $python @pip --force-reinstall torch==2.11.0 torchaudio==2.11.0 --index-url "https://download.pytorch.org/whl/$Cuda"
+    if ($LASTEXITCODE -ne 0) { throw "安裝 PyTorch 失敗" }
+}
+
 Write-Host "安裝 kara-worker 與相依套件"
-& $python -m pip install --no-warn-script-location -e $root -c (Join-Path $root "constraints.txt")
+& $python @pip -e $root -c (Join-Path $root "constraints.txt")
 if ($LASTEXITCODE -ne 0) { throw "安裝失敗" }
+
+# 最後確認：PyTorch 是 CUDA 版、torchaudio 載入得了、看得到顯示卡
+$check = Invoke-Py @"
+import torch, torchaudio
+assert torch.version.cuda, 'PyTorch 不是 CUDA 版'
+gpu = torch.cuda.get_device_name(0) if torch.cuda.is_available() else '偵測不到顯示卡（請確認 NVIDIA 驅動支援 CUDA 13）'
+print(f'PyTorch {torch.__version__}、torchaudio {torchaudio.__version__}：{gpu}')
+"@
+if (-not $check[0]) { throw "PyTorch 或 torchaudio 載入失敗：$($check[1])" }
+Write-Host $check[1]
 
 Write-Host ""
 Write-Host "完成。啟動：.\worker.ps1 --nas http://NAS的位址:8765 --name 這台的名稱 [--token 密碼]"
