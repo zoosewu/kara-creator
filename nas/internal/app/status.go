@@ -52,9 +52,10 @@ type LyricsMeta struct {
 
 // FontView 是成品用的字型。
 type FontView struct {
-	ID     string `json:"id" doc:"字型 id（sha256:index）"`
-	Family string `json:"family"`
-	URL    string `json:"url" doc:"字型檔（@font-face 用）"`
+	ID     string  `json:"id" doc:"字型 id（sha256:index）"`
+	Family string  `json:"family"`
+	URL    string  `json:"url" doc:"字型檔（@font-face 用）"`
+	Scale  float64 `json:"scale" doc:"libass 畫這個字型時的縮放（網頁預覽的字級 = 字幕字級 × scale，大小才和燒出來的一樣）；讀不到時為 0"`
 }
 
 // AlignPatch 是改了歌詞之後的局部重對。
@@ -248,6 +249,9 @@ func (a *App) compute(id string) (*SongView, error) {
 	}
 	if r.FontOK {
 		v.Font = &FontView{ID: r.FontID(), Family: r.Font.Family, URL: "/fonts/" + r.Font.SHA256}
+		if f, ok := a.Fonts.Get(r.FontID()); ok {
+			v.Font.Scale = f.Scale
+		}
 	}
 	// 可以播放的版本，依重要性排序（最終成品優先）
 	add := func(kind, file string) {

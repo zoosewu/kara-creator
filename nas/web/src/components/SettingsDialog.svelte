@@ -32,7 +32,8 @@
   let made = $derived([...store.songs.values()].filter((s) => s.status.karaoke === 'done').length)
   let changed = $derived(Math.abs(scale / 100 - (store.settings.subtitle_scale ?? 1)) > 0.001)
   let fontChanged = $derived(LANGS.some(([l]) => (chosen[l] ?? '') !== (store.settings.fonts?.[l] ?? '')))
-  let fs = $derived(boxHeight * BASE_RATIO * (scale / 100))
+  // 預覽的字級和燒出來的一樣：ASS 的字級是字型「上緣到下緣」的高度，字本身要乘上字型的 libass 縮放
+  let fs = $derived(boxHeight * BASE_RATIO * (scale / 100) * (fontOf('ja')?.scale || 0.69))
 
   function fontOf(lang: string): Font | undefined {
     const id = chosen[lang]

@@ -31,6 +31,10 @@ type Font struct {
 	FullName string `json:"full_name"`
 	Weight   int    `json:"weight"` // 400 = 一般、700 = 粗體
 	Default  bool   `json:"default"`
+	// Scale 是 libass 畫這個字型時的縮放：ASS 的字級是「winAscent + winDescent」的高度，
+	// 實際的 em 大小 = 字級 × unitsPerEm / (winAscent + winDescent)（和 worker 量字寬的 _libass_scale 相同）。
+	// 網頁預覽字幕時乘上它，大小才和燒出來的一樣；讀不到時為 0。
+	Scale float64 `json:"scale"`
 }
 
 // Proto 轉成 worker 協定用的字型。
@@ -230,6 +234,12 @@ func readFace(data []byte, off int) (Font, error) {
 	}
 	if os2 := tables["OS/2"]; len(os2) >= 6 {
 		f.Weight = int(binary.BigEndian.Uint16(os2[4:]))
+	}
+	if head, os2 := tables["head"], tables["OS/2"]; len(head) >= 20 && len(os2) >= 78 {
+		upem := float64(binary.BigEndian.Uint16(head[18:]))
+		if h := float64(binary.BigEndian.Uint16(os2[74:])) + float64(binary.BigEndian.Uint16(os2[76:])); h > 0 {
+			f.Scale = upem / h
+		}
 	}
 	return f, nil
 }

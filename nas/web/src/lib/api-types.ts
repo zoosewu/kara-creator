@@ -706,6 +706,8 @@ export interface components {
             id: string;
             /** Format: int64 */
             index: number;
+            /** Format: double */
+            scale: number;
             sha256: string;
             /** Format: int64 */
             weight: number;
@@ -714,6 +716,11 @@ export interface components {
             family: string;
             /** @description 字型 id（sha256:index） */
             id: string;
+            /**
+             * Format: double
+             * @description libass 畫這個字型時的縮放（網頁預覽的字級 = 字幕字級 × scale，大小才和燒出來的一樣）；讀不到時為 0
+             */
+            scale: number;
             /** @description 字型檔（@font-face 用） */
             url: string;
         };

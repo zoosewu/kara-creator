@@ -579,8 +579,9 @@ kbd {
   font: 700 28px/1.3 var(--lyric-font);   /* 實際字級由 fitStudioSub() 依畫面大小與字幕設定決定 */
   --fill: #3fa9ff;
 }
-.sub-row { min-height: 1.3em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sub-row.next { text-align: right; }
+/* 燒錄時放不下的長句會拆成兩句；預覽改成換行，不截掉 */
+.sub-row { min-height: 1.3em; overflow-wrap: anywhere; }
+.sub-row.lower { text-align: right; }
 .sub-line { filter: drop-shadow(0 0 1.5px #000) drop-shadow(0 0 1.5px #000) drop-shadow(0 1px 2px rgba(0, 0, 0, .8)); }
 .sub-line[data-singer="男"] { --fill: #1e90ff; }
 .sub-line[data-singer="女"] { --fill: #ff4f9a; }
@@ -694,7 +695,7 @@ ruby.slot rt { color: var(--border); }
 .studio-trans { display: block; font-size: 12px; color: var(--muted); font-family: inherit; }
 .live-trans {
   position: absolute; left: 4%; right: 4%; top: 5%; text-align: center; pointer-events: none;
-  font: 700 16px/1.3 var(--lyric-font); color: #ffe08a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font: 700 16px/1.3 var(--lyric-font); color: #ffe08a; overflow-wrap: anywhere;
   filter: drop-shadow(0 0 1.5px #000) drop-shadow(0 0 1.5px #000);
 }
 .check-field { display: flex; align-items: center; gap: 8px; font-size: 13px; }

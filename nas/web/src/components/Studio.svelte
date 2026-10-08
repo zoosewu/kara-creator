@@ -20,7 +20,9 @@
   const SUB_PREVIEW = 4 // 還沒開始唱時，提前幾秒先顯示第一句
   const SUB_LONG_GAP = 8 // 兩句之間空這麼久算間奏：唱完 SUB_LINGER 秒後先收起來
   const SUB_LINGER = 2
+  const BREAK_GAP = 6 // 和 worker 的 subtitles.Style.break_gap 相同：句間超過這麼久算新的一段
   const BASE_RATIO = 0.075
+  const FONT_SCALE = 0.69 // 讀不到字型的縮放時用 Noto Sans CJK 的值
 
   let lines = $state<EditorLine[]>([])
   let language = $state<string | null>(null)
@@ -50,6 +52,8 @@
   let subFont = $state(16)
   let transFont = $state(10)
   let transTop = $state(0)
+  let subSide = $state(0) // 字幕左右的邊界（px）
+  let subBottom = $state(0)
 
   // 第幾句歌詞（依序）在 lines 裡的位置
   let lyricIdx = $derived(lines.map((l, i) => (l.kind === 'lyric' ? i : -1)).filter((i) => i >= 0))
@@ -143,15 +147,34 @@
     store.notify(`已切換到「${live.label}」，即時預覽調整後的字幕`)
   }
 
-  /** 即時字幕的字級：影片實際顯示的高度 × 字幕比例（和燒進影片的一樣大）。 */
+  /**
+   * 即時字幕的大小與位置，照 worker 燒錄時的版面（subtitles.build）：以影片實際顯示的範圍為準，
+   * 字級 = 顯示高度 × 字幕比例 × 字型的 libass 縮放（ASS 的字級是字型「上緣到下緣」的高度，字本身比它小），
+   * 左右各留 6%、下緣 7%。
+   */
   function fit() {
     if (!frame || !video) return
     const ratio = BASE_RATIO * (store.settings.subtitle_scale ?? 1)
-    const shown = video.videoWidth && video.videoHeight ? Math.min(frame.clientHeight, (frame.clientWidth * video.videoHeight) / video.videoWidth) : frame.clientHeight
-    subFont = Math.max(10, shown * ratio)
-    transFont = Math.max(8, shown * ratio * 0.6)
-    transTop = (frame.clientHeight - shown) / 2 + shown * 0.05
+    const fw = frame.clientWidth
+    const fh = frame.clientHeight
+    const vw = video.videoWidth || 16
+    const vh = video.videoHeight || 9
+    const shownH = Math.min(fh, (fw * vh) / vw)
+    const shownW = (shownH * vw) / vh
+    const em = ratio * (song?.font?.scale || FONT_SCALE)
+    subFont = Math.max(10, shownH * em)
+    transFont = Math.max(8, shownH * em * 0.6)
+    transTop = (fh - shownH) / 2 + shownH * 0.05
+    subSide = (fw - shownW) / 2 + shownW * 0.06
+    subBottom = (fh - shownH) / 2 + shownH * 0.07
   }
+
+  // 字幕大小的設定或字型換了：重新算
+  $effect(() => {
+    void store.settings.subtitle_scale
+    void song?.font?.scale
+    fit()
+  })
 
   $effect(() => {
     if (!frame) return
@@ -164,6 +187,14 @@
 
   let top = $state(-1)
   let bottom = $state(-1)
+  // 每句放在上排靠左（0）或下排靠右（1）：同一段輪流放，間奏之後的新段落從上排開始（同 worker 的 _schedule）
+  let slots = $derived.by(() => {
+    let first = 0
+    return timing.map((t, i) => {
+      if (i === 0 || t.start - timing[i - 1].end > BREAK_GAP) first = i
+      return (i - first) % 2
+    })
+  })
   let trans = $state('')
 
   function loop() {
@@ -194,7 +225,8 @@
       const next = timing.findIndex((t) => t.start > now)
       if (next >= 0 && timing[next].start - now <= SUB_PREVIEW) t0 = next
     }
-    const b = t0 >= 0 && t0 + 1 < timing.length ? t0 + 1 : -1
+    // 下一句和這句在同一段（位置錯開）才一起顯示
+    const b = t0 >= 0 && t0 + 1 < timing.length && slots[t0 + 1] !== slots[t0] ? t0 + 1 : -1
     const tl = show >= 0 && song.info.translation !== false ? lines[lyricIdx[show]] : null
     const tr = tl?.translation ?? ''
     if (t0 !== top) top = t0
@@ -460,11 +492,15 @@
           <!-- svelte-ignore a11y_media_has_caption -->
           <video bind:this={video} preload="auto" playsinline onclick={() => (video!.paused ? video!.play() : video!.pause())}></video>
           {#if !burned}
-            <div class="live-trans" style="font-size:{transFont}px;top:{transTop}px">{trans}</div>
-            <div class="live-sub" bind:this={subBox} style="font-size:{subFont}px;{fontFamily ? `font-family:'${fontFamily}', var(--lyric-font)` : ''}">
+            <div class="live-trans" style="font-size:{transFont}px;top:{transTop}px;left:{subSide}px;right:{subSide}px">{trans}</div>
+            <div
+              class="live-sub"
+              bind:this={subBox}
+              style="font-size:{subFont}px;left:{subSide}px;right:{subSide}px;bottom:{subBottom}px;{fontFamily ? `font-family:'${fontFamily}', var(--lyric-font)` : ''}"
+            >
               {#key `${top}|${bottom}|${timing.length}|${lines.length}`}
-                {@render sub(top, 'current')}
-                {@render sub(bottom, 'next')}
+                {@render sub(slots[top] === 1 ? bottom : top, 'upper')}
+                {@render sub(slots[top] === 1 ? top : bottom, 'lower')}
               {/key}
             </div>
           {/if}

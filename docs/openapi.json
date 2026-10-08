@@ -528,6 +528,10 @@
             "format": "int64",
             "type": "integer"
           },
+          "scale": {
+            "format": "double",
+            "type": "number"
+          },
           "sha256": {
             "type": "string"
           },
@@ -544,7 +548,8 @@
           "family",
           "full_name",
           "weight",
-          "default"
+          "default",
+          "scale"
         ],
         "type": "object"
       },
@@ -558,6 +563,11 @@
             "description": "字型 id（sha256:index）",
             "type": "string"
           },
+          "scale": {
+            "description": "libass 畫這個字型時的縮放（網頁預覽的字級 = 字幕字級 × scale，大小才和燒出來的一樣）；讀不到時為 0",
+            "format": "double",
+            "type": "number"
+          },
           "url": {
             "description": "字型檔（@font-face 用）",
             "type": "string"
@@ -566,7 +576,8 @@
         "required": [
           "id",
           "family",
-          "url"
+          "url",
+          "scale"
         ],
         "type": "object"
       },

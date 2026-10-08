@@ -33,7 +33,8 @@ func TestScanNoto(t *testing.T) {
 	}
 	for _, want := range []string{"Noto Sans CJK JP Bold", "Noto Sans CJK TC Bold", "Noto Sans CJK KR Bold"} {
 		f, ok := families[want]
-		if !ok || f.Weight != 700 || !f.Default {
+		// Noto Sans CJK：unitsPerEm 1000、winAscent + winDescent 1448 → libass 縮放約 0.69
+		if !ok || f.Weight != 700 || !f.Default || f.Scale < 0.68 || f.Scale > 0.70 {
 			t.Errorf("%s：%+v（全部：%v）", want, f, families)
 		}
 	}
