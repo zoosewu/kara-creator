@@ -128,7 +128,7 @@ MeCab tagger 不是執行緒安全的：interactive 迴圈用自己的 tagger �
   "title_card": ["歌名", "演唱者", "備註"],   // 不顯示時為 [null, null]
   "scale": 1.0,                         // 字幕大小（1 = 100%）；worker 乘上預設樣式的字高比例
   "font": { "sha256": "…", "family": "Noto Sans CJK JP", "index": 0 },
-  "encode": { "prefer": ["h264_nvenc", "libx264"] }   // 依序嘗試：NVENC p5 cq23 / x264 medium crf18；音訊 aac 320k
+  "encode": { "prefer": ["h264_nvenc", "libx264"] }   // 依序嘗試：NVENC p5 vbr cq26 / x264 medium crf21，位元率上限 = 來源影像的 1.5 倍（至少 1.5 Mbps）；音訊 aac 192k
 }
 ```
 

@@ -34,3 +34,14 @@ def test_build_ass():
     assert ",Ruby,," in text and "そら" in text          # 日文自動假名
     assert ",Trans,," in text and "天空" in text         # 翻譯
     assert ",Title,," in text and "自己編的歌" in text    # 標題畫面
+
+
+def test_bitrate_cap():
+    # 上限是來源影像的 1.5 倍，至少 1.5 Mbps；純音訊或讀不到位元率時用最低值
+    assert tasks.bitrate_cap(tasks.Video(1920, 1080, 1_800_000)) == 2_700_000
+    assert tasks.bitrate_cap(tasks.Video(640, 360, 300_000)) == 1_500_000
+    assert tasks.bitrate_cap(tasks.Video(1920, 1080, None)) == 1_500_000
+    assert tasks.bitrate_cap(None) == 1_500_000
+    args = tasks.encoder_args("h264_nvenc", 2_700_000)
+    assert args[args.index("-maxrate") + 1] == "2700000" and args[args.index("-bufsize") + 1] == "5400000"
+    assert tasks.encoder_args("不認得", 1) is None

@@ -111,16 +111,26 @@ def subtitle_ratio(scale: float) -> float:
     return base if scale == 1 else round(base * scale, 5)
 
 
-def _probe_size(path: Path) -> tuple[int, int] | None:
-    """第一條真正的影像軌（內嵌封面圖不算）的寬高；純音訊回傳 None。"""
+@dataclass
+class Video:
+    width: int
+    height: int
+    bitrate: int | None   # 影像軌的位元率（bps）；讀不到時用整個檔案的位元率，再讀不到為 None
+
+
+def _probe_video(path: Path) -> Video | None:
+    """第一條真正的影像軌（內嵌封面圖不算）；純音訊回傳 None。"""
     out = subprocess.run([FFPROBE, "-v", "error", "-show_entries",
-                          "stream=codec_type,width,height:stream_disposition=attached_pic", "-of", "json", str(path)],
+                          "format=bit_rate:stream=codec_type,width,height,bit_rate:stream_disposition=attached_pic",
+                          "-of", "json", str(path)],
                          capture_output=True, text=True, encoding="utf-8", errors="replace")
     if out.returncode != 0:
         raise TaskError(f"讀不到影片資訊：{out.stderr.strip()[-300:]}")
-    for s in json.loads(out.stdout or "{}").get("streams", []):
+    info = json.loads(out.stdout or "{}")
+    for s in info.get("streams", []):
         if s.get("codec_type") == "video" and s.get("disposition", {}).get("attached_pic") != 1:
-            return int(s["width"]), int(s["height"])
+            rate = s.get("bit_rate") or info.get("format", {}).get("bit_rate")   # webm、mkv 的影像軌常常沒有位元率
+            return Video(int(s["width"]), int(s["height"]), int(rate) if rate and str(rate).isdigit() else None)
     return None
 
 
@@ -154,8 +164,8 @@ def build_ass(params: dict, size: tuple[int, int], font_file: Path) -> str:
 
 def _render(params: dict, ctx: Context) -> dict:
     media = ctx.inputs["media"]
-    size = _probe_size(media)
-    width, height = size or (1920, 1080)
+    video = _probe_video(media)
+    width, height = (video.width, video.height) if video else (1920, 1080)
     font_file = ctx.font(params["font"])
     ass_path = ctx.out_dir / "karaoke.ass"
     if "ass" in ctx.inputs:
@@ -168,18 +178,34 @@ def _render(params: dict, ctx: Context) -> dict:
         ctx.files.append("karaoke.ass")
     if ctx.should_stop():
         raise Cancelled()
-    _burn(media, ass_path, ctx.out_dir / "video.mp4", (width, height), size is not None, font_file, params, ctx)
+    _burn(media, ass_path, ctx.out_dir / "video.mp4", (width, height), video, font_file, params, ctx)
     ctx.files.append("video.mp4")
     return {"width": width, "height": height, "ass_sha256": hashlib.sha256(ass_path.read_bytes()).hexdigest()}
 
 
-ENCODERS = {
-    "h264_nvenc": ["-c:v", "h264_nvenc", "-preset", "p5", "-cq", "23"],
-    "libx264": ["-c:v", "libx264", "-preset", "medium", "-crf", "18"],
-}
+# 品質目標 + 位元率上限：燒字幕一定要重新編碼，只用固定品質的話，編碼器會連來源的壓縮雜訊一起保留，
+# 位元率常常比來源高好幾倍、畫質卻不會更好。上限是來源影像的 1.5 倍（至少 1.5 Mbps）。
+MIN_CAP = 1_500_000
+CAP_RATIO = 1.5
+AUDIO_BITRATE = "192k"   # 來源（YouTube）通常是 128k，再高也沒有意義
 
 
-def _burn(src: Path, ass_path: Path, dest: Path, size: tuple[int, int], has_video: bool, font_file: Path,
+def bitrate_cap(video: Video | None) -> int:
+    """燒錄的位元率上限（bps）。純音訊（黑底）或讀不到來源位元率時用最低值。"""
+    if not video or not video.bitrate:
+        return MIN_CAP
+    return max(MIN_CAP, round(video.bitrate * CAP_RATIO))
+
+
+def encoder_args(name: str, cap: int) -> list[str] | None:
+    limit = ["-maxrate", str(cap), "-bufsize", str(cap * 2)]
+    return {
+        "h264_nvenc": ["-c:v", "h264_nvenc", "-preset", "p5", "-rc", "vbr", "-cq", "26", "-b:v", "0", *limit],
+        "libx264": ["-c:v", "libx264", "-preset", "medium", "-crf", "21", *limit],
+    }.get(name)
+
+
+def _burn(src: Path, ass_path: Path, dest: Path, size: tuple[int, int], video: Video | None, font_file: Path,
           params: dict, ctx: Context) -> None:
     """燒錄字幕。字型只用 NAS 給的那個檔（fontsdir 只放它），多台 worker 燒出來才一致。"""
     work = ctx.out_dir / "burn"
@@ -188,20 +214,22 @@ def _burn(src: Path, ass_path: Path, dest: Path, size: tuple[int, int], has_vide
     shutil.copyfile(font_file, fonts / font_file.name)
     # subtitles 濾鏡對路徑中的冒號、括號等字元很敏感：用工作資料夾裡的 ASCII 相對路徑
     shutil.copyfile(ass_path, work / "sub.ass")
-    if has_video:
+    if video:
         inputs, maps = ["-i", str(src)], ["-map", "0:v:0", "-map", "0:a:0"]
     else:
         w, h = size   # 純音訊來源：用黑底當畫面
         inputs = ["-f", "lavfi", "-i", f"color=c=black:s={w}x{h}:r=30", "-i", str(src)]
         maps = ["-map", "0:v:0", "-map", "1:a:0", "-shortest"]
     base = [FFMPEG, "-y", "-v", "error", *inputs, *maps, "-vf", "subtitles=sub.ass:fontsdir=fonts"]
-    tail = ["-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "320k", "-movflags", "+faststart", "out.mp4"]
+    tail = ["-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", AUDIO_BITRATE, "-movflags", "+faststart", "out.mp4"]
+    cap = bitrate_cap(video)
     err = ""
     for name in params.get("encode", {}).get("prefer") or ["h264_nvenc", "libx264"]:
-        if name not in ENCODERS:
+        args = encoder_args(name, cap)
+        if args is None:
             continue
-        ctx.log(f"  . 燒錄字幕（{name}）...")
-        code, err = run_cancellable([*base, *ENCODERS[name], *tail], ctx.should_stop, cwd=work)
+        ctx.log(f"  . 燒錄字幕（{name}，最高 {cap / 1e6:.1f} Mbps）...")
+        code, err = run_cancellable([*base, *args, *tail], ctx.should_stop, cwd=work)
         if code == 0:
             (work / "out.mp4").replace(dest)
             shutil.rmtree(work, ignore_errors=True)
