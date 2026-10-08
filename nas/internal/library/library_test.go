@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-type goldenOp struct {
+type specOp struct {
 	Op        string
 	Name      *string
 	Parent    *string
@@ -23,8 +23,8 @@ type goldenOp struct {
 	Before    *string
 }
 
-type goldenStep struct {
-	Op      goldenOp
+type specStep struct {
+	Op      specOp
 	Error   *string
 	Folders []struct {
 		ID     string
@@ -45,7 +45,7 @@ func s(p *string) string {
 	return *p
 }
 
-func apply(l *Library, op goldenOp) error {
+func apply(l *Library, op specOp) error {
 	switch op.Op {
 	case "add_folder":
 		order := 0
@@ -80,13 +80,13 @@ func apply(l *Library, op goldenOp) error {
 	return fmt.Errorf("不認得的操作 %s", op.Op)
 }
 
-// 黃金測試：v1 catalog 的隨機操作序列，每一步的結果（含錯誤訊息與出錯前已做的修改）都要相同。
-func TestGolden(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "testdata", "golden", "catalog.json"))
+// 規格測試：隨機的操作序列，每一步的結果（含錯誤訊息與出錯前已做的修改）都要和規格資料相同。
+func TestSpec(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "testdata", "spec", "catalog.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	var seqs [][]goldenStep
+	var seqs [][]specStep
 	if err := json.Unmarshal(data, &seqs); err != nil {
 		t.Fatal(err)
 	}
@@ -142,6 +142,6 @@ func TestJSONRoundTrip(t *testing.T) {
 		t.Fatal(string(data))
 	}
 	if err := json.Unmarshal([]byte(`{"version":1}`), &back); err == nil {
-		t.Fatal("v1 的格式應該拒絕")
+		t.Fatal("不認得的格式版本應該拒絕")
 	}
 }

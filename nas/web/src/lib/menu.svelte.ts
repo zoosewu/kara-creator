@@ -1,4 +1,4 @@
-// 共用的彈出選單（v1 的 #menu）。
+// 共用的彈出選單。
 export type MenuEntry = {
   label: string
   desc?: string

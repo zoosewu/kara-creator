@@ -1,4 +1,4 @@
-// Package jobs 是使用者層級的工作佇列（v1 songtool/jobs.py；docs/v2/nas-server.md「排程器」）。
+// Package jobs 是使用者層級的工作佇列（docs/nas-server.md「排程器」）。
 //
 // 一件工作 = 一首歌 + 步驟（download、separate、karaoke、check、retime）+ 選項。
 //   - 下載最多同時 2 首；下載完還有其他步驟的，移到處理佇列排隊

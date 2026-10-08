@@ -15,14 +15,14 @@ import (
 )
 
 func TestLocalID(t *testing.T) {
-	// 和 v1 相同：sha1("檔名:大小")[:8]
+	// sha1("檔名:大小")[:8]；改了會讓已經有的手動放入歌曲對不上資料備份
 	for in, want := range map[string]string{"歌手 - 歌名.mp4": "local-53681c87", "a.mp4": "local-cb2419a0"} {
 		size := int64(1234)
 		if in == "a.mp4" {
 			size = 1
 		}
 		if got := LocalID(in, size); got != want {
-			t.Errorf("LocalID(%q) = %q，應該 %q（v1 的值）", in, got, want)
+			t.Errorf("LocalID(%q) = %q，應該 %q", in, got, want)
 		}
 	}
 	if LocalID("a.mp4", 1) == LocalID("a.mp4", 2) || LocalID("a.mp4", 1) != LocalID("a.mp4", 1) {

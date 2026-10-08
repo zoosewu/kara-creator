@@ -1,5 +1,5 @@
 // Package pipeline 是一首歌的處理步驟：去人聲、製作伴唱帶（對時 → 字幕與燒錄 → 檢查）、單獨檢查、AI 重對。
-// 步驟照 v1 karaoke.make / separate_file / check_timing / retime；要不要做由 planner 的指紋判斷，
+// 要不要做由 planner 的指紋判斷，
 // AI 的部分交給排程器，NAS 本機只做便宜的 ffmpeg 操作。
 //
 // 同一首歌同時只會有一件工作在跑（jobs 保證），這裡不另外加鎖。
@@ -297,7 +297,7 @@ type KaraokeOptions struct {
 }
 
 // Karaoke 製作伴唱帶：（需要時先去人聲）→ 對時 → 字幕與燒錄 → 對時檢查。
-// 沒有歌詞時只記錄、不算失敗（同 v1）。
+// 沒有歌詞時只記錄、不算失敗。
 func (p *Pipeline) Karaoke(ctx context.Context, id string, opt KaraokeOptions, run Run) error {
 	run.stage("製作伴唱帶")
 	in, r, err := p.evaluate(id)

@@ -1,4 +1,4 @@
-// Package fonts 是字型目錄（docs/v2/data.md「字型」）：掃描 <library>/fonts/ 的字型檔，
+// Package fonts 是字型目錄（docs/data.md「字型」）：掃描 <library>/fonts/ 的字型檔，
 // 讀出每個字型（含 .ttc 裡的每一個）的名稱與粗細，給設定選擇、給 AI worker 下載、給前端預覽。
 //
 // 一個字型用「檔案 sha256:第幾個字型」識別（ID）；.ttc 一個檔案裡有好幾個字型（例如 Noto Sans CJK 的 JP、TC、KR）。
@@ -41,7 +41,7 @@ func ID(sha string, index int) string { return sha + ":" + strconv.Itoa(index) }
 
 // Defaults 是每種語言的預設字型（Q11，用完整名稱 nameID 4 找：family 相同的粗細只差在完整名稱；
 // 開源 SIL OFL，安裝時下載到 fonts/）。
-// 英文用日文版（內含拉丁字母）；判斷不出語言時也用日文版（同 v1）。
+// 英文用日文版（內含拉丁字母）；判斷不出語言時也用日文版。
 var Defaults = map[string]string{
 	"ja": "Noto Sans CJK JP Bold", "en": "Noto Sans CJK JP Bold", "": "Noto Sans CJK JP Bold",
 	"zh": "Noto Sans CJK TC Bold", "nan": "Noto Sans CJK TC Bold", "yue": "Noto Sans CJK TC Bold",

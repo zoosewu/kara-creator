@@ -23,8 +23,8 @@ func normalize(t *testing.T, v any) string {
 	return string(out)
 }
 
-func TestGolden(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "testdata", "golden", "readings.json"))
+func TestSpec(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "testdata", "spec", "readings.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +45,7 @@ func TestGolden(t *testing.T) {
 		lookup := func(text string) ([]Span, bool) {
 			raw, ok := c.Auto[text]
 			if !ok {
-				t.Fatalf("#%d 黃金資料沒有 %q 的自動讀音", i, text)
+				t.Fatalf("#%d 規格資料沒有 %q 的自動讀音", i, text)
 			}
 			spans := []Span{}
 			for _, r := range raw {

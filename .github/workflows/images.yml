@@ -10,15 +10,12 @@ on:
     tags: ["v*"]
     paths:
       - nas/**
-      - ai/**
-      - songtool/**
+      - worker/**
       - deploy/**
       - versions.json
       - versions.go
       - go.mod
       - go.sum
-      - requirements-ai.txt
-      - constraints.txt
       - .dockerignore
       - .github/workflows/images.yml
   pull_request:

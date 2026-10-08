@@ -46,3 +46,14 @@
 - 空的 named volume 第一次掛載時，Docker 會把映像裡那個路徑的內容與**擁有者**複製進去（例如映像的 `/library` 是 root，volume 就變 root）。
   測試 PUID 時先在 volume 放一個檔案再 chown；bind mount 沒有這個行為。
 - container 裡看不到主機的 `~/.gitconfig`：要 commit 的映像設系統層級的預設 `user.name` / `user.email`（repo 自己的設定仍然優先）。
+
+## Shell（zsh）
+
+- zsh 不會把 `$var` 拆成多個參數：`cmd $files` 會把整串當成一個參數。要拆就用陣列（`arr=(a b); cmd "${arr[@]}"`）或 Python 處理檔案清單。
+
+## 重構
+
+- 刪掉程式之前，先查有沒有正在跑的 container 用它當啟動指令（例如開發用 worker 的 `ai/worker.py`），刪了它會一啟動就結束。
+- 「不改行為」的重構要先錄下重構前的輸出再動手（docs/deploy.md「worker 的 GPU 回歸比對」）；GPU 上不是位元確定的步驟（Demucs）
+  先量「舊程式自己跑兩次」的差異當基準，不能直接要求逐位元相同。
+- 對照新舊程式的雜訊（例如 ffmpeg 的 Broken pipe）時，用同一件任務分別跑新舊兩版比較，不要憑印象判斷是不是新增的。

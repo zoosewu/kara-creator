@@ -722,7 +722,7 @@ ruby.slot rt { color: var(--border); }
 .ai-status.on { color: var(--muted); }
 .ai-status.off { color: var(--err); }
 
-/* ---- v2 新增 ---- */
+/* ---- 確認、匯出、AI 伺服器、連線狀態 ---- */
 .stage.needs_render { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
 .stage.needs_render i { background: var(--accent); }
 .stage.needs_align { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, var(--border)); }

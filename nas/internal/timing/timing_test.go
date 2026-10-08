@@ -13,8 +13,8 @@ import (
 
 const now = "2026-10-03T12:00:00+08:00"
 
-func TestShiftGolden(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "testdata", "golden", "shift_timing.json"))
+func TestShiftSpec(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "testdata", "spec", "shift_timing.json"))
 	if err != nil {
 		t.Fatal(err)
 	}

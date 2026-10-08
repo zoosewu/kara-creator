@@ -1,5 +1,5 @@
-// Package fingerprint 算各階段的指紋（docs/v2/data.md「指紋」）。指紋只看內容，不看路徑和修改時間，
-// 整個曲庫搬到哪裡都一樣。Python 版在 migrate/fingerprint.py，兩邊必須算出相同的值（黃金測試）。
+// Package fingerprint 算各階段的指紋（docs/data.md「指紋」）。指紋只看內容，不看路徑和修改時間，
+// 整個曲庫搬到哪裡都一樣（規格測試見 fingerprint_test.go）。
 package fingerprint
 
 import (

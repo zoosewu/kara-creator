@@ -1,4 +1,4 @@
-# AI worker（CUDA）。模型與快取放 volume，重建映像不必重新下載。
+# AI 伺服器（kara-worker，CUDA）。模型與快取放 volume，重建映像不必重新下載。
 #
 #   docker build -f deploy/ai.Dockerfile -t ghcr.io/zoosewu/kara-creator-ai .
 #   執行方式見 deploy/compose.ai.yml（CI 會自動建好推到 ghcr.io）
@@ -29,14 +29,15 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # PyTorch 單獨一層（最大、最少變動）：只改其他套件或程式時不必重新下載與上傳
 RUN uv venv -p 3.14 /opt/venv \
     && uv pip install --no-cache torch==2.11.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu130
-COPY requirements-ai.txt constraints.txt /tmp/
-RUN uv pip install --no-cache -r /tmp/requirements-ai.txt -c /tmp/constraints.txt \
+# 相依套件（照 worker/pyproject.toml）單獨一層：只改程式時沿用
+COPY worker/pyproject.toml worker/constraints.txt /src/worker/
+RUN uv pip install --no-cache -r /src/worker/pyproject.toml -c /src/worker/constraints.txt \
        --extra-index-url https://download.pytorch.org/whl/cu130 --index-strategy unsafe-best-match
 
-WORKDIR /app
-COPY versions.json ./
-COPY songtool ./songtool
-COPY ai ./ai
+# worker 本身（versions.json 在 repo 根目錄，打包時帶進套件）
+COPY versions.json /src/
+COPY worker /src/worker
+RUN uv pip install --no-cache --no-deps /src/worker && rm -rf /src
 
 VOLUME ["/cache", "/models"]
-ENTRYPOINT ["tini", "--", "python", "ai/worker.py"]
+ENTRYPOINT ["tini", "--", "kara-worker"]

@@ -9,10 +9,10 @@ import (
 	"testing"
 )
 
-// golden 讀 tools/golden.py 用 v1 產生的答案。
-func golden(t *testing.T, name string, v any) {
+// spec 讀 testdata/spec 的規格資料（每個情況的輸入與應有的結果）。
+func spec(t *testing.T, name string, v any) {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join("..", "..", "testdata", "golden", name+".json"))
+	data, err := os.ReadFile(filepath.Join("..", "..", "testdata", "spec", name+".json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -21,15 +21,14 @@ func golden(t *testing.T, name string, v any) {
 	}
 }
 
-func TestParseGolden(t *testing.T) {
+func TestParseSpec(t *testing.T) {
 	var cases []struct {
 		Input      string          `json:"input"`
 		Doc        json.RawMessage `json:"doc"`
 		Serialized string          `json:"serialized"`
 		Language   *string         `json:"language"`
-		V1         string          `json:"v1_align_sha1"`
 	}
-	golden(t, "lyrics_parse", &cases)
+	spec(t, "lyrics_parse", &cases)
 	for i, c := range cases {
 		doc := Parse(strings.TrimPrefix(c.Input, "\ufeff"))
 		var want Document
@@ -52,19 +51,16 @@ func TestParseGolden(t *testing.T) {
 		if got := DetectLanguage(doc.Texts()); got != lang {
 			t.Errorf("#%d 語言 %q，應該 %q", i, got, lang)
 		}
-		if got := V1AlignSHA1(doc); got != c.V1 {
-			t.Errorf("#%d v1 對時雜湊 %s，應該 %s", i, got, c.V1)
-		}
 	}
 }
 
-func TestParenGolden(t *testing.T) {
+func TestParenSpec(t *testing.T) {
 	var cases []struct {
 		Input     string   `json:"input"`
 		Readings  []string `json:"readings"`
 		Converted string   `json:"converted"`
 	}
-	golden(t, "paren", &cases)
+	spec(t, "paren", &cases)
 	for i, c := range cases {
 		if got := ParenReadings(c.Input); !reflect.DeepEqual(got, c.Readings) {
 			t.Errorf("#%d ParenReadings(%q) = %q，應該 %q", i, c.Input, got, c.Readings)
@@ -75,12 +71,12 @@ func TestParenGolden(t *testing.T) {
 	}
 }
 
-func TestLanguageGolden(t *testing.T) {
+func TestLanguageSpec(t *testing.T) {
 	var cases []struct {
 		Lines    []string `json:"lines"`
 		Language *string  `json:"language"`
 	}
-	golden(t, "language", &cases)
+	spec(t, "language", &cases)
 	for _, c := range cases {
 		want := ""
 		if c.Language != nil {
@@ -92,13 +88,13 @@ func TestLanguageGolden(t *testing.T) {
 	}
 }
 
-func TestFromPlainGolden(t *testing.T) {
+func TestFromPlainSpec(t *testing.T) {
 	var cases []struct {
 		Base  Document        `json:"base"`
 		Plain string          `json:"plain"`
 		Doc   json.RawMessage `json:"doc"`
 	}
-	golden(t, "lyrics_plain", &cases)
+	spec(t, "lyrics_plain", &cases)
 	for i, c := range cases {
 		var want Document
 		if err := json.Unmarshal(c.Doc, &want); err != nil {

@@ -1,134 +1,86 @@
 # AGENTS.md — 給 AI 助手的專案說明
 
-這份文件給協助開發這個專案的 AI 看：架構、資料格式、不能破壞的規則、使用者的偏好與測試方法。
-使用方式（給人看的）請見 [README.md](README.md)。
-
-> **v2 重構進行中**（2026-10-03 起）：NAS 伺服器改用 Go + Svelte、AI 伺服器主動向 NAS 領工作、可以接多台、container 化。
-> 規格在 [docs/v2/](docs/v2/README.md)，**做 v2 相關的工作前先讀完它**（Q1–Q15 已定案）；施工進度在 [tasks/todo.md](tasks/todo.md)。
-> 本文件描述的是 v1（Python）。使用者決定**不再改 v1**、直接做 v2；v1 保留當作 v2 行為的參考實作與黃金測試的答案來源。
+這份文件給協助開發這個專案的 AI 看：架構、不能破壞的規則、使用者的偏好與測試方法。
+使用方式（給人看的）見 [README.md](README.md)；設計細節見 [docs/](docs/README.md)，**動手前先讀相關的那幾份**。
+進行中的工作在 [tasks/todo.md](tasks/todo.md)，踩過的坑在 [tasks/lessons.md](tasks/lessons.md)。
 
 ## 專案在做什麼
 
-本機的 KTV 伴唱帶工作室（Windows、NVIDIA GPU）：
+把 YouTube 影片（或自己的影音檔）做成 KTV 伴唱帶：**下載 → 去人聲 → 逐字對時 → 燒上逐字變色的字幕 → 對時檢查**，
+在網頁上管理曲庫、編輯歌詞、邊看邊調時間，確認沒問題的歌匯出到給卡拉 OK 軟體用的資料夾。
 
-1. **下載**：yt-dlp（需要 deno 解 YouTube 的 JS）→ `output/downloads/<標題> (<id>)/`
-2. **去人聲**：Demucs htdemucs 兩軌 → `output/separated/`。**輸出格式與輸入相同**（mp4 進就 mp4 出，影像軌直接複製）
-3. **對時**：歌詞逐字對齊到人聲 → `output/karaoke/<資料夾>/alignment.json`
-4. **字幕與燒錄**：ASS 字幕（兩行 KTV 版面、逐字填色 `\kf`、日文假名、男女合唱顏色）→ ffmpeg 燒進伴奏影片
-5. **對時檢查**：本機 Whisper 獨立聽寫比對，標出可能不準的句子（`qa.json`）
-6. **輸出**：依曲庫的資料夾結構，把成品硬連結到 `output/export/<資料夾>/歌手 - 歌名.mp4`
+兩個程式：
 
-另外有網頁 UI（`ui/`）、REST API（`/api/v1`）、資料備份（`data/` 私人 repo）、收尾 hook。
+| | NAS 伺服器 `nas/`（Go + Svelte） | AI 伺服器 `worker/`（Python 套件 `kara_worker`） |
+| --- | --- | --- |
+| 跑在 | 放曲庫的 Mac mini（OrbStack container） | 有 NVIDIA 顯示卡的電腦（container 或 Windows 直接執行） |
+| 職責 | 網頁 UI、REST API + SSE、曲庫與紀錄、下載（yt-dlp）、手動放入、狀態判斷、排程、匯出、資料備份、字型、讀音快取 | 去人聲（Demucs）、對時（Whisper + CTC）、對時檢查、假名、產生 ASS 與燒錄（NVENC） |
 
-分成兩個伺服器（兩個執行檔）：
-- **歌曲伺服器** `ui/server.py`（`ui.ps1`，預設 127.0.0.1:8765）：UI、曲庫、下載、字幕、燒錄、工作佇列、備份
-- **AI 伺服器** `ai/server.py`（`ai.ps1`，預設 127.0.0.1:8770）：Demucs、Whisper、CTC。可以在另一台電腦（`--lan`）
-
-步驟 2、3、5 的模型運算經由 `songtool/ai.py` 交給 AI 伺服器（HTTP，上傳音訊、輪詢進度、取回結果）；
-其餘（抽音軌、封裝、字幕、燒錄、紀錄檔）都在歌曲伺服器。檔案與曲庫只存在歌曲伺服器。
+AI 伺服器主動連到 NAS 領任務（`/worker/v1`），沒有狀態：曲庫、檔案、「要不要重做」的判斷都只在 NAS。
 
 ## 架構地圖
 
 | 位置 | 內容 |
 | --- | --- |
-| `songtool/config.py` | 所有路徑；環境變數 `SONG_OUTPUT_DIR`、`SONG_LYRICS_DIR`、`SONG_DATA_DIR`、`SONG_HOOKS_DIR` 可改（測試用） |
-| `songtool/download.py` | yt-dlp 下載、`list_downloads()`（每個下載資料夾有 `download.json`） |
-| `songtool/local.py` | 手動放進 `output/downloads/` 的檔案自動登記；id = `local-` + sha1(檔名:大小)[:8]（放回同一個檔案就是同一個 id） |
-| `songtool/separate.py` + `demucs_run.py` | 去人聲；Demucs 以子程序執行（可取消），存檔用 soundfile（新版 torchaudio 存檔需要 torchcodec，刻意避開） |
-| `songtool/lyrics.py` | 歌詞檔格式的解析 / 寫回（見下方）、語言判斷、括號讀音轉換 |
-| `songtool/reading.py` | 一句歌詞 → 變色單位 + 羅馬字讀音（日文 MeCab、中文拼音、台語 / 粵語靠手動標註）；`furigana()` 給編輯器 |
-| `songtool/align.py` | 對時：Whisper（stable-ts）定句 → 人聲音量修正 → CTC（torchaudio MMS_FA）逐音精修。台語 / 粵語（`CTC_ONLY`）不經 Whisper，整首 CTC |
-| `songtool/qa.py` | 對時檢查（規則 + 分段聽寫比對；台語 / 粵語只做規則） |
-| `songtool/ai.py` | AI 處理的入口：`separate` / `align_song` / `align_from` / `align_line` / `check`。後端 `Remote`（AI 伺服器）或 `Local`（同一行程，命令列工具沒設 `SONG_AI_URL` 時的預設）。`execute()` 是實際執行的地方（AI 伺服器也呼叫它）；`versions()` 兩邊不同時拒絕處理 |
-| `ai/server.py` | AI 伺服器：blob 快取（sha1，`SONG_AI_CACHE`）、單一執行緒的工作佇列、取消（Demucs 子程序終止；對時做完才丟掉結果） |
-| `songtool/net.py` | 區域網路位址（兩個伺服器共用） |
-| `songtool/ass.py` | ASS 字幕產生（字寬用 Pillow 量、換算 libass 比例） |
-| `songtool/karaoke.py` | 串起對時 → 字幕 → 燒錄 → 檢查；手動平移時間 `shift_timing`、AI 重對 `retime` |
-| `songtool/catalog.py` | 曲庫（`output/library.json`）：巢狀資料夾、順序、手動歌名 / 演唱者 / 語言、已確認（成品字幕的 sha1，成品變了就失效）、手動放入影片補上的連結（`link`）、備註（`note`，標題畫面第三行）、是否燒上翻譯（`translation`） |
-| `songtool/settings.py` | 全域設定（`output/settings.json`）：字幕大小等；`karaoke.subtitle_ratio()` 算出實際字高比例，100% 時和預設樣式相同 |
-| `songtool/titles.py` | 從 yt-dlp 資訊與影片標題猜歌名 / 演唱者（純規則，**不用 LLM**） |
-| `songtool/export.py` | 同步 `output/export/`（硬連結，只管自己放的檔案） |
-| `songtool/jobs.py` | 工作佇列：下載（2 條）與 AI 處理（1 條）分開；佇列清空時呼叫 `on_idle`；收尾工作 lane = `system` |
-| `songtool/backup.py` | 資料備份到 `data/`（songs.json、lyrics、timing），commit + push |
-| `songtool/hooks.py` | 收尾 hook（`hooks/on_idle.ps1`）、變動後延遲觸發的 Debouncer |
-| `ui/server.py` | FastAPI：網頁 UI 用的 `/api/*`、媒體檔、收尾流程、變動追蹤 middleware |
-| `ui/api_v1.py` | REST API v1（給外部服務）的端點；docstring 第一行是規格裡的摘要、其餘是說明 |
-| `ui/api_schema.py` | REST API v1 的資料模型（規格的資料結構；欄位說明與範例會進規格） |
-| `docs/openapi.json` | 由 `scripts/openapi.py` 從程式碼產生的 OpenAPI 規格，**不要手改** |
-| `ui/static/` | 前端，原生 HTML / CSS / JS，不需打包 |
-| `scripts/*.py` + `*.ps1` | CLI：download / separate / karaoke / backup / restore |
-
-## 資料格式
-
-**歌詞檔** `lyrics/<影片id>.txt`（UTF-8）：
-
-```text
-# title: 歌名              # 開頭：title / artist 是歌曲資訊，其他 # 開頭的行是註解
-[男] 歌詞一句              一行 = 畫面上一句；行首 [男] [女] [合] 標演唱者
-> 中文翻譯                 上一句的翻譯（不參與對時；燒進伴唱帶與否看曲庫的 translation 設定）
-漢字{よみ}                 讀音：標在前面連續的漢字上（羅馬字讀音依音節數只標最後幾個字）
-{原字|よみ}                明確指定範圍
-```
-
-只有手動指定的讀音會寫進檔案；自動判斷的讀音是執行時算的。台語、粵語沒有自動讀音，全部手動標（台羅 / 粵拼，聲調符號與數字會被去掉）。
-
-**alignment.json**：`{"key": {...對時條件...}, "lines": [{"text", "start", "end", "words": [{"text", "start", "end"}]}], "adjustments": [...]}`。
-`key` 包含歌詞 sha1、人聲檔大小與時間、模型、語言、`align.VERSION`；任一改變就整首重新對時。
-手動調整與 AI 重對直接改 `lines` 並記在 `adjustments`；`karaoke.json` 的 `alignment_sha1` 不同時只重產字幕與燒錄。
-`restored` 欄位表示從資料備份還原：歌詞、語言、方法相同就沿用（人聲重新分離過也不重對）。
-
-**紀錄檔**：各階段完成後才寫的 JSON（`download.json`、`separate.json`、`karaoke.json`、`qa.json`），用來判斷「做過了沒」。
+| `nas/cmd/kara-nas` | 進入點：伺服器、`openapi`（產生 `docs/openapi.json`）、`restore`（從資料備份重建曲庫） |
+| `nas/internal/app` | 把各模組組起來：歌曲狀態（`status.go`）、使用者動作（`actions.go`）、檔案監看、收尾 |
+| `nas/internal/api` | REST API（huma，`ops.go` 定義端點，OpenAPI 從程式碼產生）、SSE、內嵌的前端 |
+| `nas/internal/planner` | 每首歌每個階段的狀態與指紋（data.md「狀態判斷」「指紋」） |
+| `nas/internal/pipeline`、`jobs`、`scheduler` | 處理步驟、使用者層級的工作佇列、AI 任務的派工與租約 |
+| `nas/internal/lyrics`、`readings`、`titles`、`timing`、`library` | 歌詞、假名、標題辨識、時間調整、曲庫結構（純規則，有規格測試） |
+| `nas/internal/download`、`inbox`、`export`、`backup`、`restore` | 下載、手動放入、匯出、資料備份、還原 |
+| `nas/testdata/spec/` | 規格資料（輸入與應有的結果）。**規則要改時，程式和規格資料一起改** |
+| `nas/web/` | Svelte 5 前端；API 型別由 `npm run types` 從 `docs/openapi.json` 產生 |
+| `worker/src/kara_worker/` | `client.py`（協定）、`tasks.py`（任務）、`separate`、`align`、`qa`、`reading`、`subtitles`（演算法） |
+| `versions.json` | 兩邊共用的演算法 / 協定版本；不同時 NAS 拒絕那台 worker |
+| `deploy/` | NAS 與 AI 的 Dockerfile、compose；CI（`.github/workflows/images.yml`）自動建置推到 ghcr.io |
 
 ## 不能破壞的規則
 
-- **影片、伴奏、伴唱帶、歌詞（含對時檔與字幕）都有版權**：只能進私人的 `data/` repo，絕不進公開的程式 repo。
-  程式碼、註解、文件裡的範例歌詞要用自己編的句子
-- 輸出格式與輸入相同；去人聲保留原影像軌、不重新編碼
-- 每個階段寫紀錄檔判斷是否做過，重複執行只處理新的或有變動的
-- AI 伺服器的結果要和在同一行程執行時**完全相同**：對時與檢查只傳 16kHz 單聲道人聲（Whisper / CTC 讀檔時本來就轉成這個），
-  改動傳輸格式時要用真實歌曲比對 local 與 remote 的 `alignment` / `qa` 是否逐字相同
-- 協定改了（`ai/server.py` 的端點、`songtool/ai.py` 的參數或結果）要調高 `ai.API_VERSION`
-- 調高 `align.VERSION` 會讓**所有**歌在下次製作時整首重新對時、使用者手動調整的時間被取代 —— 除非使用者同意，不要調
-- 長時間處理要可以取消（`should_stop`），子程序要確實結束；關閉程式（Ctrl+C）要乾淨
+- **影片、伴奏、伴唱帶、歌詞（含對時檔與字幕）都有版權**：只能在使用者的曲庫與私人的資料 repo，絕不進這個公開的 repo。
+  程式碼、註解、測試資料、文件裡的範例歌詞與標題要用自己編的
+- 伴奏的輸出格式與輸入相同；去人聲保留原影像軌、不重新編碼
+- 用指紋判斷每個階段是否做過，重複執行只處理新的或有變動的；紀錄不記絕對路徑和修改時間
+- 調高 `versions.json` 的 `align` 會讓**所有**歌整首重新對時、使用者手動調整的時間被取代 —— 除非使用者同意，不要調。
+  其他版本號（`render`、`qa`、`reading`、`separate`、`protocol`）改了演算法、樣式或協定就要調
+- 只匯出「已確認」的歌，而且只在使用者按「匯出」時同步；只需重燒的更新不影響確認（data.md「確認與匯出」）
+- 長時間處理要可以取消，子程序要確實結束（NAS 用 `nas/internal/proc`）；關閉程式要乾淨
 - 檔名、歌名辨識、語言、讀音：只做規則與手動操作，**不用 LLM、不自動判斷語言**（使用者明確要求）
+- worker 的結果要穩定：改 worker 的程式但不打算改變結果時，用 docs/deploy.md「worker 的 GPU 回歸比對」確認逐字相同
 
 ## 使用者的偏好
 
 - 一律用**繁體中文（台灣）**溝通與撰寫介面文字；用字白話但不要太直白（例如「去人聲」「製作伴唱帶」）
-- **安裝任何套件或工具前先問**；不要擅自安裝
+- 在使用者的電腦（PC、Mac）上**安裝任何東西前先問**；開發 container 內的工具可以直接安裝或更新
+- 實際部署（Mac 的 NAS、PC 的 AI 伺服器）由使用者自己執行
 - 介面：簡約、亮暗雙色；會啟動處理的按鈕（藍色外框）與只開畫面的連結要明顯區分
 - 想討論方案時使用者會說「先不要動工」，這時只討論、不改程式
 - 手動調時間只移單句；整段偏掉交給「AI 重對這句及之後全部」
+- 文件保持精簡：README 只放架構、部署與基本用法，細節寫在 `docs/`
 
 ## 開發與測試
 
-- 環境：Python 3.14 + PyTorch 2.11（CUDA 13.0），`.venv\Scripts\python.exe`。`setup.ps1` 會建好全部
-- **不要動使用者的曲庫**：測試時用環境變數指到暫存資料夾，另開一個 port：
+開發環境（DooD container、GPU、各種工具的版本）與測試方法見 [docs/deploy.md](docs/deploy.md)。
 
-  ```powershell
-  $env:SONG_OUTPUT_DIR = "<暫存>\output"; $env:SONG_LYRICS_DIR = "<暫存>\lyrics"
-  $env:SONG_DATA_DIR = "<暫存>\data"; $env:SONG_HOOKS_DIR = "<暫存>\hooks"; $env:SONG_AI_CACHE = "<暫存>\ai-cache"
-  .\.venv\Scripts\python.exe ai\server.py --port 8771
-  .\.venv\Scripts\python.exe ui\server.py --no-browser --port 8766 --ai http://127.0.0.1:8771
-  ```
+```sh
+go vet ./... && go test -race ./...                       # NAS（含假的 worker 跑完整條流程）
+cd nas/web && npm run check && npm run build              # 前端
+cd worker && pytest && ruff check                         # worker（不需要模型的部分）
+```
 
-  `SONG_CHANGE_DELAY`（秒）可以縮短「變動後收尾」的等待時間
-- UI 的驗證：用無頭瀏覽器（Edge + DevTools 協定）操作頁面、執行 JS、截圖確認，而不只是看程式碼
-- 對時品質要用真實歌曲驗證：看 `alignment.json` 的句首、零長度字、句內大間隔，必要時和獨立聽寫比對
-- 對時演算法的修改要同時確認：現有的歌不會變差、人為製造的錯誤能被抓到
-- 使用者的 UI 與 AI 伺服器可能正在執行（`ui.ps1 --lan`、`ai.ps1`）：改後端後提醒重新啟動（改了 `songtool/ai.py`、
-  `align.py`、`qa.py`、`separate.py`、`demucs_run.py` 或 `ai/` 要重啟 `ai.ps1`）；不要擅自關掉使用者的程式
-- 在 Windows 的 Bash 工具裡用 heredoc 執行 Python 時，`\n`、`\\` 等反斜線會被轉換 —— 含反斜線的程式碼改用檔案編輯工具
-- 歌詞、對時等資料會自動備份到 `data/` 並 push：測試時務必用 `SONG_DATA_DIR` 指到暫存資料夾
+- **不要動使用者的曲庫**：測試用暫存的曲庫（`kara-nas --library <暫存> --init --listen :8799`），
+  `KARA_CHANGE_DELAY=3s` 可以縮短「變動後收尾」的等待
+- UI 的驗證：用無頭瀏覽器（Playwright）實際操作、截圖確認，而不只是看程式碼
+- 對時品質要用真實的歌驗證（公有領域的歌，檔案放在 repo 外面）：看句首、零長度字、句內大間隔，必要時和獨立聽寫比對；
+  對時演算法的修改要同時確認現有的歌不會變差、人為製造的錯誤能被抓到
 
 ## 常見工作
 
-- **加新的 API**：網頁 UI 用的放 `ui/server.py`（不會出現在規格）；給外部服務的放 `ui/api_v1.py`，
-  回應一定要有 `response_model`（在 `ui/api_schema.py` 定義，欄位寫 description）、可能的錯誤寫進 `responses`、
-  docstring 寫摘要與說明（一首歌一個 id、PATCH 部分更新、長時間處理回 202 + Location）。
-  改完執行 `python scripts/openapi.py` 更新 `docs/openapi.json`（`--check` 可檢查是否過期）
-- **改對時演算法**：`songtool/align.py`；先想清楚要不要調 `VERSION`（見上方規則）
-- **加語言**：`catalog.LANGUAGES`、`reading.split`、`ass.DEFAULT_FONTS`、前端 `LANGUAGE_NAMES`
-- **標題畫面**：`karaoke.title_card()` 回傳 [歌名, 演唱者]（有備註時才加第三項，避免舊紀錄全部變成需更新），`ass.build()` 產生
-- **改字幕樣式**：`songtool/ass.py` 的 `Style`；樣式 key 改變會讓伴唱帶顯示需更新
-- **待辦**：`TODO.md`；完成或新增功能後同步更新它。README 只放架構、部署與基本用法（保持精簡），細節寫在 `docs/v2/`
+- **加新的 API**：`nas/internal/api/ops.go`（欄位寫 `doc`，錯誤的 `detail` 是給人看的繁中說明）→
+  `go run ./nas/cmd/kara-nas openapi > docs/openapi.json` → `cd nas/web && npm run types`（CI 會檢查 openapi.json 是否過期）
+- **改對時演算法**：`worker/src/kara_worker/align.py`；先想清楚要不要調 `versions.json` 的 `align`（見上方規則）
+- **加語言**：`nas/internal/song/song.go` 的 `Languages`、`nas/internal/fonts` 的 `Defaults`、
+  worker 的 `reading.split`、前端 `nas/web/src/lib/util.ts` 的 `LANGUAGE_NAMES`
+- **標題畫面**：NAS 的 `planner`（`TitleCard`：[歌名, 演唱者(, 備註)]）決定內容，worker 的 `subtitles.build` 畫出來
+- **改字幕樣式**：worker 的 `subtitles.Style`；要調 `versions.json` 的 `render`（所有伴唱帶變成只需重燒）
+- **待辦**：`tasks/todo.md`；完成或新增功能後同步更新

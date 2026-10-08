@@ -1,4 +1,4 @@
-// Package scheduler 是 AI 任務的佇列與 worker 協定的 NAS 端（docs/v2/worker-protocol.md、nas-server.md「排程器」）。
+// Package scheduler 是 AI 任務的佇列與 worker 協定的 NAS 端（docs/worker-protocol.md、nas-server.md「排程器」）。
 //
 // 工作流程（pipeline）用 Submit 交出一件 AI 任務並等它做完；worker 主動來 /worker/v1/lease 領任務。
 // NAS 不需要知道 worker 的位址，可以接很多台。

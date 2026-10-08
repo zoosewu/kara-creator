@@ -1,4 +1,4 @@
-// Package download 用 yt-dlp 官方的單一執行檔下載影片（v1 songtool/download.py）。
+// Package download 用 yt-dlp 官方的單一執行檔下載影片。
 // 它內含 Python，NAS 上不必安裝 Python；需要 deno（解 YouTube 的 JS）與 ffmpeg（合併影音）。
 package download
 
@@ -25,7 +25,7 @@ import (
 	"github.com/zoosewu/kara-creator/nas/internal/store"
 )
 
-// 格式（同 v1）：優先 H.264 + AAC，相容性最好；只要音訊時直接取原始串流，不轉檔。
+// 格式：優先 H.264 + AAC，相容性最好；只要音訊時直接取原始串流，不轉檔。
 const (
 	VideoFormat = "bv*[vcodec^=avc1]+ba[ext=m4a]/bv*[ext=mp4]+ba[ext=m4a]/bv*+ba/b"
 	AudioFormat = "ba[ext=m4a]/ba/b"
@@ -78,7 +78,7 @@ type info struct {
 
 var unsafeID = regexp.MustCompile(`[^A-Za-z0-9_-]`)
 
-// SongID 是歌曲 id：YouTube 用影片 id（和 v1 的資料備份相同），其他網站用「網站-影片 id」。
+// SongID 是歌曲 id：YouTube 用影片 id，其他網站用「網站-影片 id」。
 func SongID(extractor, videoID string) string {
 	if strings.EqualFold(extractor, "youtube") {
 		return unsafeID.ReplaceAllString(videoID, "_")

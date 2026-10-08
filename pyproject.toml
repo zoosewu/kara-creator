@@ -1,3 +1,0 @@
-# v2 的 Python 部分（AI worker、搬遷工具）的測試設定。套件安裝見 setup.ps1 與 docs/v2/deploy.md。
-[tool.pytest.ini_options]
-testpaths = ["ai/tests"]

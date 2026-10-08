@@ -1,5 +1,5 @@
 // Package library 是曲庫的結構（library.json）：巢狀資料夾、每首歌所在的資料夾與順序、全域設定。
-// 行為照 v1 songtool/catalog.py（黃金測試見 library_test.go）。
+// 規格測試見 library_test.go。
 //
 // Order 只是同一層內的排列順序（拖曳排序用），不會顯示在畫面、資料夾名稱或輸出檔名上。
 // 歌名、演唱者等歌曲資訊在各首歌的 song.json，不在這裡。
@@ -223,7 +223,7 @@ type FolderUpdate struct {
 	Parent *string
 }
 
-// UpdateFolder 修改資料夾。和 v1 一樣，出錯前已經做的修改不會復原（呼叫端整個丟掉這份副本即可）。
+// UpdateFolder 修改資料夾。出錯前已經做的修改不會復原（呼叫端整個丟掉這份副本即可）。
 func (l *Library) UpdateFolder(id string, u FolderUpdate) (*Folder, error) {
 	f, err := l.folder(id)
 	if err != nil {

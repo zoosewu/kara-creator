@@ -1,4 +1,4 @@
-// Package backup 是可重做的資料備份（v1 songtool/backup.py；docs/v2/data.md「資料備份」）：
+// Package backup 是可重做的資料備份（docs/data.md「資料備份」）：
 // 把歌單、影片連結、歌詞與對時寫到 data/（另一個私人 git repo），commit 並 push。
 //
 //	data/songs.json        曲庫資料夾、每首歌的資訊、影片連結與來源資訊

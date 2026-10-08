@@ -1,7 +1,6 @@
-// Package planner 判斷一首歌各階段的狀態（docs/v2/data.md「狀態判斷」）與目前的指紋。
+// Package planner 判斷一首歌各階段的狀態（docs/data.md「狀態判斷」）與目前的指紋。
 //
 // Evaluate 是純函式（不碰檔案，好測試）；Inspect 負責讀檔、確認檔案，組出 Evaluate 的輸入。
-// 語意照 v1 karaoke.status、title_card、burn_translations、language_of、catalog.display_info。
 package planner
 
 import (
@@ -18,7 +17,7 @@ import (
 	wp "github.com/zoosewu/kara-creator/nas/internal/workerproto"
 )
 
-// 固定的模型設定（和 v1 相同）。
+// 固定的模型設定（改了會讓所有歌的對應階段需要重做）。
 const (
 	SeparateModel = "htdemucs"
 	SeparateStems = 2
@@ -292,7 +291,7 @@ func (r Result) FontID() string {
 	return r.Font.SHA256 + ":" + strconv.Itoa(r.Font.Index)
 }
 
-// Display 回傳實際使用的歌名與演唱者：手動設定 > 歌詞檔的 # title / # artist > 自動辨識（v1 catalog.display_info）。
+// Display 回傳實際使用的歌名與演唱者：手動設定 > 歌詞檔的 # title / # artist > 自動辨識。
 // 自動辨識不會寫進紀錄，所以永遠不會蓋掉手動設定；手動欄位清空就回到自動辨識。
 func Display(sg *song.Song, lyricsMeta map[string]string) (title, artist string, guess titles.Guess) {
 	guess = titles.FromInfo(titles.Info{Title: sg.Source.Title, Track: sg.Source.Track, Artists: sg.Source.Artists,

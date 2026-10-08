@@ -1,5 +1,5 @@
 // Package workerproto 是 NAS ↔ AI worker 協定（/worker/v1）的資料結構，NAS 端與假的 worker 共用。
-// 規格見 docs/v2/worker-protocol.md；Python 的 worker 用同樣的 JSON 欄位名稱。
+// 規格見 docs/worker-protocol.md；Python 的 worker 用同樣的 JSON 欄位名稱。
 package workerproto
 
 import (
@@ -217,7 +217,7 @@ type QAParams struct {
 	Model    string   `json:"model"`
 }
 
-// QALine 是一句的檢查結果（v1 qa.check）。
+// QALine 是一句的檢查結果。
 type QALine struct {
 	Index   int      `json:"index"`
 	Text    string   `json:"text"`
@@ -237,7 +237,7 @@ type QAResult struct {
 }
 
 // ReadingParams：算自動讀音（假名）。只看句子文字，不看手動讀音——
-// 結果才能只依「語言 + 句子 + 版本」快取；手動讀音由 NAS 合併（v1 reading.furigana 的合併規則）。
+// 結果才能只依「語言 + 句子 + 版本」快取；手動讀音由 NAS 合併（readings 套件）。
 type ReadingParams struct {
 	Language string   `json:"language"`
 	Texts    []string `json:"texts"`
@@ -250,7 +250,7 @@ type Span struct {
 	Ruby  string `json:"ruby"`
 }
 
-// ReadingResult 是 reading 的結果：每句的自動讀音（v1 reading._auto_furigana）。
+// ReadingResult 是 reading 的結果：每句的自動讀音。
 type ReadingResult struct {
 	Lines [][]Span `json:"lines"`
 }

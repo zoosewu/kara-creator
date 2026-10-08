@@ -1,4 +1,4 @@
-// Package media 包裝 NAS 上的輕量 ffmpeg / ffprobe 操作（v1 songtool/media.py）：
+// Package media 包裝 NAS 上的輕量 ffmpeg / ffprobe 操作：
 // 探測媒體資訊、抽音軌、轉 16kHz 人聲、不重新編碼影像的封裝。**不重新編碼影片、不燒錄**（那是 AI worker 的事）。
 package media
 
@@ -117,7 +117,7 @@ func (t Tools) ExtractWav(ctx context.Context, src, dst string) error {
 	return err
 }
 
-// SpeechWav 把人聲轉成 16kHz 單聲道 16-bit wav（對時與檢查的輸入；同 v1 ai._speech_wav）。
+// SpeechWav 把人聲轉成 16kHz 單聲道 16-bit wav（對時與檢查的輸入）。
 func (t Tools) SpeechWav(ctx context.Context, src, dst string) error {
 	_, err := t.run(ctx, t.FFmpeg, "-y", "-v", "error", "-i", src, "-vn", "-map", "0:a:0", "-ac", "1", "-ar", "16000",
 		"-c:a", "pcm_s16le", "-map_metadata", "-1", "-fflags", "+bitexact", "-flags:a", "+bitexact", dst)

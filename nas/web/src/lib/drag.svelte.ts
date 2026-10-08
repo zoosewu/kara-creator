@@ -1,4 +1,4 @@
-// 拖曳：把歌或資料夾放進資料夾、在同一層之間插入（v1 app.js 的拖曳邏輯）。
+// 拖曳：把歌或資料夾放進資料夾、在同一層之間插入。
 import { api } from './api'
 import { store } from './state.svelte'
 

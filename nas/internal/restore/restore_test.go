@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -13,7 +12,6 @@ import (
 	"github.com/zoosewu/kara-creator/nas/internal/fingerprint"
 	"github.com/zoosewu/kara-creator/nas/internal/library"
 	"github.com/zoosewu/kara-creator/nas/internal/lyrics"
-	"github.com/zoosewu/kara-creator/nas/internal/media"
 	"github.com/zoosewu/kara-creator/nas/internal/planner"
 	"github.com/zoosewu/kara-creator/nas/internal/song"
 	"github.com/zoosewu/kara-creator/nas/internal/store"
@@ -68,7 +66,7 @@ func evaluate(t *testing.T, st *store.Store) planner.Result {
 	return planner.Evaluate(in)
 }
 
-func TestRestoreV2(t *testing.T) {
+func TestRestore(t *testing.T) {
 	// 1. 舊曲庫：一首有歌詞、對時、已確認的歌，一首手動放入、沒有連結的歌；做資料備份
 	old, err := store.Open(filepath.Join(t.TempDir(), "old"), true)
 	if err != nil {
@@ -128,124 +126,5 @@ func TestRestoreV2(t *testing.T) {
 	}
 	if r.Status.Approval != planner.Approved {
 		t.Fatalf("還原後確認要延續：%q", r.Status.Approval)
-	}
-}
-
-func TestRestoreV1(t *testing.T) {
-	data := filepath.Join(t.TempDir(), "data")
-	doc := lyrics.Parse(lyricText)
-	v1sha := lyrics.V1AlignSHA1(doc)
-	writeJSON(t, filepath.Join(data, "songs.json"), map[string]any{"version": 1,
-		"folders": []map[string]any{{"id": "f1", "name": "日文", "parent": nil, "order": 2}},
-		"songs": []map[string]any{{"id": "abc", "key": "Youtube:abc", "folder": "f1", "order": 3, "title": "手動歌名", "artist": "",
-			"language": "ja", "link": "", "note": "", "translation": false, "approved": "舊的字幕雜湊", "approved_at": "x",
-			"display": map[string]string{"title": "手動歌名", "artist": "歌手"},
-			"source":  map[string]any{"url": "https://youtu.be/abc", "extractor": "Youtube", "video_id": "abc", "title": "影片標題", "duration": 200, "mode": "video"},
-			"lyrics":  "lyrics/abc.txt", "timing": "timing/abc.json"}}})
-	_ = os.MkdirAll(filepath.Join(data, "lyrics"), 0o755)
-	_ = os.WriteFile(filepath.Join(data, "lyrics", "abc.txt"), []byte(lyricText), 0o644)
-	writeJSON(t, filepath.Join(data, "timing", "abc.json"), map[string]any{"lyrics_sha1": v1sha, "language": "ja",
-		"model": "large-v3", "method": kara.Current.Align, "lines": lines(), "adjustments": []any{}})
-	writeJSON(t, filepath.Join(data, "settings.json"), map[string]any{"subtitle_scale": 0.8})
-
-	st := newLibrary(t)
-	rep, err := Run(context.Background(), st, nil, Options{Data: data, AlignVer: kara.Current.Align})
-	if err != nil || rep.Timing != 1 || len(rep.Realign) != 0 {
-		t.Fatalf("%+v %v", rep, err)
-	}
-	sg, _ := st.Song("abc")
-	if sg.Info.Title != "手動歌名" || sg.Info.Translation || sg.Info.Approved != nil {
-		t.Fatalf("v1 的確認沒辦法換算，不還原：%+v", sg.Info)
-	}
-	if lib := st.Library(); lib.Songs["abc"].Folder != "f1" || lib.Songs["abc"].Order != 3 || lib.Settings.SubtitleScale != 0.8 {
-		t.Fatalf("%+v", lib)
-	}
-	if r := evaluate(t, st); !r.RestoredUsable {
-		t.Fatal("v1 的對時：歌詞的 v1 雜湊相符就沿用")
-	}
-
-	// 歌詞和對時當下不同：不沿用（製作時重新對時）
-	writeJSON(t, filepath.Join(data, "timing", "abc.json"), map[string]any{"lyrics_sha1": "不一樣", "language": "ja",
-		"method": kara.Current.Align, "lines": lines()})
-	rep, _ = Run(context.Background(), st, nil, Options{Data: data, AlignVer: kara.Current.Align, Overwrite: true})
-	if len(rep.Realign) != 1 {
-		t.Fatalf("%+v", rep)
-	}
-	if r := evaluate(t, st); r.RestoredUsable {
-		t.Fatal("歌詞對不上不能沿用")
-	}
-}
-
-func TestRestoreV1Sources(t *testing.T) {
-	tools := media.DefaultTools("")
-	if _, err := exec.LookPath(tools.FFmpeg); err != nil {
-		t.Skip("沒有 ffmpeg")
-	}
-	tmp := t.TempDir()
-	data, downloads := filepath.Join(tmp, "data"), filepath.Join(tmp, "downloads")
-	doc := lyrics.Parse(lyricText)
-	entry := func(id, extractor, url string) map[string]any {
-		return map[string]any{"id": id, "folder": "f1", "order": 1, "title": "", "artist": "", "language": "ja",
-			"display": map[string]string{"title": "歌"}, "lyrics": "lyrics/" + id + ".txt", "timing": "timing/" + id + ".json",
-			"source": map[string]any{"url": url, "extractor": extractor, "video_id": id, "title": "影片標題", "duration": 1, "mode": "audio"}}
-	}
-	ids := []string{"abc", "xyz123", "local-1234abcd"}
-	writeJSON(t, filepath.Join(data, "songs.json"), map[string]any{"version": 1,
-		"folders": []map[string]any{{"id": "f1", "name": "日文", "parent": nil, "order": 1}},
-		"songs": []map[string]any{entry(ids[0], "Youtube", "https://youtu.be/abc"), entry(ids[1], "BiliBili", "https://b23.tv/xyz123"),
-			entry(ids[2], "local", "")}})
-	// v1 的下載資料夾：每首一個「標題 (id)」資料夾，裡面是影片與 download.json
-	for i, id := range ids {
-		_ = os.MkdirAll(filepath.Join(data, "lyrics"), 0o755)
-		_ = os.WriteFile(filepath.Join(data, "lyrics", id+".txt"), []byte(lyricText), 0o644)
-		writeJSON(t, filepath.Join(data, "timing", id+".json"), map[string]any{"lyrics_sha1": lyrics.V1AlignSHA1(doc), "language": "ja",
-			"method": kara.Current.Align, "lines": lines()})
-		folder := filepath.Join(downloads, "歌 ("+id+")")
-		_ = os.MkdirAll(folder, 0o755)
-		file := "自己的檔案.m4a"
-		if out, err := exec.Command(tools.FFmpeg, "-v", "error", "-f", "lavfi", "-i", "sine=duration=1", filepath.Join(folder, file)).CombinedOutput(); err != nil {
-			t.Fatalf("%s %v", out, err)
-		}
-		extractor := []string{"Youtube", "BiliBili", "local"}[i]
-		writeJSON(t, filepath.Join(folder, "download.json"), map[string]any{"extractor": extractor, "id": id, "url": "https://example.com/" + id,
-			"title": "影片標題", "channel": "頻道", "duration": 1, "mode": "audio", "file": file})
-	}
-	_ = os.MkdirAll(filepath.Join(downloads, "沒下載完 (zzz)"), 0o755) // 沒有 download.json：略過
-
-	st, err := store.Open(filepath.Join(tmp, "new"), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer st.Close()
-	opt := Options{Data: data, Sources: downloads, Media: tools, AlignVer: kara.Current.Align}
-	rep, err := Run(context.Background(), st, nil, opt) // 沒有下載工具：只能用舊檔案
-	if err != nil || len(rep.Imported) != 3 || len(rep.Failed)+len(rep.MissingLocal)+len(rep.Realign) != 0 || rep.Timing != 3 {
-		t.Fatalf("%+v %v", rep, err)
-	}
-	for id, kind := range map[string]string{"abc": song.KindURL, "bilibili-xyz123": song.KindURL, "local-1234abcd": song.KindLocal} {
-		sg, ok := st.Song(id)
-		if !ok || sg.Source.Kind != kind || sg.Source.File.Name != "source.m4a" || sg.Source.Mode != "audio" || sg.Source.File.SHA256 == "" {
-			t.Fatalf("%s：%+v", id, sg.Source)
-		}
-		if st.Library().Songs[id].Folder != "f1" {
-			t.Fatalf("%s 的資料夾", id)
-		}
-		if _, err := os.Stat(st.SongPath(id, song.FileAlignment)); err != nil {
-			t.Fatalf("%s 的對時沿用：%v", id, err)
-		}
-	}
-	if sg, _ := st.Song("local-1234abcd"); sg.Source.OriginalName != "自己的檔案.m4a" {
-		t.Fatalf("%+v", sg.Source)
-	}
-	if sg, _ := st.Song("abc"); sg.Source.Channel != "頻道" || sg.Source.URL != "https://example.com/abc" {
-		t.Fatalf("%+v", sg.Source)
-	}
-	// 舊檔案不動
-	if _, err := os.Stat(filepath.Join(downloads, "歌 (abc)", "自己的檔案.m4a")); err != nil {
-		t.Fatal("v1 的檔案要留著")
-	}
-	// 再執行一次：已經搬過的不再搬
-	if rep, err := Run(context.Background(), st, nil, opt); err != nil || len(rep.Imported) != 0 || rep.Songs != 3 {
-		t.Fatalf("%+v %v", rep, err)
 	}
 }

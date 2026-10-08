@@ -1,5 +1,5 @@
 // Package pystr 照 Python 的字串規則處理文字（str.isspace、strip、split()、splitlines、re 的 \s）。
-// 移植 v1 的規則時用它，結果才會和 v1 逐字相同（Go 的 unicode.IsSpace 範圍和 Python 不同）。
+// 歌詞、標題的規則以 Python 的字串語意定義（規格資料就是這樣產生的）；Go 的 unicode.IsSpace 範圍和 Python 不同，要用這裡的。
 package pystr
 
 import (

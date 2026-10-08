@@ -1,0 +1,52 @@
+[project]
+name = "kara-worker"
+version = "0.0.0"   # 演算法與協定的版本看 repo 根目錄的 versions.json
+description = "伴唱帶工作室的 AI worker：去人聲、對時、對時檢查、假名與燒錄"
+readme = "README.md"
+license = "AGPL-3.0-only"
+requires-python = ">=3.13"
+# PyTorch 要先從官方 index 裝 CUDA 版（見 setup.ps1、deploy/worker.Dockerfile）：
+#   pip install torch==2.11.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu130
+# 之後安裝這個套件時加 -c constraints.txt，避免 torch 被換成 PyPI 上的 CPU 版。
+dependencies = [
+    "torch",
+    "torchaudio",
+    "demucs==4.0.1",
+    "stable-ts",
+    "numpy",
+    "soundfile",
+    "fugashi",
+    "unidic-lite",
+    "pykakasi",
+    "pypinyin",
+    "packaging",
+    "pillow",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[project.scripts]
+kara-worker = "kara_worker.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kara_worker"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"../versions.json" = "kara_worker/versions.json"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]   # 中文註解與訊息常超過 120 欄

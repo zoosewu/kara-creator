@@ -1,4 +1,4 @@
-// Package inbox 匯入手動放進 <library>/inbox/ 的影音檔（v1 songtool/local.py）。
+// Package inbox 匯入手動放進 <library>/inbox/ 的影音檔。
 //
 //   - 直接放在 inbox 的檔案，或放在 inbox 子資料夾裡的第一個影音檔都可以
 //   - 匯入時搬到 songs/<id>/source.<副檔名>（原檔名記在 original_name），子資料夾變空就刪掉
@@ -35,7 +35,7 @@ const Stable = 5 * time.Second
 
 var partial = regexp.MustCompile(`(?i)\.(part|ytdl|temp)$|\.f\d+\.\w+$`)
 
-// LocalID 是手動放入的檔案的歌曲 id（和 v1 相同）。
+// LocalID 是手動放入的檔案的歌曲 id（同一個檔案放回來就是同一個 id，資料備份還原時才對得上）。
 func LocalID(name string, size int64) string {
 	sum := sha1.Sum([]byte(fmt.Sprintf("%s:%d", name, size)))
 	return "local-" + hex.EncodeToString(sum[:])[:8]

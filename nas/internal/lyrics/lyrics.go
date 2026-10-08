@@ -1,4 +1,4 @@
-// Package lyrics 解析與寫回歌詞檔（v1 songtool/lyrics.py 的移植，行為要逐字相同，黃金測試見 lyrics_test.go）。
+// Package lyrics 解析與寫回歌詞檔（行為以規格資料為準，規格測試見 lyrics_test.go）。
 //
 // 格式（UTF-8，一行就是畫面上的一句，空行會忽略）：
 //
@@ -74,7 +74,7 @@ func (d Document) Texts() []string {
 }
 
 const (
-	hanClass  = `\x{4e00}-\x{9fff}` // v1 的 _HAN 後來被重新定義成只有這一段（不含擴充 A），照抄
+	hanClass  = `\x{4e00}-\x{9fff}` // 只有這一段（不含擴充 A），規格如此
 	baseClass = `\x{4e00}-\x{9fff}\x{3400}-\x{4dbf}\x{3005}\x{3006}\x{30f6}A-Za-z0-9`
 )
 
@@ -355,7 +355,7 @@ func ParenToRuby(text string) string {
 	return strings.Join(lines, "\n")
 }
 
-// Sanitize 整理從 API 送來的結構（v1 lyrics.from_dict）：去掉空的讀音、不認得的演唱者，翻譯的空白收斂。
+// Sanitize 整理從 API 送來的結構：去掉空的讀音、不認得的演唱者，翻譯的空白收斂。
 func Sanitize(doc Document) Document {
 	out := Document{Meta: map[string]string{}, Lines: []Line{}}
 	for k, v := range doc.Meta {

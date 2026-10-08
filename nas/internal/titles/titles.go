@@ -1,4 +1,4 @@
-// Package titles 從影片資訊推測歌名與演唱者（v1 songtool/titles.py 的移植，純規則、不用 LLM）。
+// Package titles 從影片資訊推測歌名與演唱者（純規則、不用 LLM；規格測試見 titles_test.go）。
 //
 // 依序嘗試：
 //  1. yt-dlp 的歌曲資訊（track / artists）：YouTube Music、「- Topic」頻道等自動產生的影片會有，最準。
@@ -12,7 +12,7 @@
 //
 // 中英並列時去掉英文譯名；演唱者只留主要歌手（去掉 ft. / feat. 之後的合作歌手），歌名裡的「(feat. …)」也去掉。
 //
-// v1 的正規表示式用了 Go 不支援的前後文斷言（lookbehind / lookahead），這裡改成手寫的比對，
+// 有些規則需要前後文斷言（lookbehind / lookahead），Go 的 regexp 不支援，改成手寫的比對，
 // 並照 Python re.IGNORECASE 的規則比對大小寫（İ、ı 算 i，ſ 算 s，K（克氏溫標）算 k）。
 package titles
 
@@ -283,7 +283,7 @@ var (
 	square = [][2]string{{"【", "】"}, {"［", "］"}, {"[", "]"}, {"〔", "〕"}}
 	round  = [][2]string{{"(", ")"}, {"（", "）"}}
 
-	// 去掉雜訊括號時依序處理的括號（v1：_SQUARE + _ROUND + _QUOTES[2:]）。
+	// 去掉雜訊括號時依序處理的括號（方括號、圓括號、引號類）。
 	noiseBracketRes = func() []*regexp.Regexp {
 		var out []*regexp.Regexp
 		for _, pair := range slices.Concat(square, round, quotes[2:]) {

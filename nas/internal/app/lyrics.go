@@ -17,7 +17,7 @@ import (
 	wp "github.com/zoosewu/kara-creator/nas/internal/workerproto"
 )
 
-// ReadingWait 是編輯歌詞時等 AI 算假名最多等多久（docs/v2/architecture.md「編輯歌詞」）。
+// ReadingWait 是編輯歌詞時等 AI 算假名最多等多久（docs/architecture.md「編輯歌詞」）。
 var ReadingWait = 3 * time.Second
 
 // lookup 回傳查讀音快取的函式。
@@ -150,7 +150,7 @@ func (a *App) SaveLyrics(id, text string) (LyricsViews, error) {
 	return a.Lyrics(id)
 }
 
-// ConvertRequest 是文字 ↔ 結構互轉（v1 /api/lyrics/convert）。
+// ConvertRequest 是文字 ↔ 結構互轉。
 type ConvertRequest struct {
 	Text        *string          `json:"text,omitempty" doc:"要轉換的文字；不給時從 doc 產生"`
 	Doc         *lyrics.Document `json:"doc,omitempty" doc:"結構；format=plain 時是原本的結構（保留演唱者與讀音）"`

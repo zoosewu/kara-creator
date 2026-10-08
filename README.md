@@ -66,12 +66,12 @@ docker compose -f compose.ai.yml up -d
 
 ```powershell
 git clone https://github.com/zoosewu/kara-creator.git
-cd kara-creator
-.\setup.ps1 -DataRepo ""      # 下載 ffmpeg、建立 Python 環境（PyTorch CUDA 版）
+cd kara-creator\worker
+.\setup.ps1                   # 下載 ffmpeg、建立 Python 環境（PyTorch CUDA 版）、安裝 kara-worker
 .\worker.ps1 --nas http://mac-mini.local:8765 --name pc-4070 --token 自己訂的密碼
 ```
 
-更新：`git pull` 後重新執行 `worker.ps1`。其他參數見 `.\worker.ps1 --help`（例如 `--channels`、`--device cpu`）。
+更新：`git pull` 後再執行一次 `setup.ps1`，然後啟動 `worker.ps1`。其他參數見 `.\worker.ps1 --help`（例如 `--channels`、`--device cpu`）。
 
 ## 使用
 
@@ -98,8 +98,14 @@ CI 在 `main` 有變動時自動建置並推到 GitHub Container Registry：
 
 ## 開發
 
-規格與設計在 [docs/v2/](docs/v2/README.md)，開發環境與測試方法在 [docs/v2/deploy.md](docs/v2/deploy.md)。
-v1（舊的 Windows 單機版）的說明在 [docs/v1.md](docs/v1.md)。
+| 目錄 | 內容 |
+| --- | --- |
+| `nas/` | NAS 伺服器（Go）與網頁前端（`nas/web/`，Svelte） |
+| `worker/` | AI 伺服器（Python 套件 `kara_worker`） |
+| `deploy/` | Dockerfile 與 compose |
+| `docs/` | 設計文件與 API 規格（[docs/README.md](docs/README.md)） |
+
+開發環境與測試方法見 [docs/deploy.md](docs/deploy.md)。
 
 ## 授權
 

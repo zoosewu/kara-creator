@@ -192,7 +192,7 @@ type PlaceRequest struct {
 	KeepPresent bool `json:"keep_present,omitempty"`
 }
 
-// Place 拖曳排序與移動（v1 /api/place 與 /api/songs/move 合併）。
+// Place 拖曳排序與移動。
 func (a *App) Place(req PlaceRequest) error {
 	if req.Kind != library.KindFolder && req.Kind != library.KindSong {
 		return invalid("kind 必須是 folder 或 song")
@@ -448,7 +448,7 @@ type JobResult struct {
 	Errors  []string       `json:"errors,omitempty"`
 }
 
-// SubmitJobs 建立工作。批次時依 v1 前端的規則略過不需要做的歌。
+// SubmitJobs 建立工作。批次時略過不需要做的歌。
 func (a *App) SubmitJobs(req JobRequest) (JobResult, error) {
 	for _, s := range req.Steps {
 		if s == jobs.StepDownload || !contains(jobs.Steps, s) {

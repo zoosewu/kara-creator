@@ -1,5 +1,5 @@
-// Package readings 是假名（讀音）：自動讀音的快取、手動與自動讀音的合併（v1 reading.furigana），
-// 以及歌詞編輯器的各種檢視（v1 ui/server.py 的 _lyrics_views、_from_annotated）。
+// Package readings 是假名（讀音）：自動讀音的快取、手動與自動讀音的合併，
+// 以及歌詞編輯器的各種檢視。
 //
 // 自動讀音（MeCab）由 AI worker 的 reading 任務計算，只看「語言 + 句子」；NAS 快取結果，
 // PC 關機時看過的歌詞照樣有假名。目前只有日文有自動讀音。

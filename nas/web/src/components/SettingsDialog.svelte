@@ -5,7 +5,7 @@
   import { ui } from '../lib/ui.svelte'
   import Icon from './Icon.svelte'
 
-  const BASE_RATIO = 0.075 // 預設字幕字高 / 畫面高（和 songtool/ass.py 的 Style 一致）
+  const BASE_RATIO = 0.075 // 預設字幕字高 / 畫面高（和 worker 的 subtitles.Style 一致）
   const LANGS: [string, string][] = [
     ['ja', '日文'],
     ['zh', '國語'],

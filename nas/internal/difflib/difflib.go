@@ -1,5 +1,5 @@
 // Package difflib 移植 Python difflib.SequenceMatcher(isjunk=None, autojunk=False) 的 get_opcodes，
-// 結果和 Python 完全相同（v1 編輯原始歌詞時用它對應新舊句子）。
+// 結果和 Python 完全相同（編輯原始歌詞時用它對應新舊句子；規格資料由 Python 產生）。
 package difflib
 
 import "sort"

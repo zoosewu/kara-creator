@@ -1,9 +1,9 @@
 .git
-.venv*
-output
-lyrics
+**/.venv*
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+worker/tools
 data
-tools
 nas/web/node_modules
 nas/internal/api/dist
-**/__pycache__

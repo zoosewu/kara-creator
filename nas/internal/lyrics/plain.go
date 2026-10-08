@@ -2,7 +2,7 @@ package lyrics
 
 import "github.com/zoosewu/kara-creator/nas/internal/difflib"
 
-// FromPlain 把「原始歌詞」檢視（只有歌詞與翻譯，沒有標註）轉回結構（v1 ui/server.py 的 _from_plain）：
+// FromPlain 把「原始歌詞」檢視（只有歌詞與翻譯，沒有標註）轉回結構：
 // 沒改到的句子沿用原本的演唱者、讀音與翻譯（用 diff 對應，插入或刪除句子也不會錯位）；
 // 改過的句子保留演唱者，讀音只留下原字沒變的部分。
 func FromPlain(text string, base Document) Document {

@@ -1,5 +1,5 @@
 // Package timing 是對時結果（alignment.json）與手動調整時間：移動單句（連鎖推動、壓縮）、
-// 套用 AI 重對的結果（v1 songtool/karaoke.py 的 shift_timing、retime；黃金測試見 timing_test.go）。
+// 套用 AI 重對的結果（規格測試見 timing_test.go）。
 //
 // 調整只改 alignment.json，之後成品變成需更新（只重新產生字幕並燒錄，不重新對時）。
 package timing

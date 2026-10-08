@@ -1,4 +1,4 @@
-// Package song 是每首歌的紀錄（songs/<id>/song.json，docs/v2/data.md「song.json」）。
+// Package song 是每首歌的紀錄（songs/<id>/song.json，docs/data.md「song.json」）。
 package song
 
 import (
@@ -134,7 +134,7 @@ type SeparateStage struct {
 
 // RenderStage 是一個成品的紀錄。Key 是燒錄時的成品指紋；Content 是當時「不看手動 ASS」的指紋：
 // 使用者手改 ASS 之後，只要 Content 和現在的相同（對時、歌詞、標題畫面、樣式、字型都沒變）就沿用手改的 ASS，
-// 否則重新產生（手改的內容會被取代，同 v1）。
+// 否則重新產生（手改的內容會被取代）。
 type RenderStage struct {
 	Stage
 	Content string  `json:"content"`
@@ -165,7 +165,7 @@ type InfoUpdate struct {
 	Targets     *[]string `json:"targets,omitempty"`
 }
 
-// ApplyInfo 驗證並套用歌曲資訊（v1 catalog.update_song 的規則）。出錯時不做任何修改。
+// ApplyInfo 驗證並套用歌曲資訊。出錯時不做任何修改。
 func (s *Song) ApplyInfo(u InfoUpdate) error {
 	next := s.Info
 	if u.Title != nil {

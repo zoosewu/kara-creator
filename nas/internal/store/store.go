@@ -1,4 +1,4 @@
-// Package store 管理曲庫資料夾（docs/v2/data.md「資料夾結構」）：library.json、各首歌的 song.json。
+// Package store 管理曲庫資料夾（docs/data.md「資料夾結構」）：library.json、各首歌的 song.json。
 //
 // 啟動時全部讀進記憶體，之後只在修改時寫檔（不輪詢，NAS 的硬碟才能休眠）。
 // 寫檔一律「寫暫存檔再改名」，中斷時不會留下半個 JSON。

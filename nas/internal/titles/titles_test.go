@@ -7,8 +7,8 @@ import (
 	"testing"
 )
 
-func TestGolden(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "testdata", "golden", "titles.json"))
+func TestSpec(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "testdata", "spec", "titles.json"))
 	if err != nil {
 		t.Fatal(err)
 	}

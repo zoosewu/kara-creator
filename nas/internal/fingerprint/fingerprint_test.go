@@ -10,9 +10,9 @@ import (
 	"github.com/zoosewu/kara-creator/nas/internal/workerproto"
 )
 
-// 黃金測試的答案由 Python 版（migrate/fingerprint.py）產生：搬遷工具寫的指紋和 NAS 算的必須相同。
-func TestGolden(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "testdata", "golden", "fingerprint.json"))
+// 規格測試：指紋的算法改了會讓所有歌被判定為需要重做，所以固定成規格資料。
+func TestSpec(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "testdata", "spec", "fingerprint.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func TestGolden(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(g.Lyrics) == 0 || len(g.Alignment) == 0 || len(g.Stages) == 0 {
-		t.Fatal("黃金測試資料是空的")
+		t.Fatal("規格測試資料是空的")
 	}
 	for _, c := range g.Lyrics {
 		if got := Lyrics(c.Texts, c.Rubies); got != c.Fingerprint {
