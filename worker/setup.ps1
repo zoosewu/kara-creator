@@ -39,11 +39,11 @@ $python = Join-Path $root ".venv\Scripts\python.exe"
 if (-not (Test-Path $python)) {
     Write-Host "建立 Python $PythonVersion 環境"
     py "-$PythonVersion" -m venv (Join-Path $root ".venv")
-    & $python -m pip install --upgrade pip
-    & $python -m pip install torch==2.11.0 torchaudio==2.11.0 --index-url "https://download.pytorch.org/whl/$Cuda"
+    & $python -m pip install --no-warn-script-location --upgrade pip
+    & $python -m pip install --no-warn-script-location torch==2.11.0 torchaudio==2.11.0 --index-url "https://download.pytorch.org/whl/$Cuda"
 }
 Write-Host "安裝 kara-worker 與相依套件"
-& $python -m pip install -e $root -c (Join-Path $root "constraints.txt")
+& $python -m pip install --no-warn-script-location -e $root -c (Join-Path $root "constraints.txt")
 if ($LASTEXITCODE -ne 0) { throw "安裝失敗" }
 
 Write-Host ""
