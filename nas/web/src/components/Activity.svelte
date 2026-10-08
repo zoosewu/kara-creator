@@ -63,6 +63,11 @@
     return `${steps}${mode} · ${status}`
   }
 
+  async function retry(j: JobSummary) {
+    const s = await store.run(() => api<JobSummary>(`/jobs/${j.id}/retry`, { method: 'POST' }), '已重新排入佇列')
+    if (s) store.selectedJob = s.id
+  }
+
   async function cancel(j: JobSummary) {
     await store.attempt(() => api(`/jobs/${j.id}`, { method: 'DELETE' }), j.status === 'queued' ? '已移出佇列' : '取消中，會在下一個安全點停下')
   }
@@ -112,6 +117,7 @@
         <div class="lane-head" title={tip}><span>{name}</span><span class="muted">{active ? `${active} 件進行中` : '閒置'}</span></div>
         {#each jobs as j (j.id)}
           {@const cancellable = j.lane !== 'system' && (j.status === 'queued' || j.status === 'running') && !j.cancelling}
+          {@const retryable = j.lane !== 'system' && (j.status === 'failed' || j.status === 'cancelled')}
           <div
             role="button"
             tabindex="0"
@@ -123,7 +129,7 @@
             <span class="dot"></span>
             <span class="job-title ellipsis">{j.title || j.url}</span>
             <span class="job-time">{fmtTime(j.created)}</span>
-            <span class="job-sub ellipsis" class:with-cancel={cancellable}>{sub(j)}</span>
+            <span class="job-sub ellipsis" class:with-cancel={cancellable || retryable}>{sub(j)}</span>
             {#if cancellable}
               <button
                 type="button"
@@ -133,6 +139,17 @@
                   e.stopPropagation()
                   cancel(j)
                 }}>取消</button
+              >
+            {/if}
+            {#if retryable}
+              <button
+                type="button"
+                class="job-cancel"
+                title={j.has_lyrics ? '用同樣的設定再做一次（新增時附上的歌詞會一起保留）' : '用同樣的設定再做一次'}
+                onclick={(e) => {
+                  e.stopPropagation()
+                  retry(j)
+                }}>重試</button
               >
             {/if}
             {#if j.status === 'running'}

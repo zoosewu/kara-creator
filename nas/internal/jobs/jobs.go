@@ -107,6 +107,7 @@ type Summary struct {
 	Cancelling bool      `json:"cancelling"`
 	Force      bool      `json:"force"`
 	Realign    bool      `json:"realign"`
+	HasLyrics  bool      `json:"has_lyrics" doc:"新增歌曲時附上的歌詞還沒存進曲庫（下載失敗時重試會一起帶著）"`
 	Created    time.Time `json:"created"`
 	Started    time.Time `json:"started,omitzero"`
 	Finished   time.Time `json:"finished,omitzero"`
@@ -116,7 +117,8 @@ func (j *Job) summary() Summary {
 	return Summary{ID: j.ID, Steps: j.Steps, Song: j.Song, URL: j.URL, Title: j.Title, Priority: j.Priority,
 		Status: j.Status, Lane: j.Lane, Stage: j.Stage, Progress: j.Progress, Error: j.Error, LogSize: len(j.Logs),
 		Cancelling: j.cancelling && j.Status == Running, Force: j.Options.Force, Realign: j.Options.Realign,
-		Created: j.Created, Started: j.Started, Finished: j.Finished}
+		HasLyrics: j.Options.Lyrics != "",
+		Created:   j.Created, Started: j.Started, Finished: j.Finished}
 }
 
 func active(status string) bool { return status == Queued || status == Running }
@@ -291,6 +293,24 @@ func (m *Manager) Cancel(id string) (Summary, error) {
 		m.changed(j)
 	}
 	return j.summary(), nil
+}
+
+// Retry 用同樣的步驟與選項（含新增歌曲時附上的歌詞、資料夾）重新排一件工作。只有失敗或取消的工作可以重試。
+func (m *Manager) Retry(id string) (Summary, error) {
+	m.mu.Lock()
+	j, ok := m.jobs[id]
+	if !ok {
+		m.mu.Unlock()
+		return Summary{}, ErrNotFound
+	}
+	if (j.Status != Failed && j.Status != Cancelled) || j.Lane == LaneSystem {
+		m.mu.Unlock()
+		return Summary{}, errors.New("只有失敗或取消的工作可以重試")
+	}
+	req := Request{Steps: append([]string(nil), j.Steps...), Song: j.Song, URL: j.URL, Title: j.Title, Options: j.Options,
+		Priority: j.Priority}
+	m.mu.Unlock()
+	return m.Submit(req)
 }
 
 // List 回傳所有工作的摘要（新的在前）。

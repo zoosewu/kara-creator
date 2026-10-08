@@ -22,6 +22,8 @@ type fakeRunner struct {
 	release  chan string // 送歌曲 id 讓那件工作結束
 	fail     map[string]error
 	finished []string
+	downErr  error    // 下載失敗
+	lyrics   []string // 每次下載收到的歌詞
 }
 
 func newRunner() *fakeRunner {
@@ -29,6 +31,13 @@ func newRunner() *fakeRunner {
 }
 
 func (r *fakeRunner) Download(ctx context.Context, job Job, env Env) (string, string, error) {
+	r.mu.Lock()
+	r.lyrics = append(r.lyrics, job.Options.Lyrics)
+	err := r.downErr
+	r.mu.Unlock()
+	if err != nil {
+		return "", "", err
+	}
 	env.Log("下載 " + job.URL)
 	env.Progress(0.5)
 	return "song-" + strings.TrimPrefix(job.URL, "https://x/"), "下載的歌", nil
@@ -265,5 +274,38 @@ func TestCrashRecovery(t *testing.T) {
 	logs, _ := m.Logs("x-3", 0)
 	if !strings.Contains(strings.Join(logs, "\n"), "重新排隊") {
 		t.Fatal(logs)
+	}
+}
+
+func TestRetry(t *testing.T) {
+	r := newRunner()
+	r.downErr = errors.New("下載失敗：HTTP Error 403: Forbidden")
+	m := New(Config{Runner: r})
+	m.Start()
+	s, _ := m.Submit(Request{Steps: []string{StepDownload, StepKaraoke}, URL: "https://x/1",
+		Options: Options{Lyrics: "自己編的歌詞", Folder: "f1"}})
+	waitFor(t, "下載失敗", func() bool { return status(m, s.ID) == Failed })
+	if _, err := m.Retry("不存在"); !errors.Is(err, ErrNotFound) {
+		t.Fatal(err)
+	}
+	// 重試：附上的歌詞、資料夾都還在
+	r.mu.Lock()
+	r.downErr = nil
+	r.mu.Unlock()
+	again, err := m.Retry(s.ID)
+	if err != nil || again.ID == s.ID || again.URL != "https://x/1" {
+		t.Fatalf("%+v %v", again, err)
+	}
+	waitFor(t, "下載完", func() bool { cur, _ := m.Get(again.ID); return cur.Song == "song-1" })
+	r.mu.Lock()
+	got := append([]string(nil), r.lyrics...)
+	r.mu.Unlock()
+	if len(got) != 2 || got[1] != "自己編的歌詞" {
+		t.Fatalf("重試要帶著原本附上的歌詞：%q", got)
+	}
+	r.release <- "song-1"
+	waitFor(t, "完成", func() bool { return status(m, again.ID) == Done })
+	if _, err := m.Retry(again.ID); err == nil {
+		t.Fatal("成功的工作不能重試")
 	}
 }

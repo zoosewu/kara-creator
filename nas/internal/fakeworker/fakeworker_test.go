@@ -148,6 +148,22 @@ func (s *stubNAS) wait(t *testing.T, n int) {
 	}
 }
 
+// waitTask 等某一件任務回報（完成或失敗），其他任務的回報略過。
+func (s *stubNAS) waitTask(t *testing.T, id string) {
+	t.Helper()
+	timeout := time.After(5 * time.Second)
+	for {
+		select {
+		case got := <-s.events:
+			if got == id {
+				return
+			}
+		case <-timeout:
+			t.Fatalf("等不到 %s 回報", id)
+		}
+	}
+}
+
 func decode(t *testing.T, r *http.Request, v any) {
 	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
 		t.Errorf("%s：%v", r.URL.Path, err)
@@ -287,7 +303,7 @@ func TestCancel(t *testing.T) {
 		map[string][]byte{wp.InputAudio: wav(1)})
 
 	stop := start(t, Options{NAS: srv.URL, Delay: 300 * time.Millisecond})
-	s.wait(t, 1)
+	s.waitTask(t, "next") // 取消的 slow 有時會先回報失敗：明確等 next
 	if err := stop(); err != nil {
 		t.Fatal(err)
 	}

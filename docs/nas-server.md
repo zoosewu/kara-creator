@@ -47,7 +47,8 @@ kara-nas restore [--overwrite] [--replace 歌曲id=網址]   # 從資料備份�
 - 流程：
   1. `yt-dlp -J --no-playlist <網址>` 取得資訊 → 算出歌曲 id → 已經有這首就略過
   2. 下載到 `songs/<id>/.downloading/`：格式（`VideoFormat` 優先 H.264 + AAC，合併成 mp4；只要音訊時用 `AudioFormat`，不轉檔）；
-     用 `--newline --progress-template` 解析進度；取消時終止子程序（`.part` 留著下次續傳）
+     用 `--newline --progress-template` 解析進度；取消時終止子程序（`.part` 留著下次續傳）；
+     YouTube 回 403 時重新取得一次資訊與網址再試（常常是暫時的）
   3. 完成後搬成 `source.<ext>`，寫 song.json（含 sha256、ffprobe 的寬高）
 - 同時最多下載 2 首
 - `song.json` 的 `meta_version` 記歌曲資訊欄位的版本，欄位有增加時可以替舊紀錄補抓
@@ -122,6 +123,7 @@ kara-nas restore [--overwrite] [--replace 歌曲id=網址]   # 從資料備份�
 | `POST /library/place` | 拖曳：把歌或資料夾放到某個資料夾、排在某個項目前面 |
 | `POST /jobs` | 建立工作：`{songs: [id…], steps, force, realign, line, mode}`；批次時回傳建立了哪些、略過哪些（「略過 N 首」的規則在後端） |
 | `GET /jobs` · `GET /jobs/{id}` · `GET /jobs/{id}/log?offset=` · `DELETE /jobs/{id}` | 工作清單、詳細、紀錄、取消 |
+| `POST /jobs/{id}/retry` | 失敗或取消的工作用同樣的設定重試（新增歌曲時附上的歌詞、資料夾一起帶著） |
 | `GET /workers` · `PATCH /workers/{name}` | AI 伺服器清單（名稱、GPU、版本是否相符、目前任務、最後連線時間）；停用 / 啟用 |
 | `GET/PATCH /settings` | 全域設定：字幕大小、每種語言的字型 |
 | `GET /fonts` · `GET /fonts/{sha256}` | 字型清單、字型檔（前端預覽用 `@font-face`） |

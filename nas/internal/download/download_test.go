@@ -26,7 +26,12 @@ for a in "$@"; do
   prev="$a"
 done
 if [ -n "$FAKE_FAIL" ]; then echo "ERROR: [youtube] abc: Video unavailable" >&2; exit 1; fi
+[ "$mode" = info ] && [ -n "$FAKE_INFO_LOG" ] && echo info >> "$FAKE_INFO_LOG"
 if [ "$mode" = info ]; then cat "$FAKE_INFO"; exit 0; fi
+# FAKE_403：第一次下載回 403（FAKE_403_ALWAYS 時每次都是）
+if [ -n "$FAKE_403" ] && { [ ! -e "$FAKE_403" ] || [ -n "$FAKE_403_ALWAYS" ]; }; then
+  touch "$FAKE_403"; echo "ERROR: unable to download video data: HTTP Error 403: Forbidden" >&2; exit 1
+fi
 [ -n "$FAKE_SLOW" ] && sleep 30
 dst="${out%%.%(ext)s}.mp4"
 echo "[download] Destination: $dst"
@@ -191,5 +196,28 @@ func TestUpdateAndRollback(t *testing.T) {
 	_ = d.Rollback()
 	if before, after, err := d.Update(ctx); err != nil || before != after {
 		t.Fatalf("%q %q %v", before, after, err)
+	}
+}
+
+func TestDownloadRetry403(t *testing.T) {
+	e := newEnv(t)
+	dir := t.TempDir()
+	infoLog := filepath.Join(dir, "info.log")
+	t.Setenv("FAKE_INFO_LOG", infoLog)
+	t.Setenv("FAKE_403", filepath.Join(dir, "403"))
+	// 第一次 403：重新取得資訊（-J）再下載一次，成功
+	res, err := e.d.Download(context.Background(), Request{URL: "https://youtu.be/x"})
+	if err != nil || res.ID != "dQw4w9WgXcQ" {
+		t.Fatalf("%+v %v", res, err)
+	}
+	if data, _ := os.ReadFile(infoLog); strings.Count(string(data), "info") != 2 {
+		t.Fatalf("重試前要重新取得影片網址：%q", data)
+	}
+	// 一直 403：只重試一次，錯誤訊息照實給人看
+	t.Setenv("FAKE_403_ALWAYS", "1")
+	_ = os.RemoveAll(e.st.SongPath("dQw4w9WgXcQ"))
+	e2 := newEnv(t)
+	if _, err := e2.d.Download(context.Background(), Request{URL: "https://youtu.be/x"}); err == nil || !strings.Contains(err.Error(), "403") {
+		t.Fatalf("%v", err)
 	}
 }

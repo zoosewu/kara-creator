@@ -157,7 +157,18 @@ func (d *Downloader) Download(ctx context.Context, req Request) (Result, error) 
 	args := d.args(append(extra, "-f", format, "--newline", "--continue",
 		"--progress-template", "download:KARA-PROGRESS %(progress.downloaded_bytes)s %(progress.total_bytes)s %(progress.total_bytes_estimate)s",
 		"-o", filepath.Join(tmp, "source.%(ext)s"), "--load-info-json", infoPath)...)
-	if err := d.stream(ctx, args, logf, req.Progress); err != nil {
+	err = d.stream(ctx, args, logf, req.Progress)
+	if err != nil && ctx.Err() == nil && strings.Contains(err.Error(), "HTTP Error 403") {
+		// YouTube 有時會拒絕剛才取得的影片網址（403，常常是暫時的）：重新取得一次資訊與網址再試
+		logf("YouTube 拒絕下載（403），重新取得影片網址再試一次")
+		if fresh, ferr := d.run(ctx, d.args("-J", "--", req.URL)...); ferr == nil {
+			if werr := os.WriteFile(infoPath, fresh, 0o644); werr != nil {
+				return Result{}, werr
+			}
+		}
+		err = d.stream(ctx, args, logf, req.Progress)
+	}
+	if err != nil {
 		if ctx.Err() != nil {
 			return Result{}, ctx.Err()
 		}

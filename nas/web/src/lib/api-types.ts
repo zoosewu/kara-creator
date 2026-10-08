@@ -148,6 +148,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 重試工作
+         * @description 用同樣的步驟與選項（含新增歌曲時附上的歌詞、資料夾）重新排一件工作。只有失敗或取消的工作可以重試；回傳新的工作。
+         */
+        post: operations["retry-job"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/library": {
         parameters: {
             query?: never;
@@ -1129,6 +1149,8 @@ export interface components {
             /** Format: date-time */
             finished?: string;
             force: boolean;
+            /** @description 新增歌曲時附上的歌詞還沒存進曲庫（下載失敗時重試會一起帶著） */
+            has_lyrics: boolean;
             id: string;
             lane: string;
             /** Format: int64 */
@@ -1600,6 +1622,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LogOut"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "retry-job": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 工作 id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Summary"];
                 };
             };
             /** @description Error */

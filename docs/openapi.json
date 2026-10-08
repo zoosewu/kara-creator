@@ -1675,6 +1675,10 @@
           "force": {
             "type": "boolean"
           },
+          "has_lyrics": {
+            "description": "新增歌曲時附上的歌詞還沒存進曲庫（下載失敗時重試會一起帶著）",
+            "type": "boolean"
+          },
           "id": {
             "type": "string"
           },
@@ -1738,6 +1742,7 @@
           "cancelling",
           "force",
           "realign",
+          "has_lyrics",
           "created"
         ],
         "type": "object"
@@ -2539,6 +2544,50 @@
           }
         },
         "summary": "工作的紀錄",
+        "tags": [
+          "工作"
+        ]
+      }
+    },
+    "/api/v1/jobs/{id}/retry": {
+      "post": {
+        "description": "用同樣的步驟與選項（含新增歌曲時附上的歌詞、資料夾）重新排一件工作。只有失敗或取消的工作可以重試；回傳新的工作。",
+        "operationId": "retry-job",
+        "parameters": [
+          {
+            "description": "工作 id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "工作 id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Summary"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "重試工作",
         "tags": [
           "工作"
         ]

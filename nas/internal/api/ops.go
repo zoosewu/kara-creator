@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -327,6 +328,19 @@ func register(api huma.API, a *app.App) {
 			s, err := a.Jobs.Cancel(in.ID)
 			if err != nil {
 				return nil, huma.Error404NotFound("找不到工作")
+			}
+			return &body[jobs.Summary]{s}, nil
+		})
+
+	huma.Register(api, op("retry-job", http.MethodPost, "/jobs/{id}/retry", "重試工作",
+		"用同樣的步驟與選項（含新增歌曲時附上的歌詞、資料夾）重新排一件工作。只有失敗或取消的工作可以重試；回傳新的工作。", tJobs),
+		func(ctx context.Context, in *jobID) (*body[jobs.Summary], error) {
+			s, err := a.Jobs.Retry(in.ID)
+			switch {
+			case errors.Is(err, jobs.ErrNotFound):
+				return nil, huma.Error404NotFound("找不到工作")
+			case err != nil:
+				return nil, huma.Error409Conflict(err.Error())
 			}
 			return &body[jobs.Summary]{s}, nil
 		})
