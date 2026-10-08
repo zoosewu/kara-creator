@@ -5,5 +5,10 @@
 #   .\worker.ps1 --help                                      # 其他參數
 $ErrorActionPreference = "Stop"
 $env:PATH = (Join-Path $PSScriptRoot "tools\ffmpeg\bin") + [IO.Path]::PathSeparator + $env:PATH
-& (Join-Path $PSScriptRoot ".venv\Scripts\kara-worker.exe") @args
+$exe = Join-Path $PSScriptRoot ".venv\Scripts\kara-worker.exe"
+if (-not (Test-Path $exe)) {
+    Write-Host "還沒安裝 kara-worker：請先執行 $(Join-Path $PSScriptRoot 'setup.ps1')（第一次會下載 PyTorch，需要一點時間）" -ForegroundColor Yellow
+    exit 1
+}
+& $exe @args
 exit $LASTEXITCODE
