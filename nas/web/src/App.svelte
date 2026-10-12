@@ -46,11 +46,12 @@
   </div>
 </main>
 
+<!-- 順序就是疊放順序：歌詞編輯器、資訊可以疊在播放畫面上面 -->
+{#if ui.studio}{#key ui.studio}<Studio id={ui.studio.id} opts={ui.studio.opts} />{/key}{/if}
+{#if ui.editor}{#key ui.editor}<LyricsEditor id={ui.editor} />{/key}{/if}
 {#if ui.song}{#key ui.song}<SongDialog id={ui.song} />{/key}{/if}
 {#if ui.folder}<FolderDialog target={ui.folder} />{/if}
 {#if ui.settings}<SettingsDialog />{/if}
-{#if ui.editor}{#key ui.editor}<LyricsEditor id={ui.editor} />{/key}{/if}
-{#if ui.studio}{#key ui.studio}<Studio id={ui.studio.id} opts={ui.studio.opts} />{/key}{/if}
 
 <Menu />
 <Toast />

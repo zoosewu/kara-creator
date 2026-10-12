@@ -29,6 +29,7 @@
   let running = $derived(job?.status === 'running' ? STAGE_OF[job.stage] : null)
   let hasLyrics = $derived(song.status.lyrics === 'done')
   let karaoke = $derived(song.status.karaoke)
+  let approval = $derived(song.approval)
 
   function stageView(k: string, value: string) {
     const label = STAGES.find(([x]) => x === k)![1]
@@ -57,16 +58,49 @@
     }
   }
 
-  // 已完成的階段合併成一個「✓ 3/4」（省空間），沒完成的照樣分開顯示
-  let stageViews = $derived(STAGES.map(([k, label]) => ({ k, label, ...stageView(k, song.status[k] as string) })))
-  let doneCount = $derived(stageViews.filter((v) => v.cls === 'done').length)
-  let doneTip = $derived(stageViews.map((v) => `${v.label}：${stageState(v)}`).join('\n'))
+  type Step = { label: string; cls: string; state: string; detail?: string }
 
   /** 提示裡一個階段的狀態（「伴唱帶需重燒」→「需重燒」，避免重複階段名稱）。 */
-  function stageState(v: { cls: string; label: string; text: string; tip: string }) {
-    if (v.cls === 'done') return '已完成'
-    const rest = v.text.startsWith(v.label) ? v.text.slice(v.label.length) : v.text
-    return rest && rest !== '中' ? rest : v.tip
+  function stageStep(k: string, label: string): Step {
+    const v = stageView(k, song.status[k as keyof SongView['status']] as string)
+    if (v.cls === 'done') return { label, cls: 'done', state: '已完成' }
+    const rest = v.text.startsWith(label) ? v.text.slice(label.length) : v.text
+    return rest && rest !== '中' ? { label, cls: v.cls, state: rest, detail: v.tip } : { label, cls: v.cls, state: v.tip }
+  }
+
+  const EXPORT_STEP: Record<string, Omit<Step, 'label'>> = {
+    exported: { cls: 'done', state: '已匯出' },
+    pending: { cls: 'needs_render', state: '待匯出', detail: '已確認、還沒匯出（或成品更新了、改了名）：按上方「匯出」' },
+    remove: { cls: 'needs_align', state: '待移除', detail: '取消確認了，但匯出資料夾裡還有舊檔：按上方「匯出」才會拿掉' },
+  }
+
+  // 全部的狀態合併成一個「✓ 4/6」：滑上去看每個步驟，點一下播放（有問題的話跳到第一個有問題的句子）
+  let steps = $derived.by((): Step[] => {
+    const list = STAGES.map(([k, label]) => stageStep(k, label))
+    const at = approval.at ? `（${fmtDateTime(approval.at)}）` : ''
+    if (approval.status === 'approved') list.push({ label: '確認', cls: 'done', state: '已確認' + at })
+    else if (approval.status === 'stale')
+      list.push({
+        label: '確認',
+        cls: 'needs_align',
+        state: approval.changed?.length ? `需重新確認（改了 ${approval.changed.length} 句）` : '需重新確認（重新對時了）',
+        detail: `上次確認${at}之後${approval.changed?.length ? `改了第 ${approval.changed.map((i) => i + 1).join('、')} 句` : '重新對時了（歌詞沒改）'}，請看過再確認`,
+      })
+    else list.push({ label: '確認', cls: 'pending', state: karaoke === 'done' ? '還沒確認：在播放畫面按「確認沒問題」' : '伴唱帶做好後確認' })
+    const ex = song.exported ? EXPORT_STEP[song.exported] : null
+    list.push({ label: '匯出', ...(ex ?? { cls: 'pending', state: '確認後按上方「匯出」' }), ...(song.exported === 'exported' ? { detail: song.export } : {}) })
+    return list
+  })
+  let doneCount = $derived(steps.filter((v) => v.cls === 'done').length)
+  let qa = $derived(song.status.qa && (song.status.qa.wrong || song.status.qa.suspect) ? song.status.qa : null)
+  let qaText = $derived(qa ? [qa.wrong ? `${qa.wrong} 句可能不準（和獨立聽寫差 1.5 秒以上）` : '', qa.suspect ? `${qa.suspect} 句待確認` : ''].filter(Boolean).join('、') : '')
+  let problem = $derived(Boolean(qa?.wrong) || steps.some((v) => ['missing', 'needs_align'].includes(v.cls)))
+  let jump = $derived(qa ? { jumpToQa: true } : approval.status === 'stale' ? { line: approval.changed?.[0] ?? null } : {})
+
+  let tip = $state<{ left: number; top: number } | null>(null)
+  function showTip(e: Event) {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    tip = { left: Math.min(r.left, window.innerWidth - 340), top: r.bottom + 6 }
   }
 
   let meta = $derived(
@@ -87,22 +121,6 @@
   let karaokeLabel = $derived(
     karaoke === 'needs_render' ? '重新燒錄' : karaoke === 'needs_align' ? (song.align_patch ? '更新伴唱帶' : '重新對時並更新') : '製作伴唱帶',
   )
-
-  const EXPORT_CHIP: Record<string, { text: string; tip: string }> = {
-    exported: { text: '已匯出', tip: '' },
-    pending: { text: '待匯出', tip: '已確認、還沒匯出（或成品更新了、改了名）：按上方「匯出」' },
-    remove: { text: '待移除', tip: '取消確認了，但匯出資料夾裡還有舊檔：按上方「匯出」才會拿掉' },
-  }
-
-  let approval = $derived(song.approval)
-  let approvalTip = $derived.by(() => {
-    if (approval.status === 'approved') return `已確認成品沒問題（${fmtDateTime(approval.at)}）`
-    const changed = approval.changed ?? []
-    const what = changed.length
-      ? `上次確認（${fmtDateTime(approval.at)}）之後改了第 ${changed.map((i) => i + 1).join('、')} 句`
-      : `上次確認（${fmtDateTime(approval.at)}）之後重新對時了（歌詞沒改）`
-    return `${what}，請看過再確認（點一下開始播放）`
-  })
 
   function saveName(value: string) {
     let title = value
@@ -206,43 +224,38 @@
     </div>
     <div class="song-bottom">
       <div class="stages-wrap">
-        <ol class="stages">
-          {#if doneCount}
-            <li class="stage summary" style="--done: {doneCount / STAGES.length}" title={doneTip}><i></i>✓ {doneCount}/{STAGES.length}</li>
-          {/if}
-          {#each stageViews.filter((v) => v.cls !== 'done') as v (v.k)}
-            <li class="stage {v.cls}" title={v.tip}><i></i>{v.text}</li>
-          {/each}
-        </ol>
-        {#if approval.status}
-          <button
-            type="button"
-            class="approval-chip"
-            class:stale={approval.status !== 'approved'}
-            title={approvalTip}
-            onclick={() => ui.openStudio(song.id, { line: approval.changed?.[0] ?? null })}
-          >
-            <Icon name="check" size={12} />{approval.status === 'approved' ? '已確認' : '需重新確認'}
-            {#if approval.status === 'stale' && approval.changed?.length}<span class="muted">（改了 {approval.changed.length} 句）</span>{/if}
-          </button>
-        {/if}
-        {#if song.exported}
-          {@const chip = EXPORT_CHIP[song.exported]}
-          <span class="export-chip {song.exported}" title={song.exported === 'exported' ? `已匯出：${song.export}` : chip.tip}
-            ><Icon name="export" size={12} />{chip.text}</span
-          >
-        {/if}
-        {#if song.status.qa && (song.status.qa.wrong || song.status.qa.suspect)}
-          {@const qa = song.status.qa}
-          <button
-            type="button"
-            class="qa-chip"
-            class:soft={!qa.wrong}
-            title="{[qa.wrong ? `${qa.wrong} 句與獨立聽寫差 1.5 秒以上` : '', qa.suspect ? `${qa.suspect} 句待確認` : ''].filter(Boolean).join('、')}（點一下從第一句開始播放確認）"
-            onclick={() => ui.openStudio(song.id, { jumpToQa: true })}
-          >
-            <Icon name="warn" size={13} />{qa.wrong ? `${qa.wrong} 句可能不準` : `${qa.suspect} 句待確認`}
-          </button>
+        <button
+          type="button"
+          class="status-tag"
+          class:problem
+          style="--done: {doneCount / steps.length}"
+          disabled={!song.media.length}
+          aria-describedby={tip ? `tip-${song.id}` : undefined}
+          aria-label="狀態 {doneCount}/{steps.length}：{steps.map((v) => `${v.label}${v.state}`).join('、')}"
+          onmouseenter={showTip}
+          onmouseleave={() => (tip = null)}
+          onfocus={showTip}
+          onblur={() => (tip = null)}
+          onclick={() => ui.openStudio(song.id, jump)}
+        >
+          {#if running}<i class="pulse"></i>{:else}<i></i>{/if}✓ {doneCount}/{steps.length}
+        </button>
+        {#if tip}
+          <div class="status-tip" id="tip-{song.id}" role="tooltip" style="left:{tip.left}px;top:{tip.top}px">
+            {#each steps as v (v.label)}
+              <div class="status-step stage {v.cls}">
+                <i></i><span class="status-label">{v.label}</span><span class="status-state">{v.state}{#if v.detail}<small>{v.detail}</small>{/if}</span>
+              </div>
+            {/each}
+            {#if qa}
+              <div class="status-step stage {qa.wrong ? 'needs_align' : 'pending'}">
+                <i></i><span class="status-label">對時檢查</span><span class="status-state">{qaText}</span>
+              </div>
+            {/if}
+            {#if song.media.length}
+              <div class="status-foot">點一下播放{qa ? `，從第一句${qa.wrong ? '可能不準' : '待確認'}的開始` : approval.status === 'stale' && approval.changed?.length ? '，從改過的句子開始' : ''}</div>
+            {/if}
+          </div>
         {/if}
       </div>
       <div class="actions">

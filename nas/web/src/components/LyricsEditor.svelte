@@ -11,6 +11,8 @@
   // svelte-ignore state_referenced_locally
   const { id } = props
   let song = $derived(store.songs.get(id)!)
+  // 疊在播放畫面上面：關掉就回到播放畫面，不需要「播放」按鈕
+  const overStudio = ui.studio?.id === id
 
   type Mode = 'visual' | 'annotated' | 'plain'
   const HINTS: Record<Mode, string> = {
@@ -222,6 +224,7 @@
     const start = Math.max(0, timing[time.index].start + time.delta - 1)
     const url = listenSource()
     if (!url) return
+    ui.pauseStudio?.() // 疊在播放畫面上面時，先停掉背景的影片
     clearTimeout(listenTimer)
     const go = () => {
       audio!.currentTime = start
@@ -277,7 +280,7 @@
         <h2 id="editor-heading">歌詞</h2>
         <div class="muted ellipsis">{song.artist ? `${song.artist} - ${song.title}` : song.title}</div>
       </div>
-      {#if song.media.length}
+      {#if song.media.length && !overStudio}
         <button
           type="button"
           class="btn small"

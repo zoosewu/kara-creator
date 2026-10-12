@@ -76,11 +76,38 @@
 
   onMount(() => {
     load()
+    ui.pauseStudio = () => video?.pause()
     const off = store.on('job', (j: JobSummary) => watchJob(j))
     return () => {
       off()
+      ui.pauseStudio = null
       cancelAnimationFrame(raf)
     }
+  })
+
+  /** 讀歌詞、時間、檢查結果（開啟時，以及疊在上面的歌詞編輯器 / 資訊關掉時；不影響播放）。 */
+  async function fetchData() {
+    const [v, t, q] = await Promise.all([
+      api<LyricsViews>(`/songs/${enc(id)}/lyrics`),
+      api<TimingView>(`/songs/${enc(id)}/timing`).catch(() => ({ lines: [] }) as unknown as TimingView),
+      api<QAView>(`/songs/${enc(id)}/qa`).catch(() => ({ lines: [] }) as unknown as QAView),
+    ])
+    lines = v.doc.lines
+    language = v.doc.language ?? null
+    timing = t.lines
+    qa = new Map(q.lines.map((c) => [c.index, c]))
+  }
+
+  // 疊在上面的歌詞編輯器 / 資訊關掉了：重新讀一次（歌詞、語言可能改了），影片照常播
+  let overlaid = $derived(Boolean(ui.editor || ui.song))
+  let wasOverlaid = false
+  $effect(() => {
+    const on = overlaid
+    if (wasOverlaid && !on)
+      fetchData()
+        .then(() => select(Math.min(selected, Math.max(0, lyricIdx.length - 1)), { manual: false }))
+        .catch((e) => store.notify((e as Error).message, true))
+    wasOverlaid = on
   })
 
   async function load() {
@@ -91,15 +118,7 @@
       return
     }
     try {
-      const [v, t, q] = await Promise.all([
-        api<LyricsViews>(`/songs/${enc(id)}/lyrics`),
-        api<TimingView>(`/songs/${enc(id)}/timing`).catch(() => ({ lines: [] }) as unknown as TimingView),
-        api<QAView>(`/songs/${enc(id)}/qa`).catch(() => ({ lines: [] }) as unknown as QAView),
-      ])
-      lines = v.doc.lines
-      language = v.doc.language ?? null
-      timing = t.lines
-      qa = new Map(q.lines.map((c) => [c.index, c]))
+      await fetchData()
     } catch (e) {
       store.notify((e as Error).message, true)
       ui.studio = null
@@ -497,7 +516,8 @@
             : '確認目前這一版伴唱帶沒問題；之後需要重新對時才會變回需重新確認'}
         onclick={approve}><Icon name="check" /><span>{approved ? '已確認（取消）' : '確認沒問題'}</span></button
       >
-      <button type="button" class="btn small" title="開啟歌詞編輯器" onclick={() => (close(), ui.openEditor(id))}><Icon name="lyrics" />完整歌詞</button>
+      <button type="button" class="btn small" title="編輯歌名、歌手、語言等資訊（影片繼續播）" onclick={() => (ui.song = id)}><Icon name="tag" />資訊</button>
+      <button type="button" class="btn small" title="開啟歌詞編輯器（影片繼續播）" onclick={() => ui.openEditor(id, { over: true })}><Icon name="lyrics" />完整歌詞</button>
       <div class="seg-toggle" title="播放的版本（不影響成品）">
         {#each song.media as m}
           <button type="button" class:on={media?.kind === m.kind} title={m.hint} onclick={() => setSource(m, video?.currentTime ?? 0)}>{m.label}</button>
@@ -598,7 +618,7 @@
         <div class="studio-lines">
           {#if !lyricIdx.length}
             <div class="empty-lyrics">
-              還沒有歌詞。<button type="button" class="view-link attention" onclick={() => (close(), ui.openEditor(id))}><Icon name="lyrics" />輸入歌詞</button>
+              還沒有歌詞。<button type="button" class="view-link attention" onclick={() => ui.openEditor(id, { over: true })}><Icon name="lyrics" />輸入歌詞</button>
             </div>
           {/if}
           {#each lines as line, docIndex}

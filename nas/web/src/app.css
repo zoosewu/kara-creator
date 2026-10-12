@@ -308,7 +308,6 @@ body.is-dragging .lib-root { border-color: var(--accent); border-style: dashed; 
   background: var(--accent-soft); color: var(--accent);
 }
 
-.stages { display: flex; gap: 6px; list-style: none; margin: 0; padding: 0; flex-wrap: wrap; }
 .stage {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 12px; padding: 3px 10px 3px 8px;
@@ -326,16 +325,31 @@ body.is-dragging .lib-root { border-color: var(--accent); border-style: dashed; 
 .stage.running i { background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .25; } }
 
-/* ---- 對時檢查 ---- */
-.qa-chip {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 12px; padding: 3px 10px 3px 8px; border-radius: 999px; cursor: pointer;
-  border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--border));
-  background: color-mix(in srgb, var(--warn) 10%, transparent); color: var(--warn);
+/* 歌曲狀態合併成一個 tag：顏色依完成比例（--done，0–1）從橘漸變到綠，有要處理的問題時是橘色；滑上去看每個步驟 */
+.status-tag {
+  --tone: color-mix(in oklch, var(--ok) calc(var(--done) * 100%), var(--warn));
+  display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 3px 10px 3px 8px; border-radius: 999px;
+  background: none; color: var(--tone); border: 1px solid color-mix(in srgb, var(--tone) 40%, var(--border)); cursor: pointer;
+  font-variant-numeric: tabular-nums;
 }
-.qa-chip.soft { background: none; }
-.qa-chip:hover { background: color-mix(in srgb, var(--warn) 18%, transparent); }
-.qa-chip svg { width: 13px; height: 13px; }
+.status-tag.problem { --tone: var(--warn); }
+.status-tag:disabled { cursor: default; }
+.status-tag:not(:disabled):hover { background: color-mix(in srgb, var(--tone) 10%, transparent); }
+.status-tag i { width: 7px; height: 7px; border-radius: 50%; background: var(--tone); }
+.status-tag i.pulse { background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+.status-tip {
+  position: fixed; z-index: 30; width: max-content; max-width: min(330px, calc(100vw - 16px)); padding: 8px 10px;
+  display: grid; gap: 5px; pointer-events: none;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 24px rgba(0, 0, 0, .18);
+}
+.status-step.stage { display: grid; grid-template-columns: 7px 4em 1fr; align-items: baseline; gap: 6px; padding: 0; border: none; border-radius: 0; }
+.status-step.stage i { align-self: start; margin-top: .5em; }
+.status-step .status-label { color: var(--muted); }
+.status-step .status-state small { display: block; color: var(--muted); font-size: 11px; line-height: 1.4; }
+.status-step.done .status-state { color: var(--text); }
+.status-foot { margin-top: 2px; padding-top: 6px; border-top: 1px solid var(--border); font-size: 11px; color: var(--muted); }
+
+/* ---- 對時檢查 ---- */
 .qa-summary {
   display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 8px 12px;
   border-radius: 8px; font-size: 12.5px;
@@ -668,17 +682,6 @@ ruby.slot rt { color: var(--border); }
   font-size: 12.5px; background: var(--accent-soft);
 }
 
-/* 已確認成品沒問題 */
-.approval-chip {
-  display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; cursor: pointer;
-  font-size: 12px; border: 1px solid color-mix(in srgb, var(--ok) 45%, var(--border));
-  background: color-mix(in srgb, var(--ok) 12%, transparent); color: var(--ok);
-}
-.approval-chip svg { width: 12px; height: 12px; }
-.approval-chip.stale {
-  border-color: color-mix(in srgb, var(--warn) 45%, var(--border));
-  background: color-mix(in srgb, var(--warn) 10%, transparent); color: var(--warn);
-}
 #studio-approve.approved { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, var(--border)); }
 
 /* 資訊對話框：影片連結 + 複製 */
@@ -731,16 +734,6 @@ ruby.slot rt { color: var(--border); }
 .stage.needs_render i { background: var(--accent); }
 .stage.needs_align { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, var(--border)); }
 .stage.needs_align i { background: var(--warn); }
-/* 已完成的階段合併成一個：顏色依完成比例（--done，0–1）從橘漸變到綠 */
-.stage.summary { --tone: color-mix(in oklch, var(--ok) calc(var(--done) * 100%), var(--warn)); color: var(--tone); border-color: color-mix(in srgb, var(--tone) 40%, var(--border)); }
-.stage.summary i { background: var(--tone); }
-.export-chip {
-  display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 1px 8px; border-radius: 999px;
-  color: var(--muted); border: 1px solid var(--border); white-space: nowrap;
-}
-.export-chip.pending { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
-.export-chip.remove { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, var(--border)); }
-.export-chip svg { width: 12px; height: 12px; }
 .workers { display: grid; gap: 6px; padding: 4px 12px 10px; }
 .worker { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 8px; align-items: center; font-size: 12px; }
 .worker .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
