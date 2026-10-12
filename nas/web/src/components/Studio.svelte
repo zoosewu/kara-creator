@@ -265,7 +265,7 @@
 
   const SMALL_KANA = new Set('ゃゅょぁぃぅぇぉゎャュョァィゥェォヮ')
 
-  /** 讀音切成一拍一拍（拗音的小假名跟著前一個字），每拍依位置對到底下的字取時間；和燒進影片的字幕相同。 */
+  /** 讀音切成一拍一拍（拗音的小假名跟著前一個字），每拍依位置對到底下的字取時間來填色；和燒進影片的字幕相同。 */
   function rubyParts(reading: string, chars: { s: number; e: number }[], start: number, end: number) {
     const units: string[] = []
     for (const c of Array.from(reading)) {

@@ -205,16 +205,17 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
 
 RUBY_MIN_SCALE = 0.75   # 讀音比漢字寬時，假名最多縮到這個比例
-RUBY_GAP = 0.5          # 相鄰兩段讀音之間至少留這麼多（假名字級的倍數），要明顯比段內分散的間距大
+RUBY_SPACING = 0.15     # 同一段讀音裡每拍之間的間距（假名字級的倍數）
+RUBY_GAP = 0.5          # 相鄰兩段讀音之間至少留這麼多（假名字級的倍數），要明顯比段內的間距大
 
 
 def _rubies(line: dict, left: float, y: int, size: int, style: Style, measure: _Measure, tint: str,
             t0: float) -> list[str]:
     """一句的假名，每個假名一個事件：
-    - 讀音比漢字短：平均分散在整段漢字上方（每個假名一格），看得出讀音涵蓋到哪個字
+    - 讀音比漢字短：每拍之間留一點間距（RUBY_SPACING），整組置中在漢字上方，不拉開
     - 讀音比漢字長：先縮小（最多到 RUBY_MIN_SCALE）；還是放不下就置中凸出，但不壓到前一段假名
-    - 兩段讀音的漢字緊鄰時，中間留 RUBY_GAP 的間距（比段內分散的間距大），看得出分界
-    分散的單位是一拍（拗音的小假名跟著前一個字）；每一拍跟著下面對應位置的字變色。"""
+    - 兩段讀音的漢字緊鄰時，中間留 RUBY_GAP 的間距（比段內的間距大），看得出分界
+    單位是一拍（拗音的小假名跟著前一個字）；每一拍跟著下面對應位置的字變色。"""
     text = line["text"]
     times = _char_times(line["words"])
     ruby_bottom = y - round(size * 1.05)  # 字幕行高就是字級，假名貼在這一行上緣之上
@@ -234,15 +235,13 @@ def _rubies(line: dict, left: float, y: int, size: int, style: Style, measure: _
         if sum(widths) > span:
             fs = max(round(base * RUBY_MIN_SCALE), int(base * span / sum(widths)))
             widths = [measure.width(u, fs) for u in units]
-        if sum(widths) <= span:
-            slot = span / len(units)
-            centers = [x0 + slot * (k + 0.5) for k in range(len(units))]
-        else:
-            x = x0 + span / 2 - sum(widths) / 2
-            centers = []
-            for w in widths:
-                centers.append(x + w / 2)
-                x += w
+        # 每拍之間留一點間距（放得下才留），整組置中在漢字上方；不拉開到整段漢字寬，讀起來還是一個詞
+        pad = max(0.0, min(base * RUBY_SPACING, (span - sum(widths)) / len(units)))
+        x = x0 + span / 2 - (sum(widths) + pad * len(units)) / 2
+        centers = []
+        for w in widths:
+            centers.append(x + pad / 2 + w / 2)
+            x += w + pad
         if prev_right is not None:  # 不壓到前一段凸出來的假名
             push = prev_right + gap - (centers[0] - widths[0] / 2)
             if push > 0:

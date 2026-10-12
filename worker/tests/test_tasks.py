@@ -62,14 +62,14 @@ def _ruby_events(text: str, rubies: list) -> tuple[list[tuple[float, int]], "sub
 
 @pytest.mark.skipif(not NOTO.exists(), reason="沒有 Noto Sans CJK")
 def test_ruby_layout():
-    # 讀音比漢字短：每一拍平均分散在漢字上方，不擠在正中間
+    base = round(80 * subtitles.Style().ruby_ratio)
+    # 讀音比漢字短：置中，每拍之間只留一點間距，不拉開到整段漢字寬
     evs, m = _ruby_events("故郷", [(0, 2, "ふる")])
-    left, right = 100, 100 + m.width("故郷", 80)
-    assert evs[0][0] < (left + right) / 2 < evs[1][0]
-    assert left < evs[0][0] and evs[1][0] < right
+    mid = 100 + m.width("故郷", 80) / 2
+    assert abs((evs[0][0] + evs[1][0]) / 2 - mid) < 1
+    assert evs[1][0] - evs[0][0] <= m.width("ふ", base) + base * subtitles.RUBY_SPACING + 1
     # 讀音比漢字長：縮小但不小於 75%；凸出時不壓到前一段假名
     evs, m = _ruby_events("空海", [(0, 1, "そらそら"), (1, 2, "うみうみ")])
-    base = round(80 * subtitles.Style().ruby_ratio)
     assert all(fs >= round(base * subtitles.RUBY_MIN_SCALE) for _, fs in evs)
     fs = evs[0][1]
     first_right = evs[3][0] + m.width("ら", fs) / 2
