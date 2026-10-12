@@ -25,6 +25,7 @@ class Unit:
 
 _KANA_ONLY = re.compile(r"[぀-ヿー]+")
 _HAN_RUN = re.compile(r"[一-鿿㐀-䶿]+")
+_KANJI_PART = re.compile(r"[一-鿿㐀-䶿々〆ヶ]+")   # 讀音要標上去的字（含々〆ヶ）
 _WORD = re.compile(r"[A-Za-z']+|\s+|.")
 _SMALL = set("ゃゅょぁぃぅぇぉゎャュョァィゥェォヮ")
 HAN_LANGUAGES = ("zh", "nan", "yue")   # 一個漢字一個單位
@@ -129,7 +130,25 @@ def auto_furigana(line: str) -> list[tuple[int, int, str]]:
         while core and reading and _KANA_ONLY.fullmatch(core[0]) and _to_hiragana(core[0]) == reading[0]:
             core, reading, lead = core[1:], reading[1:], lead + 1
         if core and reading:
-            spans.append((start + lead, start + lead + len(core), reading))
+            spans += _split_core(core, reading, start + lead)
+    return spans
+
+
+def _split_core(core: str, reading: str, offset: int) -> list[tuple[int, int, str]]:
+    """漢字中間夾著假名時（取り戻 / とりもど），讀音拆給各段漢字（取 / と、戻 / もど），假名的部分要逐字對得上；
+    對不上就整段標在一起。"""
+    parts = [(p, bool(_KANJI_PART.fullmatch(p))) for p in re.findall(r"[一-鿿㐀-䶿々〆ヶ]+|[^一-鿿㐀-䶿々〆ヶ]+", core)]
+    if len(parts) == 1:
+        return [(offset, offset + len(core), reading)]
+    m = re.fullmatch("".join("(.+?)" if kanji else re.escape(_to_hiragana(p)) for p, kanji in parts), reading)
+    if not m:
+        return [(offset, offset + len(core), reading)]
+    spans, pos, group = [], offset, 1
+    for p, kanji in parts:
+        if kanji:
+            spans.append((pos, pos + len(p), m.group(group)))
+            group += 1
+        pos += len(p)
     return spans
 
 

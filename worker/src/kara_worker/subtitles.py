@@ -163,9 +163,8 @@ def build(lines: list[dict], width: int, height: int, style: Style, *, font_file
         override = pos + (f"\\fs{size}" if size != fs else "") + tint + "\\fad(120,120)"
         events.append((appear[i], end, "KTV", "{" + override + "}" + _karaoke(line["words"], appear[i])))
 
-        for s, e, reading in line.get("rubies") or []:
-            events.append((appear[i], end, "Ruby",
-                           _ruby(line, s, e, reading, left, y, size, style, measure, tint, appear[i])))
+        for text in _rubies(line, left, y, size, style, measure, tint, appear[i]):
+            events.append((appear[i], end, "Ruby", text))
 
     if title and lines:
         card_end = min(appear[0] - 0.3, 8.0)
@@ -205,19 +204,80 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     return header + body
 
 
-def _ruby(line: dict, s: int, e: int, reading: str, left: float, y: int, size: int,
-          style: Style, measure: _Measure, tint: str, t0: float) -> str:
-    """一段假名：置中在 text[s:e] 的正上方，時間跟著那幾個字變色。"""
+RUBY_MIN_SCALE = 0.75   # 讀音比漢字寬時，假名最多縮到這個比例
+RUBY_GAP = 0.5          # 相鄰兩段讀音之間至少留這麼多（假名字級的倍數），要明顯比段內分散的間距大
+
+
+def _rubies(line: dict, left: float, y: int, size: int, style: Style, measure: _Measure, tint: str,
+            t0: float) -> list[str]:
+    """一句的假名，每個假名一個事件：
+    - 讀音比漢字短：平均分散在整段漢字上方（每個假名一格），看得出讀音涵蓋到哪個字
+    - 讀音比漢字長：先縮小（最多到 RUBY_MIN_SCALE）；還是放不下就置中凸出，但不壓到前一段假名
+    - 兩段讀音的漢字緊鄰時，中間留 RUBY_GAP 的間距（比段內分散的間距大），看得出分界
+    分散的單位是一拍（拗音的小假名跟著前一個字）；每一拍跟著下面對應位置的字變色。"""
     text = line["text"]
-    x = left + measure.width(text[:s], size) + measure.width(text[s:e], size) / 2
-    ruby_bottom = y - round(size * 1.05)  # 字幕行高就是字級，假名貼在這一行上緣之上
     times = _char_times(line["words"])
-    start, end = times[s][0], times[e - 1][1]
-    wait = max(0, round((start - t0) * 100))
-    dur = max(1, round((end - start) * 100))
-    fs_override = f"\\fs{round(size * style.ruby_ratio)}"
-    return ("{" + f"\\an2\\pos({x:.0f},{ruby_bottom}){fs_override}{tint}\\fad(120,120)" + "}"
-            + f"{{\\k{wait}}}{{\\kf{dur}}}" + _escape(reading))
+    ruby_bottom = y - round(size * 1.05)  # 字幕行高就是字級，假名貼在這一行上緣之上
+    base = round(size * style.ruby_ratio)
+    out: list[str] = []
+    prev_right: float | None = None
+    gap = base * RUBY_GAP
+    spans = sorted(r for r in line.get("rubies") or [] if r[2])
+    ends, starts = {r[1] for r in spans}, {r[0] for r in spans}
+    for s, e, reading in spans:
+        # 緊鄰另一段讀音的那一側留半個間距，相鄰兩段看得出分界
+        x0 = left + measure.width(text[:s], size) + (gap / 2 if s in ends else 0)
+        span = measure.width(text[s:e], size) - gap / 2 * ((s in ends) + (e in starts))
+        units = _morae(reading)
+        fs = base
+        widths = [measure.width(u, fs) for u in units]
+        if sum(widths) > span:
+            fs = max(round(base * RUBY_MIN_SCALE), int(base * span / sum(widths)))
+            widths = [measure.width(u, fs) for u in units]
+        if sum(widths) <= span:
+            slot = span / len(units)
+            centers = [x0 + slot * (k + 0.5) for k in range(len(units))]
+        else:
+            x = x0 + span / 2 - sum(widths) / 2
+            centers = []
+            for w in widths:
+                centers.append(x + w / 2)
+                x += w
+        if prev_right is not None:  # 不壓到前一段凸出來的假名
+            push = prev_right + gap - (centers[0] - widths[0] / 2)
+            if push > 0:
+                centers = [c + push for c in centers]
+        prev_right = centers[-1] + widths[-1] / 2
+        n = len(units)
+        for k, unit in enumerate(units):
+            a, b = _time_at(times, s, e, k / n), _time_at(times, s, e, (k + 1) / n)
+            wait = max(0, round((a - t0) * 100))
+            dur = max(1, round((b - a) * 100))
+            out.append("{" + f"\\an2\\pos({centers[k]:.0f},{ruby_bottom})\\fs{fs}{tint}\\fad(120,120)" + "}"
+                       + f"{{\\k{wait}}}{{\\kf{dur}}}" + _escape(unit))
+    return out
+
+
+_SMALL_KANA = set("ゃゅょぁぃぅぇぉゎャュョァィゥェォヮ")
+
+
+def _morae(reading: str) -> list[str]:
+    """把讀音切成一拍一拍（拗音的小假名跟著前一個字：きょう → き ょ う 會很難讀，要 きょ う）。"""
+    units: list[str] = []
+    for ch in reading:
+        if ch in _SMALL_KANA and units:
+            units[-1] += ch
+        else:
+            units.append(ch)
+    return units
+
+
+def _time_at(times: list[tuple[float, float]], s: int, e: int, f: float) -> float:
+    """text[s:e] 這段從頭唱到 f（0–1）的時間點（逐字的時間內線性內插）。"""
+    pos = s + f * (e - s)
+    i = min(int(pos), e - 1)
+    start, end = times[i]
+    return start + (pos - i) * (end - start)
 
 
 def _char_times(words: list[dict]) -> list[tuple[float, float]]:

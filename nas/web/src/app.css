@@ -633,9 +633,11 @@ kbd {
 .studio-note { font-size: 12px; color: var(--muted); }
 .empty-lyrics .view-link { margin-left: 8px; }
 
-/* 即時字幕的假名：比本文小，跟著上方漢字一起填色 */
-.live-sub ruby { ruby-position: over; }
-.live-sub rt { font-size: .45em; line-height: 1.1; letter-spacing: .02em; }
+/* 即時字幕的假名：比本文小，跟著底下的字一起填色。自己排（不用 <ruby>），和燒進影片的字幕相同：
+   讀音比漢字短時一拍一拍平均分散在整段漢字上方；拍是 flex 的子項目，拗音不會被拆開；兩側留一點間距，相鄰兩段讀音看得出分界 */
+.live-sub .rb { display: inline-flex; flex-direction: column; baseline-source: last; }
+.live-sub .rb-base { text-align: center; }
+.live-sub .rb-text { display: flex; justify-content: space-around; padding: 0 .15em; font-size: .45em; line-height: 1.1; white-space: nowrap; }
 .live-sub .sub-row { padding-top: .35em; }
 .ai-btn { color: var(--accent); gap: 2px; }
 .ai-btn svg { width: 12px; height: 12px; transform: rotate(90deg); }

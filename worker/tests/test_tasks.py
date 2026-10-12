@@ -5,7 +5,7 @@ import pytest
 
 pytest.importorskip("fugashi")   # 讀音要 MeCab
 
-from kara_worker import subtitles, tasks  # noqa: E402
+from kara_worker import reading, subtitles, tasks  # noqa: E402
 
 NOTO = Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc")
 
@@ -31,9 +31,53 @@ def test_build_ass():
               "scale": 1.0, "font": {"sha256": "x", "family": "Noto Sans CJK JP", "index": 0}}
     text = tasks.build_ass(params, (1920, 1080), NOTO)
     assert "Style: KTV,Noto Sans CJK JP," in text
-    assert ",Ruby,," in text and "そら" in text          # 日文自動假名
+    assert ",Ruby,," in text and "}そ\n" in text and "}ら\n" in text   # 日文自動假名（一拍一個事件）
     assert ",Trans,," in text and "天空" in text         # 翻譯
     assert ",Title,," in text and "自己編的歌" in text    # 標題畫面
+
+
+def test_split_core():
+    # 漢字中間夾著假名：讀音拆給各段漢字；對不上就整段標在一起
+    assert reading._split_core("取り戻", "とりもど", 0) == [(0, 1, "と"), (2, 3, "もど")]
+    assert reading._split_core("見つめ合", "みつめあ", 5) == [(5, 6, "み"), (8, 9, "あ")]
+    assert reading._split_core("取り戻", "とももど", 0) == [(0, 3, "とももど")]
+    assert reading._split_core("故郷", "ふるさと", 0) == [(0, 2, "ふるさと")]
+
+
+def test_morae():
+    assert subtitles._morae("きょうしゅう") == ["きょ", "う", "しゅ", "う"]
+    assert subtitles._morae("ょう") == ["ょ", "う"]
+
+
+def _ruby_events(text: str, rubies: list) -> tuple[list[tuple[float, int]], "subtitles._Measure"]:
+    times = [(i * 0.5, i * 0.5 + 0.5) for i in range(len(text))]
+    line = {"text": text, "words": [{"text": c, "start": a, "end": b} for c, (a, b) in zip(text, times, strict=True)],
+            "rubies": rubies}
+    measure = subtitles._Measure(NOTO, 0)
+    out = subtitles._rubies(line, 100, 500, 80, subtitles.Style(), measure, "", 0)
+    xs = [float(ev.split("\\pos(")[1].split(",")[0]) for ev in out]
+    sizes = [int(ev.split("\\fs")[1].split("\\")[0]) for ev in out]
+    return list(zip(xs, sizes, strict=True)), measure
+
+
+@pytest.mark.skipif(not NOTO.exists(), reason="沒有 Noto Sans CJK")
+def test_ruby_layout():
+    # 讀音比漢字短：每一拍平均分散在漢字上方，不擠在正中間
+    evs, m = _ruby_events("故郷", [(0, 2, "ふる")])
+    left, right = 100, 100 + m.width("故郷", 80)
+    assert evs[0][0] < (left + right) / 2 < evs[1][0]
+    assert left < evs[0][0] and evs[1][0] < right
+    # 讀音比漢字長：縮小但不小於 75%；凸出時不壓到前一段假名
+    evs, m = _ruby_events("空海", [(0, 1, "そらそら"), (1, 2, "うみうみ")])
+    base = round(80 * subtitles.Style().ruby_ratio)
+    assert all(fs >= round(base * subtitles.RUBY_MIN_SCALE) for _, fs in evs)
+    fs = evs[0][1]
+    first_right = evs[3][0] + m.width("ら", fs) / 2
+    second_left = evs[4][0] - m.width("う", fs) / 2
+    assert second_left - first_right >= base * subtitles.RUBY_GAP - 1   # 相鄰兩段之間留間距
+    # 單獨一段（旁邊沒有讀音）不為了間距縮小
+    evs, _ = _ruby_events("夢を", [(0, 1, "ゆめ")])
+    assert [fs for _, fs in evs] == [base, base]
 
 
 def test_bitrate_cap():

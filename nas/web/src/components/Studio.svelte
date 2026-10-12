@@ -263,6 +263,23 @@
     return j === timed.length ? out : null
   }
 
+  const SMALL_KANA = new Set('ゃゅょぁぃぅぇぉゎャュョァィゥェォヮ')
+
+  /** 讀音切成一拍一拍（拗音的小假名跟著前一個字），每拍依位置對到底下的字取時間；和燒進影片的字幕相同。 */
+  function rubyParts(reading: string, chars: { s: number; e: number }[], start: number, end: number) {
+    const units: string[] = []
+    for (const c of Array.from(reading)) {
+      if (SMALL_KANA.has(c) && units.length) units[units.length - 1] += c
+      else units.push(c)
+    }
+    const at = (f: number) => {
+      const pos = start + f * (end - start)
+      const k = Math.min(Math.floor(pos), end - 1)
+      return chars[k].s + (pos - k) * (chars[k].e - chars[k].s)
+    }
+    return units.map((u, k) => ({ text: u, s: at(k / units.length), e: at((k + 1) / units.length) }))
+  }
+
   function subOf(i: number) {
     const t = timing[i]
     const line = lines[lyricIdx[i]]
@@ -442,10 +459,12 @@
         {#if s.chars}
           {#each s.line.segments ?? [] as seg}
             {#if seg.ruby}
-              <ruby
-                >{#each s.text.slice(seg.start, seg.end) as ch, k}<span class="w" data-s={s.chars[seg.start + k].s} data-e={s.chars[seg.start + k].e}>{ch}</span>{/each}<rt
-                  ><span class="w" data-s={s.chars[seg.start].s} data-e={s.chars[seg.end - 1].e}>{seg.ruby}</span></rt
-                ></ruby
+              <span class="rb"
+                ><span class="rb-text"
+                  >{#each rubyParts(seg.ruby, s.chars, seg.start, seg.end) as r}<span class="w" data-s={r.s} data-e={r.e}>{r.text}</span>{/each}</span
+                ><span class="rb-base"
+                  >{#each s.text.slice(seg.start, seg.end) as ch, k}<span class="w" data-s={s.chars[seg.start + k].s} data-e={s.chars[seg.start + k].e}>{ch}</span>{/each}</span
+                ></span
               >
             {:else}
               {#each s.text.slice(seg.start, seg.end) as ch, k}<span class="w" data-s={s.chars[seg.start + k].s} data-e={s.chars[seg.start + k].e}>{ch}</span>{/each}
