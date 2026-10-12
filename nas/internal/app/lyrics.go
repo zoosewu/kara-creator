@@ -98,7 +98,8 @@ func (a *App) requestReadings(key, language string, texts []string, songID strin
 // LyricsViews 是歌詞編輯器的資料。
 type LyricsViews struct {
 	readings.Views
-	Exists bool `json:"exists" doc:"已經有歌詞檔"`
+	Exists         bool     `json:"exists" doc:"已經有歌詞檔"`
+	ParenConverted []string `json:"paren_converted,omitempty" doc:"存檔時自動轉成讀音標註的括號讀音（原本的寫法，例如「運命(さだめ)」）"`
 }
 
 // languageOf 是這首歌的演唱語言（手動指定 > 依歌詞文字判斷）。
@@ -138,6 +139,8 @@ func (a *App) SaveLyrics(id, text string) (LyricsViews, error) {
 		return LyricsViews{}, errNotFound
 	}
 	path := a.Store.SongPath(id, song.FileLyrics)
+	converted := lyrics.ParenReadings(text) // 寫在括號裡的讀音自動轉成讀音標註（否則對時會把括號也當成要唱的字）
+	text = lyrics.ParenToRuby(text)
 	if strings.TrimSpace(text) == "" {
 		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return LyricsViews{}, err
@@ -147,7 +150,11 @@ func (a *App) SaveLyrics(id, text string) (LyricsViews, error) {
 	}
 	a.invalidate(id)
 	a.touched()
-	return a.Lyrics(id)
+	v, err := a.Lyrics(id)
+	if len(converted) > 0 {
+		v.ParenConverted = converted
+	}
+	return v, err
 }
 
 // ConvertRequest 是文字 ↔ 結構互轉。

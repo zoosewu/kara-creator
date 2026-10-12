@@ -110,6 +110,12 @@
     status = '尚未儲存'
   }
 
+  /** 存檔時自動轉成讀音標註的括號讀音（提示用）。 */
+  function convertedNote(v: LyricsViews) {
+    const c = v.paren_converted ?? []
+    return c.length ? `；已把 ${c.length} 處括號讀音（${c.slice(0, 3).join('、')}${c.length > 3 ? '…' : ''}）轉成讀音標註` : ''
+  }
+
   async function save(): Promise<LyricsViews | undefined> {
     return store.run(async () => {
       await sync()
@@ -296,9 +302,9 @@
       {#if views?.paren.length}
         <div class="paren-bar">
           <span class="grow"
-            >發現 {views.paren.length} 處寫在括號裡的讀音：{views.paren.slice(0, 4).join('、')}{views.paren.length > 4 ? '…' : ''}。轉換後括號會從歌詞拿掉、讀音改成標註（對時也會照這個唸法）。</span
+            >發現 {views.paren.length} 處寫在括號裡的讀音：{views.paren.slice(0, 4).join('、')}{views.paren.length > 4 ? '…' : ''}。存檔時會自動轉成讀音標註（括號從歌詞拿掉，對時照這個唸法）；也可以現在先轉換看看結果。</span
           >
-          <button type="button" class="btn small primary" onclick={parenFix}>轉成讀音標註</button>
+          <button type="button" class="btn small" onclick={parenFix}>現在轉換</button>
         </div>
       {/if}
       {#if song.approval.status === 'stale'}
@@ -419,9 +425,10 @@
           type="button"
           class="btn"
           onclick={async () => {
-            if (await save()) {
+            const v = await save()
+            if (v) {
               close(true)
-              store.notify('歌詞已儲存')
+              store.notify(`歌詞已儲存${convertedNote(v)}`)
             }
           }}>儲存</button
         >
@@ -434,7 +441,7 @@
             if (!v.doc.lines.some((l) => l.kind === 'lyric')) return store.notify('歌詞是空的，無法製作伴唱帶', true)
             close(true)
             const res = await store.runJob([id], ['karaoke'])
-            if (res?.created.length) store.notify('已排入佇列：製作伴唱帶')
+            if (res?.created.length) store.notify(`已排入佇列：製作伴唱帶${convertedNote(v)}`)
           }}>儲存並製作伴唱帶</button
         >
       </div>

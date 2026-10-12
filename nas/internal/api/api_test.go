@@ -374,6 +374,18 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatalf("拿掉之後不再顯示：%q", song.Exported)
 	}
 
+	// 4e. 歌詞裡寫在括號中的讀音：存檔時自動轉成讀音標註，回應列出轉了哪些
+	var saved struct {
+		ParenConverted []string `json:"paren_converted"`
+	}
+	if code := c.do("PUT", "/api/v1/songs/dQw4w9WgXcQ/lyrics", map[string]any{"text": "[男] 取り戻す(とりもどす)夢\n[女] 第二句\n"}, &saved); code != 200 ||
+		len(saved.ParenConverted) != 1 || saved.ParenConverted[0] != "取り戻す(とりもどす)" {
+		t.Fatalf("%d %+v", code, saved)
+	}
+	if data, _ := os.ReadFile(filepath.Join(lib, "songs", "dQw4w9WgXcQ", "lyrics.txt")); !strings.Contains(string(data), "取{と}り戻{もど}す夢") {
+		t.Fatalf("存下來的是讀音標註：%q", data)
+	}
+
 	// 5. 錯誤：detail 是繁中
 	var problem struct{ Detail string }
 	if code := c.do("GET", "/api/v1/songs/不存在", nil, &problem); code != 404 || problem.Detail != "找不到這首歌" {

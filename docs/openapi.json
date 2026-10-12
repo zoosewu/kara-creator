@@ -1018,6 +1018,13 @@
             },
             "type": "array"
           },
+          "paren_converted": {
+            "description": "存檔時自動轉成讀音標註的括號讀音（原本的寫法，例如「運命(さだめ)」）",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "pending_readings": {
             "items": {
               "format": "int64",

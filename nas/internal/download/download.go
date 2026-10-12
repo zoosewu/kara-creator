@@ -276,7 +276,7 @@ func (d *Downloader) KeepLyrics(id, text string, logf func(string, ...any)) erro
 	if err := os.MkdirAll(d.Store.SongPath(id), 0o755); err != nil {
 		return err
 	}
-	if err := store.WriteFile(d.Store.SongPath(id, song.FileLyrics), []byte(lyrics.Serialize(lyrics.Parse(text)))); err != nil {
+	if err := store.WriteFile(d.Store.SongPath(id, song.FileLyrics), []byte(lyrics.Serialize(lyrics.Parse(lyrics.ParenToRuby(text))))); err != nil {
 		return err
 	}
 	logf("歌詞已先存進曲庫（下載失敗也不會遺失）")
@@ -293,7 +293,7 @@ func (d *Downloader) saveLyrics(id, text string, logf func(string, ...any)) erro
 		logf("已經有歌詞，不覆蓋一起送來的歌詞")
 		return nil
 	}
-	if err := store.WriteFile(path, []byte(lyrics.Serialize(lyrics.Parse(text)))); err != nil {
+	if err := store.WriteFile(path, []byte(lyrics.Serialize(lyrics.Parse(lyrics.ParenToRuby(text))))); err != nil {
 		return err
 	}
 	logf("歌詞已存檔")

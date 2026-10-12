@@ -322,39 +322,6 @@ func DetectLanguage(lines []string) string {
 	return ""
 }
 
-// 日文歌詞常把特殊念法寫在括號裡：運命(さだめ)、本気（マジ）。
-// 只認「漢字緊接著括號、括號裡全是假名」；前面已經有 {讀音} 的話一併取代。
-var parenRe = regexp.MustCompile(`([\x{4e00}-\x{9fff}\x{3400}-\x{4dbf}\x{3005}\x{3006}\x{30f6}]+)(?:\{[^{}|]*\})?[(\x{ff08}]([\x{3040}-\x{30ff}\x{30fc}\x{30fb}]+)[)\x{ff09}]`)
-
-// ParenReadings 列出歌詞文字裡寫在括號中的讀音（例如「運命(さだめ)」），依出現順序、不重複。
-func ParenReadings(text string) []string {
-	found := []string{}
-	seen := map[string]bool{}
-	for _, line := range pystr.SplitLines(text) {
-		if strings.HasPrefix(pystr.LStrip(line), "#") {
-			continue
-		}
-		for _, m := range parenRe.FindAllString(line, -1) {
-			if !seen[m] {
-				seen[m] = true
-				found = append(found, m)
-			}
-		}
-	}
-	return found
-}
-
-// ParenToRuby 把括號讀音轉成讀音標註：運命(さだめ) → {運命|さだめ}（註解行不動）。
-func ParenToRuby(text string) string {
-	lines := strings.Split(text, "\n")
-	for i, line := range lines {
-		if !strings.HasPrefix(pystr.LStrip(line), "#") {
-			lines[i] = parenRe.ReplaceAllString(line, "{$1|$2}")
-		}
-	}
-	return strings.Join(lines, "\n")
-}
-
 // Sanitize 整理從 API 送來的結構：去掉空的讀音、不認得的演唱者，翻譯的空白收斂。
 func Sanitize(doc Document) Document {
 	out := Document{Meta: map[string]string{}, Lines: []Line{}}

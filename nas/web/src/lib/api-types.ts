@@ -898,6 +898,8 @@ export interface components {
             /** @description 已經有歌詞檔 */
             exists: boolean;
             paren: string[];
+            /** @description 存檔時自動轉成讀音標註的括號讀音（原本的寫法，例如「運命(さだめ)」） */
+            paren_converted?: string[];
             pending_readings?: number[];
             plain: string;
             text: string;

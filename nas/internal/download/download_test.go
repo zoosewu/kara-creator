@@ -268,11 +268,19 @@ func TestLyricsKeptWhenDownloadFails(t *testing.T) {
 	if data, _ := os.ReadFile(lyricsPath); !strings.Contains(string(data), "第二版的歌詞") {
 		t.Fatalf("%q", data)
 	}
+	// 附上的歌詞裡寫在括號中的讀音：存的時候轉成讀音標註
+	_ = os.RemoveAll(e.st.SongPath("brandnew"))
+	if err := e.d.KeepLyrics("brandnew", "運命(さだめ)を歌う", func(string, ...any) {}); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(e.st.SongPath("brandnew", song.FileLyrics)); !strings.Contains(string(data), "運命{さだめ}を歌う") {
+		t.Fatalf("%q", data)
+	}
 	// 已經在曲庫裡的歌：附上的歌詞不蓋掉現有的
 	if err := e.d.KeepLyrics("dQw4w9WgXcQ", "不該寫進去", func(string, ...any) {}); err != nil {
 		t.Fatal(err)
 	}
-	if data, _ := os.ReadFile(lyricsPath); strings.Contains(string(data), "不該寫進去") {
-		t.Fatal("曲庫裡已經有的歌，歌詞不能被蓋掉")
+	if data, err := os.ReadFile(lyricsPath); err != nil || strings.Contains(string(data), "不該寫進去") || !strings.Contains(string(data), "第二版的歌詞") {
+		t.Fatalf("曲庫裡已經有的歌，歌詞不能被蓋掉：%q %v", data, err)
 	}
 }
