@@ -91,6 +91,8 @@ input, textarea, select {
   transition: border-color .15s;
 }
 input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+/* 滑桿不套輸入框的外框與內距：軌道要貼齊兩端 */
+input[type=range] { padding: 0; border: none; border-radius: 0; background: none; margin: 0; }
 .mono { font-family: var(--mono); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
