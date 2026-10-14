@@ -35,6 +35,16 @@
   let follow = $state(true)
   let retimed = $state(false)
   let textChanged = $state(false)
+  // 還沒儲存的調整（按「儲存」才送出，避免誤觸）：時間的調整依序記下來，NAS 用 dry run 算出預覽（連鎖推動和存檔時相同）；
+  // 文字、演唱者記在 edits。saved* 是 NAS 上目前的內容，復原時用
+  type ShiftOp = { line: number; delta: number }
+  let shifts = $state<ShiftOp[]>([])
+  let edits = $state(new Map<number, { text?: string; singer?: string }>())
+  let savedLines: EditorLine[] = []
+  let savedTiming = $state<TimingView['lines']>([])
+  let saving = $state(false)
+  let draftCount = $derived(new Set([...shifts.map((s) => s.line), ...edits.keys()]).size)
+  let dirty = $derived(shifts.length > 0 || edits.size > 0)
   let editingText = $state<number | null>(null)
   let pendingJob = $state<{ id: string; index: number; mode: string; count: number } | null>(null)
   let statusText = $state('')
@@ -93,8 +103,11 @@
       api<QAView>(`/songs/${enc(id)}/qa`).catch(() => ({ lines: [] }) as unknown as QAView),
     ])
     lines = v.doc.lines
+    savedLines = structuredClone($state.snapshot(v.doc.lines))
     language = v.doc.language ?? null
-    timing = t.lines
+    timing = savedTiming = t.lines
+    shifts = []
+    edits = new Map()
     qa = new Map(q.lines.map((c) => [c.index, c]))
   }
 
@@ -325,18 +338,19 @@
     video?.play().catch(() => {})
   }
 
+  /** 移動一句（記進草稿）：NAS 算出套用全部草稿後的時間來預覽，移不了的話不記。 */
   async function shift(i: number, delta: number) {
     delta = Math.round(delta * 1000) / 1000
     if (!timing[i] || Math.abs(delta) < 0.01) return false
-    const v = await store.run(() => api<TimingView>(`/songs/${enc(id)}/timing/lines/${i}`, { method: 'PATCH', body: { delta } }))
+    const next = [...shifts, { line: i, delta }]
+    const v = await store.run(() => api<TimingView>(`/songs/${enc(id)}/timing/shifts`, { method: 'POST', body: { shifts: next, dry_run: true } }))
     if (!v) return false
+    shifts = next
     timing = v.lines
-    retimed = true
     const pushed = v.pushed ?? []
     statusText =
       `第 ${i + 1} 句 ${delta > 0 ? '+' : ''}${delta} 秒` +
-      (pushed.length ? `，第 ${[...pushed].sort((a, b) => a - b).map((k) => k + 1).join('、')} 句跟著往${pushed[0] < i ? '前' : '後'}挪` : '') +
-      '，已儲存'
+      (pushed.length ? `，第 ${[...pushed].sort((a, b) => a - b).map((k) => k + 1).join('、')} 句跟著往${pushed[0] < i ? '前' : '後'}挪` : '')
     ensureLive()
     return true
   }
@@ -347,29 +361,72 @@
     if ((await shift(i, video.currentTime - t.start)) && i + 1 < lyricIdx.length) select(i + 1)
   }
 
-  async function editLine(i: number, body: { text?: string; singer?: string }) {
-    const v = await store.run(() => api<LyricsViews>(`/songs/${enc(id)}/lines/${i}`, { method: 'PATCH', body }))
-    if (!v) return false
-    lines = v.doc.lines
-    return true
+  function edit(i: number, change: { text?: string; singer?: string }) {
+    const line = lines[lyricIdx[i]]
+    Object.assign(line, change)
+    const saved = savedLines[lyricIdx[i]]
+    const e = { ...edits.get(i), ...change }
+    if (e.text === saved.text) delete e.text
+    if ((e.singer || null) === (saved.singer || null)) delete e.singer
+    const next = new Map(edits)
+    if (Object.keys(e).length) next.set(i, e)
+    else next.delete(i)
+    edits = next
   }
 
-  async function cycleSinger(i: number) {
-    const next = nextSinger(lines[lyricIdx[i]].singer) ?? ''
-    if (await editLine(i, { singer: next })) {
-      retimed = true // 演唱者只影響顏色：要重新燒錄才會更新
-      ensureLive()
-    }
+  function cycleSinger(i: number) {
+    edit(i, { singer: nextSinger(lines[lyricIdx[i]].singer) ?? '' })
+    ensureLive()
   }
 
-  async function saveText(i: number, value: string) {
+  function setText(i: number, value: string) {
     editingText = null
     const text = value.trim()
     if (!text || text === lines[lyricIdx[i]].text) return
-    if (await editLine(i, { text })) {
-      textChanged = true
-      statusText = `第 ${i + 1} 句歌詞已儲存`
-    }
+    edit(i, { text })
+  }
+
+  /** 送出草稿：先改文字、演唱者，再依序移動時間。 */
+  async function save() {
+    if (!dirty || saving) return true
+    saving = true
+    const ok = await store.run(async () => {
+      let v: LyricsViews | null = null
+      for (const [i, body] of [...edits].sort((a, b) => a[0] - b[0])) {
+        v = await api<LyricsViews>(`/songs/${enc(id)}/lines/${i}`, { method: 'PATCH', body })
+        if (body.text !== undefined) textChanged = true
+      }
+      if (v) {
+        lines = v.doc.lines
+        savedLines = structuredClone($state.snapshot(v.doc.lines))
+      }
+      edits = new Map()
+      if (shifts.length) {
+        const t = await api<TimingView>(`/songs/${enc(id)}/timing/shifts`, { method: 'POST', body: { shifts } })
+        timing = savedTiming = t.lines
+        shifts = []
+      }
+      retimed = true
+      return true
+    }, '已儲存')
+    saving = false
+    if (ok) statusText = ''
+    return Boolean(ok)
+  }
+
+  function discard() {
+    lines = structuredClone(savedLines)
+    timing = savedTiming
+    shifts = []
+    edits = new Map()
+    statusText = ''
+  }
+
+  /** 要做會讀寫 NAS 的事之前：有沒儲存的調整就先問要不要儲存（取消就不做）。 */
+  async function settle(what: string) {
+    if (!dirty) return true
+    if (!confirm(`有 ${draftCount} 句的調整還沒儲存，要先儲存再${what}嗎？`)) return false
+    return save()
   }
 
   function retimeMenu(anchor: HTMLElement, i: number) {
@@ -384,7 +441,7 @@
     p.mode === 'from' ? `AI 重新對時第 ${p.index + 1} 句及之後全部（共 ${p.count} 句）` : `AI 重新對時第 ${p.index + 1} 句（只有這句）`
 
   async function retime(i: number, mode: string) {
-    if (pendingJob) return
+    if (pendingJob || !(await settle('讓 AI 重對'))) return
     const res = await store.runJob([id], ['retime'], { line: i, mode })
     const job = res?.created[0]
     if (!job) return
@@ -407,7 +464,7 @@
     }
     const v = await store.run(() => api<TimingView>(`/songs/${enc(id)}/timing`))
     if (!v) return
-    timing = v.lines
+    timing = savedTiming = v.lines
     retimed = true
     statusText = `${retimeLabel(p)}完成，播放確認看看`
     ensureLive()
@@ -415,6 +472,7 @@
   }
 
   function close() {
+    if (dirty && !confirm(`有 ${draftCount} 句的調整還沒儲存，確定不儲存就關閉？`)) return
     video?.pause()
     cancelAnimationFrame(raf)
     if (retimed || textChanged) store.notify('已儲存，按「更新伴唱帶」後生效')
@@ -427,6 +485,7 @@
   }
 
   async function runKaraoke() {
+    if (!(await save())) return
     retimed = textChanged = false
     close()
     const res = await store.runJob([id], ['karaoke'])
@@ -438,6 +497,10 @@
     if (e.key === 'Escape') {
       if (menu.open) return menu.close()
       return close()
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault()
+      return save()
     }
     if (e.ctrlKey || e.metaKey || e.altKey) return
     const t = e.target as HTMLElement
@@ -516,8 +579,8 @@
             : '確認這一版沒問題'}
         onclick={approve}><Icon name="check" /><span>{approved ? '已確認（取消）' : '確認沒問題'}</span></button
       >
-      <button type="button" class="btn small" title="編輯歌名、歌手、語言" onclick={() => (ui.song = id)}><Icon name="tag" />資訊</button>
-      <button type="button" class="btn small" title="開啟歌詞編輯器" onclick={() => ui.openEditor(id, { over: true })}><Icon name="lyrics" />完整歌詞</button>
+      <button type="button" class="btn small" title="編輯歌名、歌手、語言" onclick={async () => (await settle('開資訊')) && (ui.song = id)}><Icon name="tag" />資訊</button>
+      <button type="button" class="btn small" title="開啟歌詞編輯器" onclick={async () => (await settle('開歌詞編輯器')) && ui.openEditor(id, { over: true })}><Icon name="lyrics" />完整歌詞</button>
       <div class="seg-toggle" title="播放的版本（不影響成品）">
         {#each song.media as m}
           <button type="button" class:on={media?.kind === m.kind} title={m.hint} onclick={() => setSource(m, video?.currentTime ?? 0)}>{m.label}</button>
@@ -635,7 +698,7 @@
                 class="studio-line {check ? `qa-${check.status}` : ''}"
                 class:mismatch={t?.mismatch}
                 class:selected={i === selected}
-                class:tools-open={Math.abs(i - selected) <= 1}
+                class:draft={edits.has(i) || (t && savedTiming[i] && Math.abs(t.start - savedTiming[i].start) > 0.0005)}
                 class:playing={i === playing}
                 class:changed={changed.has(i)}
                 role="button"
@@ -643,6 +706,14 @@
                 onclick={() => select(i)}
                 onkeydown={() => {}}
               >
+                <button
+                  type="button"
+                  class="line-play"
+                  disabled={!t}
+                  title="從這句開始播（前 1.5 秒）"
+                  aria-label="從第 {i + 1} 句開始播"
+                  onclick={(e) => (e.stopPropagation(), playLine(i))}><Icon name="play" /></button
+                >
                 <span class="line-no">{i + 1}</span>
                 <button
                   type="button"
@@ -666,10 +737,10 @@
                       onclick={(e) => e.stopPropagation()}
                       onkeydown={(e) => {
                         e.stopPropagation()
-                        if (e.key === 'Enter') saveText(i, (e.currentTarget as HTMLInputElement).value)
+                        if (e.key === 'Enter') setText(i, (e.currentTarget as HTMLInputElement).value)
                         if (e.key === 'Escape') editingText = null
                       }}
-                      onblur={(e) => saveText(i, (e.currentTarget as HTMLInputElement).value)}
+                      onblur={(e) => setText(i, (e.currentTarget as HTMLInputElement).value)}
                     />
                   {:else}
                     <span class="studio-words">{line.text}{#if line.translation}<small class="studio-trans">{line.translation}</small>{/if}</span>
@@ -694,38 +765,38 @@
                     onclick={(e) => (e.stopPropagation(), playLine(i))}><Icon name="warn" /></button
                   >
                 {:else}<span></span>{/if}
-                <span class="studio-time" title={t?.mismatch ? '歌詞改過，這是改之前的時間' : '開始時間'}>{t ? fmtClock(t.start) : '—'}</span>
-                <div class="studio-tools">
-                  <div class="nudge-group" role="group" aria-label="微調開始時間">
-                    {#each [-0.5, -0.1, 0.1, 0.5] as d}
-                      <button type="button" disabled={!t} title="這句的開始 {d > 0 ? '延後' : '提前'} {Math.abs(d)} 秒" onclick={(e) => (e.stopPropagation(), shift(i, d))}
-                        >{d > 0 ? `+${d}` : `−${-d}`}</button
-                      >
-                    {/each}
-                  </div>
-                  <button type="button" class="btn small primary" disabled={!t} title="把開始設成目前位置（Enter）" onclick={(e) => (e.stopPropagation(), setNow(i))}
-                    >設為現在</button
-                  >
-                  <button type="button" class="icon-btn tool-icon" disabled={!t} title="從這句開始前 1.5 秒播放" aria-label="播放這句" onclick={(e) => (e.stopPropagation(), playLine(i))}
-                    ><Icon name="play" /></button
-                  >
-                  <button
-                    type="button"
-                    class="btn small ai-btn"
-                    disabled={!t || t.mismatch || Boolean(pendingJob)}
-                    aria-haspopup="menu"
-                    title="以這句目前的開頭為準，讓 AI 重新對時"
-                    onclick={(e) => (e.stopPropagation(), retimeMenu(e.currentTarget, i))}>AI 重對<Icon name="caret" /></button
-                  >
-                </div>
+                <span
+                  class="studio-time"
+                  title={t?.mismatch
+                    ? '歌詞改過，這是改之前的時間'
+                    : t && savedTiming[i] && Math.abs(t.start - savedTiming[i].start) > 0.0005
+                      ? `還沒儲存（原本 ${fmtClock(savedTiming[i].start)}）`
+                      : '開始時間'}>{t ? fmtClock(t.start) : '—'}</span
+                >
+                <button type="button" class="btn small set-now" disabled={!t} title="把開始設成目前位置（Enter）" onclick={(e) => (e.stopPropagation(), setNow(i))}
+                  >設為現在</button
+                >
+                <button
+                  type="button"
+                  class="btn small ai-btn"
+                  disabled={!t || t.mismatch || Boolean(pendingJob)}
+                  aria-haspopup="menu"
+                  title="AI 重對：以這句目前的開頭為準重新對時"
+                  aria-label="AI 重對"
+                  onclick={(e) => (e.stopPropagation(), retimeMenu(e.currentTarget, i))}>AI<Icon name="caret" /></button
+                >
               </div>
             {/if}
           {/each}
         </div>
         <footer class="studio-foot">
-          <span class="muted ellipsis">{statusText}</span>
-          <button type="button" class="btn primary" disabled={song.status.lyrics !== 'done'} title="用調整後的歌詞與時間重新製作" onclick={runKaraoke}
-            >{['pending', 'no_lyrics'].includes(song.status.karaoke) ? '製作伴唱帶' : '更新伴唱帶'}</button
+          <span class="muted ellipsis grow">{dirty ? `${draftCount} 句未儲存${statusText ? `：${statusText}` : ''}` : statusText}</span>
+          {#if dirty}
+            <button type="button" class="btn" disabled={saving} onclick={discard}>復原</button>
+            <button type="button" class="btn primary" disabled={saving} title="儲存調整（Ctrl+S）" onclick={save}>儲存</button>
+          {/if}
+          <button type="button" class="btn" class:primary={!dirty} disabled={song.status.lyrics !== 'done' || saving} title="用調整後的歌詞與時間重新製作" onclick={runKaraoke}
+            >{dirty ? '儲存並' : ''}{['pending', 'no_lyrics'].includes(song.status.karaoke) ? '製作伴唱帶' : '更新伴唱帶'}</button
           >
         </footer>
       </div>

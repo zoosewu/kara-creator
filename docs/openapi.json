@@ -1415,6 +1415,66 @@
         },
         "type": "object"
       },
+      "ShiftBatch": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/ShiftBatch.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "dry_run": {
+            "description": "只回傳套用後的結果、不存檔（給畫面預覽還沒儲存的調整）",
+            "type": "boolean"
+          },
+          "shifts": {
+            "description": "依序套用",
+            "items": {
+              "$ref": "#/components/schemas/ShiftOp"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "shifts"
+        ],
+        "type": "object"
+      },
+      "ShiftOp": {
+        "additionalProperties": false,
+        "properties": {
+          "delta": {
+            "description": "移動量（秒）；正數往後、負數往前",
+            "format": "double",
+            "type": "number"
+          },
+          "following": {
+            "description": "之後的句子一起移",
+            "type": "boolean"
+          },
+          "line": {
+            "description": "第幾句（從 0 起算，與對時結果一致）",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "start": {
+            "description": "新的開始時間（秒）；和 delta 擇一",
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "line"
+        ],
+        "type": "object"
+      },
       "ShiftRequest": {
         "additionalProperties": false,
         "properties": {
@@ -3322,6 +3382,60 @@
           }
         },
         "summary": "移動一句",
+        "tags": [
+          "歌詞與時間"
+        ]
+      }
+    },
+    "/api/v1/songs/{id}/timing/shifts": {
+      "post": {
+        "description": "一串調整依序套用（每一步和「移動一句」相同），全部成功才存檔；dry_run 只回傳結果不存檔，給畫面預覽還沒儲存的調整。",
+        "operationId": "shift-lines",
+        "parameters": [
+          {
+            "description": "歌曲 id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "歌曲 id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShiftBatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimingView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "依序移動好幾句",
         "tags": [
           "歌詞與時間"
         ]

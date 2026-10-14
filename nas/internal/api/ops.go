@@ -65,6 +65,11 @@ type shiftIn struct {
 	Body app.ShiftRequest
 }
 
+type shiftsIn struct {
+	ID   string `path:"id" doc:"歌曲 id"`
+	Body app.ShiftBatch
+}
+
 type folderIn struct {
 	Body struct {
 		Name   string `json:"name,omitempty" doc:"名稱；空的話叫「新資料夾」"`
@@ -226,6 +231,16 @@ func register(api huma.API, a *app.App) {
 			"回傳的 pushed 是一起被推動的句子。之後伴唱帶顯示需更新（只重燒，不重新對時）。", tLyrics),
 		func(ctx context.Context, in *shiftIn) (*body[app.TimingView], error) {
 			v, err := a.Shift(in.ID, in.N, in.Body)
+			if err != nil {
+				return nil, fail(err)
+			}
+			return &body[app.TimingView]{v}, nil
+		})
+
+	huma.Register(api, op("shift-lines", http.MethodPost, "/songs/{id}/timing/shifts", "依序移動好幾句",
+		"一串調整依序套用（每一步和「移動一句」相同），全部成功才存檔；dry_run 只回傳結果不存檔，給畫面預覽還沒儲存的調整。", tLyrics),
+		func(ctx context.Context, in *shiftsIn) (*body[app.TimingView], error) {
+			v, err := a.ShiftMany(in.ID, in.Body)
 			if err != nil {
 				return nil, fail(err)
 			}

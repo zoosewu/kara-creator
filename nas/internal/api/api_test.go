@@ -242,6 +242,34 @@ func TestEndToEnd(t *testing.T) {
 	if len(timing.Lines) != 2 || len(timing.Adjustments) != 1 {
 		t.Fatalf("%+v", timing)
 	}
+	// 一串調整：dry run 只回傳結果不存檔；不帶 dry run 時依序套用、一次存檔
+	start1 := timing.Lines[1].Start
+	var preview app.TimingView
+	shifts := []map[string]any{{"line": 1, "delta": 0.3}, {"line": 0, "start": 0.05}}
+	if code := c.do("POST", "/api/v1/songs/dQw4w9WgXcQ/timing/shifts", map[string]any{"shifts": shifts, "dry_run": true}, &preview); code != 200 {
+		t.Fatal(code)
+	}
+	if preview.Lines[1].Start-start1 < 0.29 || preview.Lines[0].Start != 0.05 || len(preview.Adjustments) != 3 {
+		t.Fatalf("預覽要套用全部調整：%+v", preview)
+	}
+	c.do("GET", "/api/v1/songs/dQw4w9WgXcQ/timing", nil, &timing)
+	if timing.Lines[1].Start != start1 || len(timing.Adjustments) != 1 {
+		t.Fatalf("dry run 不存檔：%+v", timing)
+	}
+	if code := c.do("POST", "/api/v1/songs/dQw4w9WgXcQ/timing/shifts", map[string]any{"shifts": shifts}, &timing); code != 200 || len(timing.Adjustments) != 3 {
+		t.Fatalf("%d %+v", code, timing)
+	}
+	c.do("GET", "/api/v1/songs/dQw4w9WgXcQ/timing", nil, &preview)
+	if preview.Lines[1].Start != timing.Lines[1].Start || len(preview.Adjustments) != 3 {
+		t.Fatalf("儲存後要寫進檔案：%+v", preview)
+	}
+	if code := c.do("POST", "/api/v1/songs/dQw4w9WgXcQ/timing/shifts", map[string]any{"shifts": []map[string]any{{"line": 1, "delta": 0.1}, {"line": 9, "delta": 0.1}}}, nil); code != 400 {
+		t.Fatalf("有一步失敗就整串不存：%d", code)
+	}
+	c.do("GET", "/api/v1/songs/dQw4w9WgXcQ/timing", nil, &preview)
+	if len(preview.Adjustments) != 3 {
+		t.Fatalf("失敗時不能存一半：%+v", preview.Adjustments)
+	}
 	waitFor(t, "調整後需更新", func() bool {
 		c.do("GET", "/api/v1/songs/dQw4w9WgXcQ", nil, &song)
 		return song.Status.Karaoke == "needs_render"

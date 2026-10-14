@@ -260,9 +260,13 @@ func (a *App) Timing(id string) (TimingView, error) {
 	if err != nil {
 		return TimingView{}, err
 	}
+	return timingView(al), nil
+}
+
+func timingView(al *timing.Alignment) TimingView {
 	v := TimingView{Lines: []TimingLine{}, Adjustments: []timing.Adjustment{}}
 	if al == nil {
-		return v, nil
+		return v
 	}
 	for i, ln := range al.Lines {
 		words := ln.Words
@@ -274,7 +278,7 @@ func (a *App) Timing(id string) (TimingView, error) {
 	if al.Adjustments != nil {
 		v.Adjustments = al.Adjustments
 	}
-	return v, nil
+	return v
 }
 
 // ShiftRequest 是移動一句。
@@ -284,10 +288,34 @@ type ShiftRequest struct {
 	Following bool     `json:"following,omitempty" doc:"之後的句子一起移（UI 只移單句；整段偏掉交給 AI 重對）"`
 }
 
+// ShiftOp 是一串調整裡的一步：移動第 line 句。
+type ShiftOp struct {
+	Line      int      `json:"line" minimum:"0" doc:"第幾句（從 0 起算，與對時結果一致）"`
+	Delta     *float64 `json:"delta,omitempty" doc:"移動量（秒）；正數往後、負數往前"`
+	Start     *float64 `json:"start,omitempty" doc:"新的開始時間（秒）；和 delta 擇一"`
+	Following bool     `json:"following,omitempty" doc:"之後的句子一起移"`
+}
+
+// ShiftBatch 是依序套用的一串調整。
+type ShiftBatch struct {
+	Shifts []ShiftOp `json:"shifts" minItems:"1" maxItems:"1000" doc:"依序套用"`
+	DryRun bool      `json:"dry_run,omitempty" doc:"只回傳套用後的結果、不存檔（給畫面預覽還沒儲存的調整）"`
+}
+
 // Shift 移動第 line 句（連鎖推動前後句）。只改對時，之後伴唱帶顯示需更新（只重燒）。
 func (a *App) Shift(id string, line int, req ShiftRequest) (TimingView, error) {
-	if err := a.notBusy(id); err != nil {
-		return TimingView{}, err
+	return a.ShiftMany(id, ShiftBatch{Shifts: []ShiftOp{{Line: line, Delta: req.Delta, Start: req.Start, Following: req.Following}}})
+}
+
+// ShiftMany 依序套用一串調整，全部成功才存檔（dry run 不存檔）。Pushed 是最後一步一起被推動的句子。
+func (a *App) ShiftMany(id string, req ShiftBatch) (TimingView, error) {
+	if _, ok := a.Store.Song(id); !ok {
+		return TimingView{}, errNotFound
+	}
+	if !req.DryRun {
+		if err := a.notBusy(id); err != nil {
+			return TimingView{}, err
+		}
 	}
 	al, err := planner.ReadAlignment(a.Store, id)
 	if err != nil {
@@ -296,30 +324,38 @@ func (a *App) Shift(id string, line int, req ShiftRequest) (TimingView, error) {
 	if al == nil {
 		return TimingView{}, invalid("還沒有對時結果，請先製作伴唱帶")
 	}
-	var delta float64
-	switch {
-	case req.Delta != nil:
-		delta = *req.Delta
-	case req.Start != nil && line >= 0 && line < len(al.Lines):
-		delta = *req.Start - al.Lines[line].Start
-	case req.Start == nil:
-		return TimingView{}, invalid("要給 delta 或 start")
+	now := a.Now().Format(time.RFC3339)
+	var pushed []int
+	for _, op := range req.Shifts {
+		var delta float64
+		switch {
+		case op.Delta != nil:
+			delta = *op.Delta
+		case op.Start != nil && op.Line >= 0 && op.Line < len(al.Lines):
+			delta = *op.Start - al.Lines[op.Line].Start
+		case op.Start == nil:
+			return TimingView{}, invalid("要給 delta 或 start")
+		}
+		if math.IsNaN(delta) || math.IsInf(delta, 0) {
+			return TimingView{}, invalid("移動量不對")
+		}
+		if pushed, err = al.Shift(op.Line, delta, op.Following, now); err != nil {
+			if len(req.Shifts) > 1 {
+				return TimingView{}, invalid("第 %d 句：%s", op.Line+1, err.Error())
+			}
+			return TimingView{}, invalid("%s", err.Error())
+		}
 	}
-	if math.IsNaN(delta) || math.IsInf(delta, 0) {
-		return TimingView{}, invalid("移動量不對")
+	if !req.DryRun {
+		if err := writeJSON(a.Store.SongPath(id, song.FileAlignment), al); err != nil {
+			return TimingView{}, err
+		}
+		a.invalidate(id)
+		a.touched()
 	}
-	pushed, err := al.Shift(line, delta, req.Following, a.Now().Format(time.RFC3339))
-	if err != nil {
-		return TimingView{}, invalid("%s", err.Error())
-	}
-	if err := writeJSON(a.Store.SongPath(id, song.FileAlignment), al); err != nil {
-		return TimingView{}, err
-	}
-	a.invalidate(id)
-	a.touched()
-	v, err := a.Timing(id)
+	v := timingView(al)
 	v.Pushed = pushed
-	return v, err
+	return v, nil
 }
 
 // notBusy：這首歌正在處理時不能改時間或歌詞（處理完會蓋掉）。

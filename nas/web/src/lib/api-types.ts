@@ -415,6 +415,26 @@ export interface paths {
         patch: operations["shift-line"];
         trace?: never;
     };
+    "/api/v1/songs/{id}/timing/shifts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 依序移動好幾句
+         * @description 一串調整依序套用（每一步和「移動一句」相同），全部成功才存檔；dry_run 只回傳結果不存檔，給畫面預覽還沒儲存的調整。
+         */
+        post: operations["shift-lines"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/system": {
         parameters: {
             query?: never;
@@ -1037,6 +1057,37 @@ export interface components {
              * @description 字幕大小（1 = 預設）
              */
             subtitle_scale?: number;
+        };
+        ShiftBatch: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/v1/schemas/ShiftBatch.json
+             */
+            readonly $schema?: string;
+            /** @description 只回傳套用後的結果、不存檔（給畫面預覽還沒儲存的調整） */
+            dry_run?: boolean;
+            /** @description 依序套用 */
+            shifts: components["schemas"]["ShiftOp"][];
+        };
+        ShiftOp: {
+            /**
+             * Format: double
+             * @description 移動量（秒）；正數往後、負數往前
+             */
+            delta?: number;
+            /** @description 之後的句子一起移 */
+            following?: boolean;
+            /**
+             * Format: int64
+             * @description 第幾句（從 0 起算，與對時結果一致）
+             */
+            line: number;
+            /**
+             * Format: double
+             * @description 新的開始時間（秒）；和 delta 擇一
+             */
+            start?: number;
         };
         ShiftRequest: {
             /**
@@ -2176,6 +2227,42 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ShiftRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimingView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "shift-lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 歌曲 id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShiftBatch"];
             };
         };
         responses: {
