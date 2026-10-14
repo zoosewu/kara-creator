@@ -31,7 +31,7 @@
   async function runBatch(name: string) {
     const a = BATCH[name]
     const songs = store.pickedSongs()
-    if (name === 'redoAll' && !confirm(`全部重做 ${songs.length} 首？\n手動修改過的字幕檔（.ass）會被覆蓋，已確認也會失效。`)) return
+    if (name === 'redoAll' && !confirm(`全部重做 ${songs.length} 首？\n手動改過的字幕檔會被覆蓋，已確認會失效。`)) return
     const res = await store.runJob(
       songs.map((s) => s.id),
       a.steps,
@@ -76,11 +76,11 @@
   }
 
   function redoMenu(anchor: HTMLElement) {
-    menu.show(anchor, '重新處理選取的歌（已完成的也會重做）', [
-      { label: '重新去人聲', desc: '重新分離人聲與伴奏；之後伴唱帶需重新對時', action: () => runBatch('redoSeparate') },
-      { label: '重新對時', desc: '歌詞不變、重新抓每個字的時間並重新燒錄（缺歌詞的略過；已確認會失效）', action: () => runBatch('realign') },
-      { label: '重新檢查對時', desc: '已經檢查過的也重新聽寫比對（沒有伴唱帶的略過）', action: () => runBatch('recheck') },
-      { label: '全部重做', desc: '去人聲、對時、字幕、燒錄全部重來；會覆蓋手動修改過的字幕檔', danger: true, action: () => runBatch('redoAll') },
+    menu.show(anchor, '重新處理選取的歌', [
+      { label: '重新去人聲', desc: '之後需重新對時', action: () => runBatch('redoSeparate') },
+      { label: '重新對時', desc: '重新抓每個字的時間；缺歌詞的略過，已確認會失效', action: () => runBatch('realign') },
+      { label: '重新檢查對時', desc: '檢查過的也重新檢查；沒有伴唱帶的略過', action: () => runBatch('recheck') },
+      { label: '全部重做', desc: '全部重來，會覆蓋手動改過的字幕檔', danger: true, action: () => runBatch('redoAll') },
     ])
   }
 
@@ -132,7 +132,7 @@
       type="button"
       class="lib-root {dnd.over?.key === 'root' ? dnd.over.cls : ''}"
       class:selected={store.folder === ''}
-      title="選取最上層（新歌存入這裡）；也可以把歌曲或資料夾拖到這裡移回最上層"
+      title="選取最上層（新歌存入這裡）"
       onclick={() => store.selectFolder('')}
       ondragover={(e) => dnd.overRow(e, root!, 'root', { kind: 'root' })}
       ondragleave={(e) => dnd.leave(e, root!, 'root')}
@@ -150,7 +150,7 @@
         class="btn small"
         class:primary={pendingExport > 0}
         disabled={exporting}
-        title="把「已確認」的伴唱帶（設定打開時加上原曲音訊）同步到匯出資料夾（只匯出已確認的，只在按這裡時同步；括號是待匯出 + 待移除的歌數）"
+        title="把已確認的伴唱帶同步到匯出資料夾（括號是待處理的歌數）"
         onclick={doExport}><Icon name="export" />匯出{pendingExport ? `（${pendingExport}）` : ''}</button
       >
     </div>
@@ -160,19 +160,19 @@
       <span class="batch-count">已選 {picked} 首</span>
       <div class="batch-actions">
         <button type="button" class="run-btn" title="只處理還沒去人聲的歌" onclick={() => runBatch('separate')}><Icon name="play" />去人聲</button>
-        <button type="button" class="run-btn" title="只處理還沒完成或需要更新的伴唱帶；沒去過人聲的會先去人聲" onclick={() => runBatch('karaoke')}
+        <button type="button" class="run-btn" title="只做還沒完成或需要更新的" onclick={() => runBatch('karaoke')}
           ><Icon name="play" />製作伴唱帶</button
         >
-        <button type="button" class="run-btn" title="只檢查還沒檢查過、或對時有變動的歌" onclick={() => runBatch('check')}><Icon name="play" />檢查對時</button>
-        <button type="button" class="view-link" aria-haspopup="menu" title="重新處理（已完成的也會重做）" onclick={(e) => redoMenu(e.currentTarget)}
+        <button type="button" class="run-btn" title="只檢查還沒檢查過或有變動的" onclick={() => runBatch('check')}><Icon name="play" />檢查對時</button>
+        <button type="button" class="view-link" aria-haspopup="menu" title="重新處理" onclick={(e) => redoMenu(e.currentTarget)}
           ><Icon name="more" />重新處理</button
         >
         <span class="divider"></span>
-        <button type="button" class="view-link" title="把選取的歌標成「已確認成品沒問題」（只對已完成的伴唱帶有效）" onclick={() => batchApproval(true)}
+        <button type="button" class="view-link" title="只對做好的伴唱帶有效" onclick={() => batchApproval(true)}
           ><Icon name="check" />標記已確認</button
         >
         <button type="button" class="view-link" onclick={() => batchApproval(false)}>取消確認</button>
-        <button type="button" class="view-link" aria-haspopup="menu" title="移到其他資料夾；也可以直接拖曳任一首勾選的歌" onclick={(e) => moveMenu(e.currentTarget)}
+        <button type="button" class="view-link" aria-haspopup="menu" title="移到其他資料夾" onclick={(e) => moveMenu(e.currentTarget)}
           ><Icon name="folder" />移動到…</button
         >
         <button type="button" class="view-link" onclick={() => store.selected.clear()}>取消選取</button>
@@ -181,7 +181,7 @@
   {/if}
   <div class="items" role="tree">
     {#if store.loaded && !all.length && !store.folders.length}
-      <div class="empty">還沒有歌曲。在上方貼上網址，按「製作伴唱帶」開始；或把影音檔放進 NAS 的 inbox 資料夾。</div>
+      <div class="empty">還沒有歌曲。在上方貼上網址開始，或把影音檔放進 NAS 的 inbox 資料夾。</div>
     {:else}
       {@render level('', 0)}
     {/if}

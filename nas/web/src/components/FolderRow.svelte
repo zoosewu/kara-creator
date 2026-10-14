@@ -25,7 +25,7 @@
   class:selected={store.folder === folder.id}
   class:dragging-source={dnd.isSource('folder', folder.id)}
   style="--depth:{depth}"
-  title="點一下選取（新歌存入這裡）；可拖曳到其他資料夾"
+  title="選取（新歌存入這裡）"
   role="treeitem"
   aria-selected={store.folder === folder.id}
   aria-expanded={open}

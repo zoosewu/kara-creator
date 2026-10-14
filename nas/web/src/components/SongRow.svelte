@@ -38,18 +38,18 @@
       case 'done':
         return { cls: 'done', text: label, tip: '已完成' }
       case 'outdated':
-        return { cls: 'needs_align', text: `${label}需更新`, tip: '來源或去人聲方法有變動，需要重新去人聲' }
+        return { cls: 'needs_align', text: `${label}需更新`, tip: '需要重新去人聲' }
       case 'needs_render':
-        return { cls: 'needs_render', text: '伴唱帶需重燒', tip: '只需重新燒錄（不重新對時）；已確認不受影響' }
+        return { cls: 'needs_render', text: '伴唱帶需重燒', tip: '只重新燒錄；已確認不受影響' }
       case 'needs_align':
         if (song.align_patch)
           return song.align_patch.realign
-            ? { cls: 'needs_align', text: `伴唱帶需重對 ${song.align_patch.realign} 句`, tip: '歌詞改了：只重對改過的句子，其他句子的時間（含手動調整）不動；手動調過的句子保留開頭。已確認會失效' }
-            : { cls: 'needs_align', text: '伴唱帶需更新', tip: '拿掉了句子：不必重新對時，其他句子的時間不動。已確認會失效' }
-        return { cls: 'needs_align', text: '伴唱帶需重新對時', tip: '人聲、語言或對時方法有變動，會整首重新對時（手動調整的時間會被取代）；已確認會失效' }
+            ? { cls: 'needs_align', text: `伴唱帶需重對 ${song.align_patch.realign} 句`, tip: '只重對改過的句子；已確認會失效' }
+            : { cls: 'needs_align', text: '伴唱帶需更新', tip: '刪了句子，不必重新對時；已確認會失效' }
+        return { cls: 'needs_align', text: '伴唱帶需重新對時', tip: '整首重新對時，手動調整會被取代；已確認會失效' }
       case 'missing':
         return k === 'download'
-          ? { cls: 'missing', text: '來源不見了', tip: '來源檔不見了，請重新下載或放回 inbox' }
+          ? { cls: 'missing', text: '來源不見了', tip: '請重新下載或放回 inbox' }
           : { cls: 'missing', text: '缺歌詞', tip: '按「輸入歌詞」' }
       case 'no_lyrics':
         return { cls: 'pending', text: label, tip: '需要先有歌詞' }
@@ -70,8 +70,8 @@
 
   const EXPORT_STEP: Record<string, Omit<Step, 'label'>> = {
     exported: { cls: 'done', state: '已匯出' },
-    pending: { cls: 'needs_render', state: '待匯出', detail: '已確認、還沒匯出（或成品更新了、改了名）：按上方「匯出」' },
-    remove: { cls: 'needs_align', state: '待移除', detail: '取消確認了，但匯出資料夾裡還有舊檔：按上方「匯出」才會拿掉' },
+    pending: { cls: 'needs_render', state: '待匯出', detail: '按上方「匯出」' },
+    remove: { cls: 'needs_align', state: '待移除', detail: '按上方「匯出」移除舊檔' },
   }
 
   // 全部的狀態合併成一個「✓ 4/6」：滑上去看每個步驟，點一下播放（有問題的話跳到第一個有問題的句子）
@@ -83,17 +83,17 @@
       list.push({
         label: '確認',
         cls: 'needs_align',
-        state: approval.changed?.length ? `需重新確認（改了 ${approval.changed.length} 句）` : '需重新確認（重新對時了）',
-        detail: `上次確認${at}之後${approval.changed?.length ? `改了第 ${approval.changed.map((i) => i + 1).join('、')} 句` : '重新對時了（歌詞沒改）'}，請看過再確認`,
+        state: '需重新確認',
+        detail: approval.changed?.length ? `改了第 ${approval.changed.map((i) => i + 1).join('、')} 句` : undefined,
       })
-    else list.push({ label: '確認', cls: 'pending', state: karaoke === 'done' ? '還沒確認：在播放畫面按「確認沒問題」' : '伴唱帶做好後確認' })
+    else list.push({ label: '確認', cls: 'pending', state: karaoke === 'done' ? '還沒確認' : '伴唱帶做好後確認' })
     const ex = song.exported ? EXPORT_STEP[song.exported] : null
     list.push({ label: '匯出', ...(ex ?? { cls: 'pending', state: '確認後按上方「匯出」' }), ...(song.exported === 'exported' ? { detail: song.export } : {}) })
     return list
   })
   let doneCount = $derived(steps.filter((v) => v.cls === 'done').length)
   let qa = $derived(song.status.qa && (song.status.qa.wrong || song.status.qa.suspect) ? song.status.qa : null)
-  let qaText = $derived(qa ? [qa.wrong ? `${qa.wrong} 句可能不準（和獨立聽寫差 1.5 秒以上）` : '', qa.suspect ? `${qa.suspect} 句待確認` : ''].filter(Boolean).join('、') : '')
+  let qaText = $derived(qa ? [qa.wrong ? `${qa.wrong} 句可能不準` : '', qa.suspect ? `${qa.suspect} 句待確認` : ''].filter(Boolean).join('、') : '')
   let problem = $derived(Boolean(qa?.wrong) || steps.some((v) => ['missing', 'needs_align'].includes(v.cls)))
   let jump = $derived(qa ? { jumpToQa: true } : approval.status === 'stale' ? { line: approval.changed?.[0] ?? null } : {})
 
@@ -148,17 +148,17 @@
 
   function redoMenu(anchor: HTMLElement) {
     const hasTiming = ['done', 'needs_render', 'needs_align'].includes(karaoke)
-    menu.show(anchor, busy ? '處理中，請等目前的工作結束' : '重新處理（會排入佇列）', [
-      { label: '重新去人聲', desc: '重新分離人聲與伴奏；之後伴唱帶需重新對時', disabled: busy, action: () => run(['separate'], { force: true }) },
-      { label: '重新對時', desc: '歌詞不變、重新抓每個字的時間並重新燒錄（已確認會失效）', disabled: busy || !hasLyrics, action: () => run(['karaoke'], { realign: true }) },
-      { label: '檢查對時', desc: '獨立聽寫比對，標出可能不準的句子', disabled: busy || !hasTiming, action: () => run(['check'], { force: true }) },
+    menu.show(anchor, busy ? '處理中，請等目前的工作結束' : '重新處理', [
+      { label: '重新去人聲', desc: '之後需重新對時', disabled: busy, action: () => run(['separate'], { force: true }) },
+      { label: '重新對時', desc: '重新抓每個字的時間；已確認會失效', disabled: busy || !hasLyrics, action: () => run(['karaoke'], { realign: true }) },
+      { label: '檢查對時', desc: '標出可能不準的句子', disabled: busy || !hasTiming, action: () => run(['check'], { force: true }) },
       {
         label: '全部重做',
-        desc: '去人聲、對時、字幕、燒錄全部重來；會覆蓋手動修改過的字幕檔',
+        desc: '全部重來，會覆蓋手動改過的字幕檔',
         danger: true,
         disabled: busy,
         action: () => {
-          if (confirm(`全部重做「${song.title}」？\n手動修改過的字幕檔（.ass）會被覆蓋，已確認也會失效。`)) run(['separate', 'karaoke'], { force: true })
+          if (confirm(`全部重做「${song.title}」？\n手動改過的字幕檔會被覆蓋，已確認會失效。`)) run(['separate', 'karaoke'], { force: true })
         },
       },
     ])
@@ -196,7 +196,7 @@
   ondrop={(e) => dnd.drop(e, row!, info)}
 >
   <svg class="grip" aria-hidden="true"><use href="#i-grip" /></svg>
-  <PickBox songs={[song]} title="勾選（批次操作）；按住 Shift 可連續勾選" />
+  <PickBox songs={[song]} title="勾選；Shift 可連續勾選" />
   <div class="song-main">
     <div class="song-top">
       <div class="grow">
@@ -260,7 +260,7 @@
       </div>
       <div class="actions">
         {#if song.status.separate !== 'done'}
-          <button type="button" class="run-btn" disabled={busy} title="排入佇列：把人聲和伴奏分開" onclick={() => run(['separate'])}
+          <button type="button" class="run-btn" disabled={busy} title="分開人聲與伴奏" onclick={() => run(['separate'])}
             ><Icon name="play" />去人聲</button
           >
         {/if}
@@ -269,7 +269,7 @@
             type="button"
             class="run-btn"
             disabled={busy || !hasLyrics}
-            title={hasLyrics ? '排入佇列：對時、產生字幕並輸出伴唱帶' : '需要先輸入歌詞'}
+            title={hasLyrics ? '對時並做出伴唱帶' : '需要先輸入歌詞'}
             onclick={() => run(['karaoke'])}><Icon name="play" />{karaokeLabel}</button
           >
         {/if}
@@ -298,7 +298,7 @@
         type="button"
         class="preview-main"
         disabled={!song.media.length}
-        title={song.media.length ? `播放${song.media[0].label}，同時預覽 / 編輯歌詞` : '還沒有可播放的影片'}
+        title={song.media.length ? `播放${song.media[0].label}` : '還沒有可播放的影片'}
         aria-label={song.media.length ? `播放${song.media[0].label}` : '播放'}
         onclick={() => ui.openStudio(song.id)}><Icon name="play" /></button
       >

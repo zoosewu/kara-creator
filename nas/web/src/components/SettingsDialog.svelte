@@ -89,8 +89,8 @@
         <div class="pv-line pv-lower">君の声は 私の灯り</div>
       </div>
       <p class="hint">
-        歌詞、假名、翻譯與開頭標題畫面會一起縮放；一行放不下時會自動拆成兩行。{changed && made
-          ? `儲存後已做好的 ${made} 首伴唱帶會顯示只需重燒（不會重新對時，已確認不受影響），可以用批次「製作伴唱帶」一次更新。`
+        歌詞、假名、翻譯、標題一起縮放，太長會自動拆行。{changed && made
+          ? `儲存後 ${made} 首需重燒。`
           : ''}
       </p>
 
@@ -105,19 +105,19 @@
         </label>
       {/each}
       <p class="hint">
-        字型檔放在 NAS 曲庫的 fonts 資料夾。{fontChanged ? '換了字型的語言，做好的伴唱帶會顯示只需重燒（已確認不受影響）。' : ''}{fonts.length
+        字型檔放在曲庫的 fonts 資料夾。{fontChanged ? '做好的伴唱帶需重燒。' : ''}{fonts.length
           ? ''
-          : ' 目前沒有找到字型檔。'}
+          : ' 目前沒有字型檔。'}
       </p>
 
       <h3 class="field">匯出</h3>
       <label class="check-field"><input type="checkbox" bind:checked={exportOriginal} /> 也匯出原曲音訊</label>
       <p class="hint">
-        已確認的歌除了伴唱帶，另外放一份原曲（有人聲）的音訊「歌手 - 歌名_original.m4a」在旁邊。{exportOriginal !==
+        另外匯出「歌手 - 歌名_original.m4a」。{exportOriginal !==
         (store.settings.export_original ?? false)
           ? exportOriginal
-            ? '下次按「匯出」時加上。'
-            : '下次按「匯出」時把已經匯出的原曲音訊拿掉。'
+            ? '下次匯出時加上。'
+            : '下次匯出時移除。'
           : ''}
       </p>
 
@@ -126,7 +126,7 @@
         <dl class="facts">
           <dt>曲庫</dt><dd class="mono">{system.library}</dd>
           <dt>磁碟</dt><dd>{system.disk ? `剩 ${gb(system.disk.free)} / 共 ${gb(system.disk.total)}` : '—'}</dd>
-          <dt>yt-dlp</dt><dd>{system.ytdlp || '找不到'}{#if system.ytdlp_prev}　<button type="button" class="view-link" title="新版下載失敗時，換回 {system.ytdlp_prev}" onclick={rollback}>退回上一版</button>{/if}</dd>
+          <dt>yt-dlp</dt><dd>{system.ytdlp || '找不到'}{#if system.ytdlp_prev}　<button type="button" class="view-link" title="換回 {system.ytdlp_prev}" onclick={rollback}>退回上一版</button>{/if}</dd>
           <dt>版本</dt><dd class="mono">{Object.entries(system.versions).filter(([k]) => k !== '$schema').map(([k, v]) => `${k} ${v}`).join(' · ')}</dd>
         </dl>
       {/if}

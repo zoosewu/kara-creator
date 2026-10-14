@@ -5,8 +5,8 @@
 
   const LANES: [string, string, string][] = [
     ['download', '下載', '只用網路，最多同時 2 首'],
-    ['process', 'AI 處理', '去人聲、對時、燒錄、檢查；交給 AI 伺服器'],
-    ['system', '收尾', '佇列清空或曲庫有變動後：資料備份（data/）'],
+    ['process', 'AI 處理', '去人聲、對時、燒錄、檢查'],
+    ['system', '收尾', '資料備份'],
   ]
 
   let logLines = $state<string[]>([])
@@ -69,7 +69,7 @@
   }
 
   async function cancel(j: JobSummary) {
-    await store.attempt(() => api(`/jobs/${j.id}`, { method: 'DELETE' }), j.status === 'queued' ? '已移出佇列' : '取消中，會在下一個安全點停下')
+    await store.attempt(() => api(`/jobs/${j.id}`, { method: 'DELETE' }), j.status === 'queued' ? '已移出佇列' : '取消中')
   }
 
   function workerState(w: Worker) {
@@ -86,7 +86,7 @@
   }
 
   async function toggleWorker(w: Worker) {
-    await store.attempt(() => api(`/workers/${encodeURIComponent(w.name)}`, { method: 'PATCH', body: { disabled: !w.disabled } }), w.disabled ? '已啟用' : '已停用（手上的任務會做完）')
+    await store.attempt(() => api(`/workers/${encodeURIComponent(w.name)}`, { method: 'PATCH', body: { disabled: !w.disabled } }), w.disabled ? '已啟用' : '已停用，手上的任務會做完')
   }
 </script>
 
@@ -102,7 +102,7 @@
         <span class="sub ellipsis">{st.text}</span>
       </div>
     {:else}
-      <div class="empty">還沒有 AI 伺服器連線。在有顯示卡的電腦執行 worker（--nas 指到這台 NAS）。</div>
+      <div class="empty">還沒有 AI 伺服器連線。</div>
     {/each}
   </div>
   <div class="panel-head"><h2>處理佇列</h2></div>
@@ -145,7 +145,7 @@
               <button
                 type="button"
                 class="job-cancel"
-                title={j.has_lyrics ? '用同樣的設定再做一次（新增時附上的歌詞會一起保留）' : '用同樣的設定再做一次'}
+                title="用同樣的設定再做一次"
                 onclick={(e) => {
                   e.stopPropagation()
                   retry(j)

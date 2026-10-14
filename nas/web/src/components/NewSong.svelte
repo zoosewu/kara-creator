@@ -32,7 +32,7 @@
     <input type="url" placeholder="貼上影片網址（YouTube 等）" required autocomplete="off" bind:value={url} />
     <label class="check"><input type="checkbox" bind:checked={audioOnly} /> 只要音訊</label>
     <button type="submit" class="btn" data-make="0" title="只下載，之後再逐步處理">僅下載</button>
-    <button type="submit" class="btn primary" data-make="1" title="下載、去人聲，有歌詞就接著做出伴唱帶">製作伴唱帶</button>
+    <button type="submit" class="btn primary" data-make="1" title="下載、去人聲，有歌詞就做出伴唱帶">製作伴唱帶</button>
   </form>
   <div class="new-foot">
     <details bind:open={lyricsOpen}>

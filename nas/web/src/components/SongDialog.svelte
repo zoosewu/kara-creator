@@ -17,8 +17,8 @@
 
   const LANGUAGE_HINTS: Record<string, string> = {
     '': '依歌詞文字判斷（假名 → 日文、漢字 → 國語、英文字母 → 英文）。',
-    nan: '台語用 CTC 對時（不經 Whisper）。請在歌詞的「標註」模式點每個漢字標上台羅（例如 我 → guá），沒標的字會用國語拼音代替、對得比較不準。對時檢查只做規則檢查。',
-    yue: '粵語用 CTC 對時（不經 Whisper）。請在歌詞的「標註」模式點每個漢字標上粵拼（例如 我 → ngo5），沒標的字會用國語拼音代替、對得比較不準。對時檢查只做規則檢查。',
+    nan: '請在歌詞「標註」模式替每個漢字標台羅（例：我 → guá），沒標的字會對得比較不準。',
+    yue: '請在歌詞「標註」模式替每個漢字標粵拼（例：我 → ngo5），沒標的字會對得比較不準。',
   }
 
   let folder = $state(song.folder)
@@ -75,12 +75,12 @@
       <label class="field">演唱者<input bind:value={artist} autocomplete="off" placeholder={fbArtist || '（未填）'} /></label>
       <p class="hint">留空則自動使用「{fbTitle}{fbArtist ? ` / ${fbArtist}` : ''}」（{from}）。</p>
       <label class="field">備註<input bind:value={note} autocomplete="off" placeholder="例如：作詞：○○／作曲：○○" /></label>
-      <p class="hint">顯示在開頭標題畫面的第三行（演唱者下面）；前奏太短（不到約 3 秒）時不會有標題畫面。</p>
+      <p class="hint">顯示在開頭標題畫面；前奏不到 3 秒時沒有標題畫面。</p>
       <label class="check-field"><input type="checkbox" bind:checked={translation} /> 燒上中文翻譯</label>
       <p class="hint">
         {song.translation_lines
-          ? `歌詞裡有 ${song.translation_lines} 句翻譯。只顯示正在唱的那一句，放在畫面中央上方；切換後只重新燒錄，不會重新對時。`
-          : '歌詞還沒有翻譯：在歌詞編輯器每句下面填翻譯（或在每句下一行寫「> 翻譯」）。'}
+          ? `有 ${song.translation_lines} 句翻譯，顯示在畫面上方；切換只需重燒。`
+          : '還沒有翻譯：在歌詞編輯器每句下面填。'}
       </p>
       <label class="field"
         >語言
@@ -93,7 +93,7 @@
           <option value="en">英文</option>
         </select>
       </label>
-      <p class="hint">{LANGUAGE_HINTS[language] ?? ''}{languageChanged ? ' 改了語言，伴唱帶會需要重新對時（已確認會失效）。' : ''}</p>
+      <p class="hint">{LANGUAGE_HINTS[language] ?? ''}{languageChanged ? ' 改了語言要重新對時，已確認會失效。' : ''}</p>
       <label class="field"
         >影片連結
         <span class="link-row">
@@ -102,7 +102,7 @@
         </span>
       </label>
       <p class="hint">
-        {downloaded ? '這首歌是從這個連結下載的（唯讀）。' : '手動放入的影片：可以補上原始影片的連結，從資料備份重做時會用它重新下載（換了來源會重新對時）。'}
+        {downloaded ? '從這個連結下載（唯讀）。' : '可以補上原始連結，從備份重建時會用它重新下載。'}
       </p>
       <dl class="facts">
         <dt>匯出檔名</dt><dd class="mono">{exportPath}</dd>

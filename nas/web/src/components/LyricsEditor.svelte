@@ -17,11 +17,11 @@
   type Mode = 'visual' | 'annotated' | 'plain'
   const HINTS: Record<Mode, string> = {
     visual:
-      '點左側標籤切換演唱者（Shift+點：套用到整段）。點漢字上的假名可修改讀音，灰色為自動判斷、藍色為手動指定。日文歌的假名與每句的演唱者顏色都會出現在伴唱帶上；讀音也會用於對時。時間不對時，點右側的時間可以移動這句；整段偏掉請在播放畫面用「AI 重對這句及之後全部」。台語 / 粵語歌（在歌曲「資訊」設定）每個漢字都可以點來標台羅 / 粵拼。',
+      '點標籤切換演唱者（Shift：整段）；點假名改讀音（灰色自動、藍色手動）；點右側時間移動這句。',
     annotated:
-      '含標註的完整原文：<code>[男]</code> <code>[女]</code> <code>[合]</code> 標註演唱者，每句下一行的 <code>&gt; 翻譯</code> 是中文翻譯，每個漢字後面的 <code>{よみ}</code> 是讀音（自動判斷的也列出來，直接改就會變成手動指定；也可以用 <code>{原字|よみ}</code>）；<code>#</code> 開頭為註解。歌名與演唱者請在歌曲「資訊」設定。',
+      '<code>[男]</code> <code>[女]</code> <code>[合]</code> 演唱者、<code>&gt; 翻譯</code>、<code>{よみ}</code> 讀音（改了就變手動）、<code>#</code> 註解。',
     plain:
-      '只有歌詞本身（和 <code>&gt; 翻譯</code> 行），可以直接貼上或修改，一行一句。沒改到的句子會保留原本的演唱者與讀音；改過的句子保留演唱者，讀音重新自動判斷。<code>#</code> 開頭為註解。',
+      '一行一句，可直接貼上。沒改的句子保留演唱者與讀音；<code>&gt;</code> 開頭是翻譯，<code>#</code> 開頭是註解。',
   }
 
   let loaded = $state(false)
@@ -215,7 +215,7 @@
     store.notify(
       `已移動 ${delta > 0 ? '+' : ''}${delta} 秒` +
         (pushed.length ? `（第 ${[...pushed].sort((a, b) => a - b).map((k) => k + 1).join('、')} 句跟著往${pushed[0] < index ? '前' : '後'}挪）` : '') +
-        '。按「儲存並製作伴唱帶」重新燒錄後生效',
+        '。重新製作後生效',
     )
   }
 
@@ -284,7 +284,7 @@
         <button
           type="button"
           class="btn small"
-          title="播放影片，邊聽邊預覽與修改歌詞、時間"
+          title="邊播放邊預覽與修改"
           onclick={async () => {
             if (dirty) {
               if (!confirm('歌詞有尚未儲存的修改，要先儲存再播放嗎？')) return
@@ -305,7 +305,7 @@
       {#if views?.paren.length}
         <div class="paren-bar">
           <span class="grow"
-            >發現 {views.paren.length} 處寫在括號裡的讀音：{views.paren.slice(0, 4).join('、')}{views.paren.length > 4 ? '…' : ''}。存檔時會自動轉成讀音標註（括號從歌詞拿掉，對時照這個唸法）；也可以現在先轉換看看結果。</span
+            >有 {views.paren.length} 處括號讀音（{views.paren.slice(0, 4).join('、')}{views.paren.length > 4 ? '…' : ''}），存檔時會轉成讀音標註。</span
           >
           <button type="button" class="btn small" onclick={parenFix}>現在轉換</button>
         </div>
@@ -314,8 +314,8 @@
         <div class="approval-note">
           <Icon name="warn" />
           {changed.size
-            ? `上次確認之後改了第 ${[...changed].map((i) => i + 1).join('、')} 句（左邊有橘色標記），重新製作後看過這幾句即可再確認。`
-            : '上次確認之後重新對時了（歌詞沒改），重新製作後請再確認。'}
+            ? `改了第 ${[...changed].map((i) => i + 1).join('、')} 句，重新製作後看過再確認。`
+            : '重新對時過，重新製作後看過再確認。'}
         </div>
       {/if}
       {#if mode === 'visual'}
@@ -326,14 +326,13 @@
           <span class="sep"></span>
           <span><ruby class="auto">字<rt>じ</rt></ruby> 自動讀音</span>
           <span><ruby class="manual">字<rt>じ</rt></ruby> 手動指定</span>
-          {#if pending.length}<span class="pending-readings">· {pending.length} 句的假名稍後補上（AI 伺服器不在線或還在算）</span>{/if}
+          {#if pending.length}<span class="pending-readings">· {pending.length} 句的假名稍後補上</span>{/if}
         </div>
         {#if qaChecks.length}
           {@const wrong = qaChecks.filter((c) => c.status === 'wrong').length}
           <div class="qa-summary">
             <Icon name="warn" /><span
-              >對時檢查：{[wrong ? `${wrong} 句可能不準` : '', qaChecks.length - wrong ? `${qaChecks.length - wrong} 句待確認` : ''].filter(Boolean).join('、')}。點該句右邊的 ⚠
-              跳到那句播放確認；時間偏了可以點最右邊的時間調整這句，整段偏掉在播放畫面用「AI 重對這句及之後全部」；讀音或歌詞有誤就修正後重新製作。</span
+              >對時檢查：{[wrong ? `${wrong} 句可能不準` : '', qaChecks.length - wrong ? `${qaChecks.length - wrong} 句待確認` : ''].filter(Boolean).join('、')}。點 ⚠ 播放那句。</span
             >
           </div>
         {/if}
@@ -356,7 +355,7 @@
                   type="button"
                   class="singer"
                   data-singer={line.singer || undefined}
-                  title="演唱者：點一下切換（Shift+點：套用到整段）"
+                  title="切換演唱者（Shift：整段）"
                   onclick={(e) => cycleSinger(index, e.shiftKey)}>{line.singer || '—'}</button
                 >
                 <div class="line-body">
@@ -369,7 +368,7 @@
                           class:editing={ruby?.seg === seg}
                           data-line={index}
                           data-start={seg.start}
-                          title={seg.ruby ? '點一下修改讀音' : '點一下標讀音（按 Enter 會接著標下一個字）'}
+                          title={seg.ruby ? '修改讀音' : '標讀音（Enter 接著標下一個字）'}
                           role="button"
                           tabindex="0"
                           onclick={(e) => openRuby(e.currentTarget as HTMLElement, index, seg)}
@@ -405,7 +404,7 @@
                     type="button"
                     class="line-time"
                     class:editing={time?.index === t.index}
-                    title="調整這句的開始時間（只移這一句）"
+                    title="調整這句的開始時間"
                     onclick={(e) => {
                       closePops()
                       time = { index: t.index, el: e.currentTarget, delta: 0 }
@@ -498,9 +497,9 @@
         }}
       /> 秒<span class="muted">（負數往前）</span></label
     >
-    {#if dirty}<div class="time-warn">歌詞有尚未儲存的修改：建議先儲存。改過的句子之後會重對（手動調過的只保留開頭），其他句子的時間不動。</div>{/if}
+    {#if dirty}<div class="time-warn">歌詞還沒儲存，建議先儲存。</div>{/if}
     <div class="pop-actions">
-      <button type="button" class="btn small" disabled={!listenSource()} title="從新的開始時間前 1 秒播放人聲，確認這句是不是從那裡開始唱" onclick={listen}>試聽</button>
+      <button type="button" class="btn small" disabled={!listenSource()} title="從新的開始時間前 1 秒播放人聲" onclick={listen}>試聽</button>
       <button type="button" class="btn small primary" disabled={!time.delta} onclick={applyTime}>套用</button>
     </div>
   </div>

@@ -30,7 +30,7 @@
   }
 
   async function remove() {
-    if (!folder || !confirm(`刪除資料夾「${folder.name}」？\n裡面的歌曲與子資料夾會移到上一層，不會刪除任何檔案。`)) return
+    if (!folder || !confirm(`刪除資料夾「${folder.name}」？\n裡面的歌曲與子資料夾會移到上一層。`)) return
     if (!(await store.attempt(() => api(`/folders/${folder.id}`, { method: 'DELETE' }), '已刪除資料夾'))) return
     if (store.folder && store.pathOf(store.folder).includes(folder.id)) store.selectFolder(folder.parent)
     close()
@@ -49,7 +49,7 @@
     <div class="dialog-body">
       <label class="field">名稱<input bind:this={input} bind:value={name} required autocomplete="off" /></label>
       <label class="field">位置<FolderSelect bind:value={parent} exclude={folder?.id ?? ''} /></label>
-      <p class="hint">資料夾只影響曲庫整理和匯出資料夾，不會搬動處理用的檔案。也可以直接拖曳資料夾到其他位置，或拖曳調整順序。</p>
+      <p class="hint">資料夾只影響曲庫整理和匯出，不會搬動檔案。</p>
     </div>
     <footer class="dialog-foot">
       {#if folder}<button type="button" class="btn danger-text" onclick={remove}>刪除資料夾</button>{/if}

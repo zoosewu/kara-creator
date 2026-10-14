@@ -163,7 +163,7 @@
     const live = ['instrumental', 'source'].map((k) => song.media.find((m) => m.kind === k)).find(Boolean)
     if (!live) return
     setSource(live, video!.currentTime)
-    store.notify(`已切換到「${live.label}」，即時預覽調整後的字幕`)
+    store.notify(`已切換到「${live.label}」預覽調整`)
   }
 
   /**
@@ -374,9 +374,9 @@
 
   function retimeMenu(anchor: HTMLElement, i: number) {
     const count = timing.length - i
-    menu.show(anchor, `以第 ${i + 1} 句目前的開頭為準（先播到開唱的瞬間設定好）`, [
-      { label: `重對這句及之後全部（${count} 句）`, desc: `AI 重新對第 ${i + 1} 句到最後一句；這句之前的不動。約 10–30 秒`, action: () => retime(i, 'from') },
-      { label: '只重對這句', desc: '範圍到下一句的開頭，重新抓這句每個字的時間。幾秒完成', action: () => retime(i, 'line') },
+    menu.show(anchor, `以第 ${i + 1} 句目前的開頭為準重對`, [
+      { label: `重對這句及之後全部（${count} 句）`, desc: `第 ${i + 1} 句到最後一句，約 10–30 秒`, action: () => retime(i, 'from') },
+      { label: '只重對這句', desc: '只重抓這句的字，幾秒完成', action: () => retime(i, 'line') },
     ])
   }
 
@@ -417,7 +417,7 @@
   function close() {
     video?.pause()
     cancelAnimationFrame(raf)
-    if (retimed || textChanged) store.notify('已儲存調整。伴唱帶需要更新，按「更新伴唱帶」重新製作後生效')
+    if (retimed || textChanged) store.notify('已儲存，按「更新伴唱帶」後生效')
     ui.studio = null
   }
 
@@ -510,14 +510,14 @@
         class:approved
         disabled={!approved && song.status.karaoke !== 'done'}
         title={approved
-          ? '已確認這一版沒問題；點一下取消確認（之後只需重燒的更新不影響確認）'
+          ? '已確認，點一下取消'
           : song.status.karaoke !== 'done'
-            ? '伴唱帶還沒做好或需要更新，做好後才能確認'
-            : '確認目前這一版伴唱帶沒問題；之後需要重新對時才會變回需重新確認'}
+            ? '伴唱帶做好後才能確認'
+            : '確認這一版沒問題'}
         onclick={approve}><Icon name="check" /><span>{approved ? '已確認（取消）' : '確認沒問題'}</span></button
       >
-      <button type="button" class="btn small" title="編輯歌名、歌手、語言等資訊（影片繼續播）" onclick={() => (ui.song = id)}><Icon name="tag" />資訊</button>
-      <button type="button" class="btn small" title="開啟歌詞編輯器（影片繼續播）" onclick={() => ui.openEditor(id, { over: true })}><Icon name="lyrics" />完整歌詞</button>
+      <button type="button" class="btn small" title="編輯歌名、歌手、語言" onclick={() => (ui.song = id)}><Icon name="tag" />資訊</button>
+      <button type="button" class="btn small" title="開啟歌詞編輯器" onclick={() => ui.openEditor(id, { over: true })}><Icon name="lyrics" />完整歌詞</button>
       <div class="seg-toggle" title="播放的版本（不影響成品）">
         {#each song.media as m}
           <button type="button" class:on={media?.kind === m.kind} title={m.hint} onclick={() => setSource(m, video?.currentTime ?? 0)}>{m.label}</button>
@@ -545,7 +545,7 @@
           {/if}
         </div>
         {#if burned && timing.length}
-          <div class="studio-note">這個版本的字幕已經燒在影片裡；調整後要「更新伴唱帶」才會反映。做任何調整時會自動切到伴奏，即時預覽調整後的字幕。</div>
+          <div class="studio-note">字幕已燒在影片裡，調整後按「更新伴唱帶」才會反映。</div>
         {/if}
         <div class="studio-controls">
           <button type="button" class="btn small" title="播放 / 暫停（空白鍵）" onclick={() => (video!.paused ? video!.play() : video!.pause())}
@@ -585,23 +585,23 @@
       <div class="studio-side">
         <label
           class="time-following studio-follow"
-          title="開著時，選取的句子會跟著播放時間走；手動點選某一句後會自動關掉，選取就停在你點的那句"
+          title="選取的句子跟著播放；手動點選時自動關閉"
           ><input type="checkbox" bind:checked={follow} onchange={() => follow && playing >= 0 && select(playing, { manual: false })} /> 選取跟著播放走</label
         >
         {#if song.approval.status === 'stale'}
           <div class="approval-note">
             <Icon name="warn" />{changed.size
-              ? `上次確認之後改了第 ${[...changed].map((i) => i + 1).join('、')} 句（左邊有橘色標記），看過這幾句即可再確認。`
-              : '上次確認之後重新對時了（歌詞沒改），請重新看過再確認。'}
+              ? `改了第 ${[...changed].map((i) => i + 1).join('、')} 句，看過再確認。`
+              : '重新對時過，看過再確認。'}
           </div>
         {/if}
         {#if lyricIdx.length && !timing.length}
-          <div class="studio-warn">還沒有對時結果：製作伴唱帶之後才有每句的時間與字幕預覽，現在可以先邊聽邊修改歌詞。</div>
+          <div class="studio-warn">還沒有對時結果，可以先邊聽邊改歌詞。</div>
         {:else if lyricIdx.length && (mismatch || textChanged)}
           <div class="studio-warn">
             {song.align_patch
-              ? `歌詞文字和目前的對時結果不同：按「更新伴唱帶」只重對改過的 ${song.align_patch.realign} 句，其他句子的時間（含手動調整）不動。`
-              : '歌詞文字和目前的對時結果不同：按「更新伴唱帶」會整首重新對時（約一分鐘），這裡手動調整的時間會被取代。建議先改完文字並更新伴唱帶，再回來調時間。'}
+              ? '歌詞改過了，按「更新伴唱帶」重對改過的句子。'
+              : '歌詞改過了，按「更新伴唱帶」會整首重新對時，手動調整的時間會被取代。'}
           </div>
         {/if}
         {#if qaIndexes.length}
@@ -703,7 +703,7 @@
                       >
                     {/each}
                   </div>
-                  <button type="button" class="btn small primary" disabled={!t} title="把這句的開始設成目前播放的位置（選取的句子也可以按 Enter）" onclick={(e) => (e.stopPropagation(), setNow(i))}
+                  <button type="button" class="btn small primary" disabled={!t} title="把開始設成目前位置（Enter）" onclick={(e) => (e.stopPropagation(), setNow(i))}
                     >設為現在</button
                   >
                   <button type="button" class="icon-btn tool-icon" disabled={!t} title="從這句開始前 1.5 秒播放" aria-label="播放這句" onclick={(e) => (e.stopPropagation(), playLine(i))}
@@ -724,7 +724,7 @@
         </div>
         <footer class="studio-foot">
           <span class="muted ellipsis">{statusText}</span>
-          <button type="button" class="btn primary" disabled={song.status.lyrics !== 'done'} title="用調整後的歌詞與時間重新製作伴唱帶" onclick={runKaraoke}
+          <button type="button" class="btn primary" disabled={song.status.lyrics !== 'done'} title="用調整後的歌詞與時間重新製作" onclick={runKaraoke}
             >{['pending', 'no_lyrics'].includes(song.status.karaoke) ? '製作伴唱帶' : '更新伴唱帶'}</button
           >
         </footer>
