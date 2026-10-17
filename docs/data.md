@@ -157,6 +157,7 @@ H(欄位…)       = sha256( 每個欄位以 "\n" 串接，最後也加 "\n" )�
 | 已確認 | `stage=approve`、`lyrics=<歌詞指紋>`、`language`、`method=<versions.align>`、`run=<alignment.json 的對時編號>`；伴唱帶是 needs_align 時一律算失效 | **需要重新對時**才失效：只需重燒的更新（演唱者、翻譯、標題畫面、字型、字幕大小、手動調時間、AI 重對某幾句）都不影響確認 |
 
 標題畫面：歌名來自手動設定、歌詞檔或標題辨識；標題辨識只能用整個影片標題（`source=fallback`）時不顯示標題畫面。
+標題畫面放在前奏；前奏太短（開頭直接唱副歌）時，放在歌曲前 90 秒內的第一段間奏（句間超過 6 秒）；都放不下就不顯示（worker 的 `subtitles._title_window`）。
 
 ### 狀態判斷（planner）
 

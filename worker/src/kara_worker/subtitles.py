@@ -166,17 +166,16 @@ def build(lines: list[dict], width: int, height: int, style: Style, *, font_file
         for text in _rubies(line, left, y, size, style, measure, tint, appear[i]):
             events.append((appear[i], end, "Ruby", text))
 
-    if title and lines:
-        card_end = min(appear[0] - 0.3, 8.0)
-        if card_end - 0.5 >= 2.0:
-            sub = f"\\N{{\\fs{round(fs * 0.7)}}}{_escape(artist)}" if artist else ""
-            if note:
-                # 備註在第三行，字比演唱者小；太長就縮小字級，不讓它超出畫面（標題畫面不自動換行）
-                note_size = round(fs * 0.5)
-                while note_size > 12 and measure.width(note, note_size) > width * 0.9:
-                    note_size -= 1
-                sub += f"\\N{{\\fs{note_size}}}{_escape(note)}"
-            events.append((0.5, card_end, "Title", "{\\fad(400,400)}" + _escape(title) + sub))
+    card = _title_window(lines, appear, style) if title and lines else None
+    if card:
+        sub = f"\\N{{\\fs{round(fs * 0.7)}}}{_escape(artist)}" if artist else ""
+        if note:
+            # 備註在第三行，字比演唱者小；太長就縮小字級，不讓它超出畫面（標題畫面不自動換行）
+            note_size = round(fs * 0.5)
+            while note_size > 12 and measure.width(note, note_size) > width * 0.9:
+                note_size -= 1
+            sub += f"\\N{{\\fs{note_size}}}{_escape(note)}"
+        events.append((card[0], card[1], "Title", "{\\fad(400,400)}" + _escape(title) + sub))
 
     rs = round(fs * style.ruby_ratio)
     header = f"""[Script Info]
@@ -287,6 +286,29 @@ def _char_times(words: list[dict]) -> list[tuple[float, float]]:
         span = w["end"] - w["start"]
         times += [(w["start"] + span * k / n, w["start"] + span * (k + 1) / n) for k in range(n)]
     return times
+
+
+TITLE_MIN = 2.0      # 標題畫面至少顯示幾秒，放不下就不放
+TITLE_MAX = 7.5      # 最多顯示幾秒
+TITLE_SEARCH = 90.0  # 前奏太短時，往後找這麼多秒內的第一段間奏
+
+
+def _title_window(lines: list[dict], appear: list[float], style: Style) -> tuple[float, float] | None:
+    """標題畫面的時間：放在前奏；前奏太短（開頭直接唱副歌）就放在歌曲前段的第一段間奏（句間超過 break_gap 秒），
+    等前一句的字幕收掉之後出現、下一段字幕出現之前消失。都放不下就不放。"""
+    end = min(appear[0] - 0.3, 0.5 + TITLE_MAX)
+    if end - 0.5 >= TITLE_MIN:
+        return 0.5, end
+    for i in range(1, len(lines)):
+        if lines[i]["start"] > TITLE_SEARCH:
+            break
+        if lines[i]["start"] - lines[i - 1]["end"] <= style.break_gap:
+            continue
+        start = lines[i - 1]["end"] + style.tail + 0.3
+        end = min(appear[i] - 0.3, start + TITLE_MAX)
+        if end - start >= TITLE_MIN:
+            return start, end
+    return None
 
 
 def _schedule(lines: list[dict], style: Style) -> tuple[list[float], list[int]]:

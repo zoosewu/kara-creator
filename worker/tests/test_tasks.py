@@ -80,6 +80,29 @@ def test_ruby_layout():
     assert [fs for _, fs in evs] == [base, base]
 
 
+def _lines(*spans):
+    return [{"text": "歌", "start": a, "end": b, "words": [{"text": "歌", "start": a, "end": b}]} for a, b in spans]
+
+
+def test_title_window():
+    style = subtitles.Style()
+    def window(*spans):
+        lines = _lines(*spans)
+        appear, _ = subtitles._schedule(lines, style)
+        return subtitles._title_window(lines, appear, style)
+    # 前奏夠長：放在開頭，最多 7.5 秒
+    assert window((10, 12), (12, 14)) == (0.5, 7.2)
+    # 開頭直接唱副歌：放在第一段間奏，前一句字幕收掉之後、下一段字幕出現之前
+    start, end = window((1, 5), (5, 20), (35, 38))
+    assert start == 20 + style.tail + 0.3 and end == start + subtitles.TITLE_MAX
+    start, end = window((1, 5), (5, 20), (29, 31))
+    assert end == 29 - style.lead - 0.3
+    # 間奏太晚（不算歌曲前段）、間奏太短、完全沒有間奏：不放
+    assert window((1, 5), (5, 95), (110, 112)) is None
+    assert window((1, 5), (5, 20), (25, 28)) is None
+    assert window((1, 5), (5, 9)) is None
+
+
 def test_bitrate_cap():
     # 上限是來源影像的 1.5 倍，至少 1.5 Mbps；純音訊或讀不到位元率時用最低值
     assert tasks.bitrate_cap(tasks.Video(1920, 1080, 1_800_000)) == 2_700_000
