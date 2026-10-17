@@ -294,17 +294,16 @@ TITLE_SEARCH = 90.0  # 前奏太短時，往後找這麼多秒內的第一段間
 
 
 def _title_window(lines: list[dict], appear: list[float], style: Style) -> tuple[float, float] | None:
-    """標題畫面的時間：放在前奏；前奏太短（開頭直接唱副歌）就放在歌曲前段的第一段間奏（句間超過 break_gap 秒），
-    等前一句的字幕收掉之後出現、下一段字幕出現之前消失。都放不下就不放。"""
-    end = min(appear[0] - 0.3, 0.5 + TITLE_MAX)
-    if end - 0.5 >= TITLE_MIN:
-        return 0.5, end
-    for i in range(1, len(lines)):
-        if lines[i]["start"] > TITLE_SEARCH:
+    """標題畫面的時間：放在第一段夠長的空檔（超過 break_gap 秒，和字幕判斷間奏同一個標準）：
+    前奏（歌曲開頭到第一句）夠長就放前奏；開頭直接唱副歌的話，放在歌曲前段（TITLE_SEARCH 秒內）的第一段間奏，
+    前一句的字幕收掉之後出現、下一段字幕出現之前消失。都放不下就不放。"""
+    for i in range(len(lines)):
+        if i and lines[i]["start"] > TITLE_SEARCH:
             break
-        if lines[i]["start"] - lines[i - 1]["end"] <= style.break_gap:
+        prev_end = lines[i - 1]["end"] if i else 0.0
+        if lines[i]["start"] - prev_end <= style.break_gap:
             continue
-        start = lines[i - 1]["end"] + style.tail + 0.3
+        start = prev_end + style.tail + 0.3 if i else 0.5
         end = min(appear[i] - 0.3, start + TITLE_MAX)
         if end - start >= TITLE_MIN:
             return start, end

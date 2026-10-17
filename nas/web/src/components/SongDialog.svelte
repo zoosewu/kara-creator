@@ -75,7 +75,7 @@
       <label class="field">演唱者<input bind:value={artist} autocomplete="off" placeholder={fbArtist || '（未填）'} /></label>
       <p class="hint">留空則自動使用「{fbTitle}{fbArtist ? ` / ${fbArtist}` : ''}」（{from}）。</p>
       <label class="field">備註<input bind:value={note} autocomplete="off" placeholder="例如：作詞：○○／作曲：○○" /></label>
-      <p class="hint">顯示在標題畫面；前奏太短時放在開頭副歌後的間奏。</p>
+      <p class="hint">顯示在標題畫面；前奏不到 6 秒時放在開頭副歌後的間奏。</p>
       <label class="check-field"><input type="checkbox" bind:checked={translation} /> 燒上中文翻譯</label>
       <p class="hint">
         {song.translation_lines

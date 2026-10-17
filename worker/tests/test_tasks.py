@@ -90,8 +90,11 @@ def test_title_window():
         lines = _lines(*spans)
         appear, _ = subtitles._schedule(lines, style)
         return subtitles._title_window(lines, appear, style)
-    # 前奏夠長：放在開頭，最多 7.5 秒
+    # 前奏超過 6 秒（和間奏同一個標準）：放在開頭，最多 7.5 秒
     assert window((10, 12), (12, 14)) == (0.5, 7.2)
+    assert window((6.5, 12), (12, 14)) == (0.5, 6.5 - style.lead - 0.3)
+    # 前奏不到 6 秒：當成開頭直接唱，改放在間奏
+    assert window((5.5, 10), (10, 20), (35, 38))[0] == 20 + style.tail + 0.3
     # 開頭直接唱副歌：放在第一段間奏，前一句字幕收掉之後、下一段字幕出現之前
     start, end = window((1, 5), (5, 20), (35, 38))
     assert start == 20 + style.tail + 0.3 and end == start + subtitles.TITLE_MAX
