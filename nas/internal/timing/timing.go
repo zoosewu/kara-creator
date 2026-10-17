@@ -206,6 +206,51 @@ const (
 // RetimeModes 是重對方式的說明。
 var RetimeModes = map[string]string{RetimeFrom: "重新對時這句及之後全部", RetimeLine: "只重對這一句"}
 
+// RetimeResult 是 AI 重對的結果：第 Line 句起（from）或只有這句（line）的新時間，以 Anchor 為開頭。
+// 工作做完不存檔，交給畫面放進還沒儲存的調整，按儲存時用 ApplyRetime 套用。
+type RetimeResult struct {
+	Line   int       `json:"line" doc:"第幾句（從 0 起算）"`
+	Mode   string    `json:"mode" enum:"from,line" doc:"from = 這句及之後全部、line = 只重對這句"`
+	Anchor float64   `json:"anchor" doc:"重對時這句的開頭（秒）"`
+	Lines  []RetimedLine `json:"lines" doc:"新的時間：from 是第 line 句到最後一句，line 只有一句"`
+}
+
+// RetimedLine 是 AI 重對出來的一句（和 workerproto.Line 相同，另外取名避免 API 文件裡重名）。
+type RetimedLine struct {
+	Text  string    `json:"text"`
+	Start float64   `json:"start"`
+	End   float64   `json:"end"`
+	Words []wp.Word `json:"words"`
+}
+
+// RetimedLines 把 AI 回傳的句子轉成 RetimedLine。
+func RetimedLines(lines []wp.Line) []RetimedLine {
+	out := make([]RetimedLine, len(lines))
+	for i, ln := range lines {
+		out[i] = RetimedLine(ln)
+	}
+	return out
+}
+
+// ApplyRetime 把 AI 重對的結果套用到對時。
+func (a *Alignment) ApplyRetime(r RetimeResult, now string) error {
+	lines := make([]wp.Line, len(r.Lines))
+	for i, ln := range r.Lines {
+		ln.Words = append([]wp.Word(nil), ln.Words...)
+		lines[i] = wp.Line(ln)
+	}
+	switch r.Mode {
+	case RetimeFrom:
+		return a.ApplyFrom(r.Line, r.Anchor, lines, now)
+	case RetimeLine:
+		if len(lines) != 1 {
+			return invalid("AI 重對的結果句數不符")
+		}
+		return a.ApplyLine(r.Line, r.Anchor, lines[0], now)
+	}
+	return invalid("不支援的方式：%s", r.Mode)
+}
+
 // ApplyFrom 套用 align_from 的結果：第 line 句之後換成 fresh，上一句的尾音截到 anchor（不能拖過新的起點）。
 func (a *Alignment) ApplyFrom(line int, anchor float64, fresh []wp.Line, now string) error {
 	if line < 0 || line >= len(a.Lines) {

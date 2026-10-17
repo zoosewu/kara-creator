@@ -3,7 +3,7 @@
   // 播放沒燒字幕的版本時，網頁即時畫逐字填色的字幕（含假名、翻譯、演唱者顏色），調整後立刻看得到；
   // 已燒字幕的成品不另外疊字幕，一調整就自動切到伴奏預覽。
   import { onMount, tick } from 'svelte'
-  import { api, enc, type EditorLine, type JobSummary, type LyricsViews, type QAView, type TimingView } from '../lib/api'
+  import { api, enc, type EditorLine, type JobSummary, type LyricsViews, type QAView, type RetimeResult, type TimingView } from '../lib/api'
   import { menu } from '../lib/menu.svelte'
   import { store } from '../lib/state.svelte'
   import { ui, type StudioOpts } from '../lib/ui.svelte'
@@ -35,16 +35,25 @@
   let follow = $state(true)
   let retimed = $state(false)
   let textChanged = $state(false)
-  // 還沒儲存的調整（按「儲存」才送出，避免誤觸）：時間的調整依序記下來，NAS 用 dry run 算出預覽（連鎖推動和存檔時相同）；
-  // 文字、演唱者記在 edits。saved* 是 NAS 上目前的內容，復原時用
-  type ShiftOp = { line: number; delta: number }
-  let shifts = $state<ShiftOp[]>([])
+  // 還沒儲存的調整（按「儲存」才送出，避免誤觸）：時間的調整（移動、AI 重對的結果）依序記在 ops，
+  // NAS 用 dry run 算出預覽（連鎖推動和存檔時相同）；文字、演唱者記在 edits。saved* 是 NAS 上目前的內容，復原時用
+  type TimingOp = { line: number; delta?: number; retime?: RetimeResult }
+  let ops = $state<TimingOp[]>([])
   let edits = $state(new Map<number, { text?: string; singer?: string }>())
   let savedLines: EditorLine[] = []
   let savedTiming = $state<TimingView['lines']>([])
   let saving = $state(false)
-  let draftCount = $derived(new Set([...shifts.map((s) => s.line), ...edits.keys()]).size)
-  let dirty = $derived(shifts.length > 0 || edits.size > 0)
+  /** 和存檔不同的句子（時間變了，或文字、演唱者改了）。 */
+  let draftLines = $derived.by(() => {
+    const out = new Set(edits.keys())
+    timing.forEach((t, i) => {
+      const s = savedTiming[i]
+      if (!s || Math.abs(t.start - s.start) > 0.0005 || Math.abs(t.end - s.end) > 0.0005) out.add(i)
+    })
+    return out
+  })
+  let draftCount = $derived(draftLines.size)
+  let dirty = $derived(ops.length > 0 || edits.size > 0)
   let editingText = $state<number | null>(null)
   let pendingJob = $state<{ id: string; index: number; mode: string; count: number } | null>(null)
   let statusText = $state('')
@@ -106,7 +115,7 @@
     savedLines = structuredClone($state.snapshot(v.doc.lines))
     language = v.doc.language ?? null
     timing = savedTiming = t.lines
-    shifts = []
+    ops = []
     edits = new Map()
     qa = new Map(q.lines.map((c) => [c.index, c]))
   }
@@ -342,17 +351,23 @@
   async function shift(i: number, delta: number) {
     delta = Math.round(delta * 1000) / 1000
     if (!timing[i] || Math.abs(delta) < 0.01) return false
-    const next = [...shifts, { line: i, delta }]
-    const v = await store.run(() => api<TimingView>(`/songs/${enc(id)}/timing/shifts`, { method: 'POST', body: { shifts: next, dry_run: true } }))
+    const v = await preview([...ops, { line: i, delta }])
     if (!v) return false
-    shifts = next
-    timing = v.lines
     const pushed = v.pushed ?? []
     statusText =
       `第 ${i + 1} 句 ${delta > 0 ? '+' : ''}${delta} 秒` +
       (pushed.length ? `，第 ${[...pushed].sort((a, b) => a - b).map((k) => k + 1).join('、')} 句跟著往${pushed[0] < i ? '前' : '後'}挪` : '')
     ensureLive()
     return true
+  }
+
+  /** 用 NAS 的 dry run 算出套用 next 之後的時間；成功才換成新的草稿。 */
+  async function preview(next: TimingOp[]) {
+    const v = await store.run(() => api<TimingView>(`/songs/${enc(id)}/timing/edits`, { method: 'POST', body: { edits: next, dry_run: true } }))
+    if (!v) return null
+    ops = next
+    timing = v.lines
+    return v
   }
 
   async function setNow(i = selected) {
@@ -386,9 +401,10 @@
     edit(i, { text })
   }
 
-  /** 送出草稿：先改文字、演唱者，再依序移動時間。 */
-  async function save() {
+  /** 送出草稿：先改文字、演唱者，再依序套用時間的調整。ask 時先確認。 */
+  async function save({ ask = true } = {}) {
     if (!dirty || saving) return true
+    if (ask && !confirm(`儲存 ${draftCount} 句的調整？`)) return false
     saving = true
     const ok = await store.run(async () => {
       let v: LyricsViews | null = null
@@ -401,10 +417,10 @@
         savedLines = structuredClone($state.snapshot(v.doc.lines))
       }
       edits = new Map()
-      if (shifts.length) {
-        const t = await api<TimingView>(`/songs/${enc(id)}/timing/shifts`, { method: 'POST', body: { shifts } })
+      if (ops.length) {
+        const t = await api<TimingView>(`/songs/${enc(id)}/timing/edits`, { method: 'POST', body: { edits: ops } })
         timing = savedTiming = t.lines
-        shifts = []
+        ops = []
       }
       retimed = true
       return true
@@ -417,7 +433,7 @@
   function discard() {
     lines = structuredClone(savedLines)
     timing = savedTiming
-    shifts = []
+    ops = []
     edits = new Map()
     statusText = ''
   }
@@ -426,7 +442,7 @@
   async function settle(what: string) {
     if (!dirty) return true
     if (!confirm(`有 ${draftCount} 句的調整還沒儲存，要先儲存再${what}嗎？`)) return false
-    return save()
+    return save({ ask: false })
   }
 
   function retimeMenu(anchor: HTMLElement, i: number) {
@@ -440,9 +456,17 @@
   const retimeLabel = (p: { index: number; mode: string; count: number }) =>
     p.mode === 'from' ? `AI 重新對時第 ${p.index + 1} 句及之後全部（共 ${p.count} 句）` : `AI 重新對時第 ${p.index + 1} 句（只有這句）`
 
+  /** AI 用的是 NAS 上的歌詞：範圍內有還沒儲存的文字修改時不能重對。 */
+  function retimeBlocked(i: number) {
+    return [...edits].some(([k, e]) => e.text !== undefined && k >= i)
+  }
+
+  /** AI 重對：以畫面上（含還沒儲存的調整）這句的開頭為準；結果放進草稿，按儲存才存檔。 */
   async function retime(i: number, mode: string) {
-    if (pendingJob || !(await settle('讓 AI 重對'))) return
-    const res = await store.runJob([id], ['retime'], { line: i, mode })
+    if (pendingJob) return
+    if (mode === 'line' ? edits.get(i)?.text !== undefined : retimeBlocked(i)) return store.notify('改過的歌詞還沒儲存，AI 要用儲存後的歌詞重對：請先儲存', true)
+    const next = mode === 'line' ? timing[i + 1]?.start : undefined
+    const res = await store.runJob([id], ['retime'], { line: i, mode, anchor: timing[i].start, ...(next !== undefined ? { next } : {}) })
     const job = res?.created[0]
     if (!job) return
     pendingJob = { id: job.id, index: i, mode, count: timing.length - i }
@@ -462,10 +486,8 @@
       store.notify(j.status === 'failed' ? `${retimeLabel(p)}失敗：${j.error || ''}` : `已取消${retimeLabel(p)}`, j.status === 'failed')
       return
     }
-    const v = await store.run(() => api<TimingView>(`/songs/${enc(id)}/timing`))
-    if (!v) return
-    timing = savedTiming = v.lines
-    retimed = true
+    const r = await store.run(() => api<RetimeResult>(`/jobs/${enc(p.id)}/result`))
+    if (!r || !(await preview([...ops, { line: r.line, retime: r }]))) return
     statusText = `${retimeLabel(p)}完成，播放確認看看`
     ensureLive()
     playLine(p.index)
@@ -473,6 +495,7 @@
 
   function close() {
     if (dirty && !confirm(`有 ${draftCount} 句的調整還沒儲存，確定不儲存就關閉？`)) return
+    if (!dirty && pendingJob && !confirm('AI 重對還沒做完，關閉後結果不會留下，確定關閉？')) return
     video?.pause()
     cancelAnimationFrame(raf)
     if (retimed || textChanged) store.notify('已儲存，按「更新伴唱帶」後生效')
@@ -528,7 +551,7 @@
   let fontFamily = $derived(song?.font ? `kara-${song.font.id.slice(0, 12)}` : '')
 </script>
 
-<svelte:window onkeydown={onKey} />
+<svelte:window onkeydown={onKey} onbeforeunload={(e) => (dirty || pendingJob) && e.preventDefault()} />
 <svelte:head>
   {#if song?.font}{@html `<style>@font-face { font-family: "${fontFamily}"; src: url("${song.font.url}"); }</style>`}{/if}
 </svelte:head>
@@ -698,7 +721,7 @@
                 class="studio-line {check ? `qa-${check.status}` : ''}"
                 class:mismatch={t?.mismatch}
                 class:selected={i === selected}
-                class:draft={edits.has(i) || (t && savedTiming[i] && Math.abs(t.start - savedTiming[i].start) > 0.0005)}
+                class:draft={draftLines.has(i)}
                 class:playing={i === playing}
                 class:changed={changed.has(i)}
                 role="button"
@@ -769,7 +792,7 @@
                   class="studio-time"
                   title={t?.mismatch
                     ? '歌詞改過，這是改之前的時間'
-                    : t && savedTiming[i] && Math.abs(t.start - savedTiming[i].start) > 0.0005
+                    : draftLines.has(i) && savedTiming[i]
                       ? `還沒儲存（原本 ${fmtClock(savedTiming[i].start)}）`
                       : '開始時間'}>{t ? fmtClock(t.start) : '—'}</span
                 >
@@ -793,7 +816,7 @@
           <span class="muted ellipsis grow">{dirty ? `${draftCount} 句未儲存${statusText ? `：${statusText}` : ''}` : statusText}</span>
           {#if dirty}
             <button type="button" class="btn" disabled={saving} onclick={discard}>復原</button>
-            <button type="button" class="btn primary" disabled={saving} title="儲存調整（Ctrl+S）" onclick={save}>儲存</button>
+            <button type="button" class="btn primary" disabled={saving} title="儲存調整（Ctrl+S）" onclick={() => save()}>儲存</button>
           {/if}
           <button type="button" class="btn" class:primary={!dirty} disabled={song.status.lyrics !== 'done' || saving} title="用調整後的歌詞與時間重新製作" onclick={runKaraoke}
             >{dirty ? '儲存並' : ''}{['pending', 'no_lyrics'].includes(song.status.karaoke) ? '製作伴唱帶' : '更新伴唱帶'}</button

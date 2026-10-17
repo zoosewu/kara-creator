@@ -70,6 +70,7 @@ type Run struct {
 	Log      func(line string)
 	Progress func(p float64) // 0–1；負值代表不知道
 	Stage    func(name string)
+	Result   func(v any) error // 記下工作的結果（AI 重對）
 	Priority string
 }
 
@@ -783,9 +784,16 @@ func (p *Pipeline) Check(ctx context.Context, id string, force bool, run Run) er
 
 // ---- AI 重對 -------------------------------------------------------------------
 
-// Retime 以第 line 句目前的開頭為準，讓 AI 重新對時（mode：from = 這句及之後全部、line = 只重對這句）。
-// 和手動調整一樣只改 alignment.json，之後成品變成需更新（只重燒，不整首重新對時）。
-func (p *Pipeline) Retime(ctx context.Context, id string, line int, mode string, run Run) error {
+// RetimeOptions 是 AI 重對的設定：以第 Line 句的開頭為準（Anchor 沒給就用存檔的；Next 是只重對這句時的範圍結尾）。
+type RetimeOptions struct {
+	Line         int
+	Mode         string // from = 這句及之後全部、line = 只重對這句
+	Anchor, Next *float64
+}
+
+// Retime 讓 AI 重新對時。不存檔：結果（timing.RetimeResult）記在工作上，畫面放進還沒儲存的調整，按儲存時才套用。
+func (p *Pipeline) Retime(ctx context.Context, id string, o RetimeOptions, run Run) error {
+	line, mode := o.Line, o.Mode
 	run.stage("AI 重新對時")
 	desc, ok := timing.RetimeModes[mode]
 	if !ok {
@@ -808,6 +816,9 @@ func (p *Pipeline) Retime(ctx context.Context, id string, line int, mode string,
 		return userError("沒有這一句")
 	}
 	anchor := al.Lines[line].Start
+	if o.Anchor != nil {
+		anchor = *o.Anchor
+	}
 	run.log("  . %s：第 %d 句，從 %.2fs 開始", desc, line+1, anchor)
 	speech, err := p.speechWav(ctx, id, in.Song.Stages.Separate.Vocals)
 	if err != nil {
@@ -815,8 +826,7 @@ func (p *Pipeline) Retime(ctx context.Context, id string, line int, mode string,
 	}
 	inputs := map[string]scheduler.Input{wp.InputAudio: speech}
 	proto := toProto(rubies)
-	next := al.Clone()
-	next.LineLyrics = r.LineLyrics
+	result := timing.RetimeResult{Line: line, Mode: mode, Anchor: anchor}
 	if mode == timing.RetimeFrom {
 		res, err := p.d.AI.Submit(ctx, run.spec(scheduler.Spec{Kind: wp.KindAlignFrom, Song: id, Inputs: inputs,
 			Params: wp.AlignFromParams{AlignParams: wp.AlignParams{Texts: texts, Rubies: proto, Language: r.Language,
@@ -829,12 +839,13 @@ func (p *Pipeline) Retime(ctx context.Context, id string, line int, mode string,
 		if err := json.Unmarshal(res.Raw, &out); err != nil {
 			return fmt.Errorf("AI 回傳的對時結果讀不懂：%w", err)
 		}
-		if err := next.ApplyFrom(line, anchor, out.Lines, p.now()); err != nil {
-			return err
+		if line+len(out.Lines) != len(al.Lines) {
+			return fmt.Errorf("AI 重對的結果句數不符")
 		}
+		result.Lines = timing.RetimedLines(out.Lines)
 	} else {
-		var t1 *float64
-		if line+1 < len(al.Lines) {
+		t1 := o.Next
+		if t1 == nil && line+1 < len(al.Lines) {
 			v := al.Lines[line+1].Start
 			t1 = &v
 		}
@@ -848,13 +859,14 @@ func (p *Pipeline) Retime(ctx context.Context, id string, line int, mode string,
 		if err := json.Unmarshal(res.Raw, &out); err != nil {
 			return fmt.Errorf("AI 回傳的對時結果讀不懂：%w", err)
 		}
-		if err := next.ApplyLine(line, anchor, out.Line, p.now()); err != nil {
-			return err
-		}
+		result.Lines = timing.RetimedLines([]wp.Line{out.Line})
 	}
-	if err := p.writeAlignment(id, next); err != nil {
+	if run.Result == nil {
+		return fmt.Errorf("沒有地方放 AI 重對的結果")
+	}
+	if err := run.Result(result); err != nil {
 		return err
 	}
-	run.log("  . 完成，重新製作伴唱帶後生效")
+	run.log("  . 完成，在播放畫面按「儲存」後才會存檔")
 	return nil
 }

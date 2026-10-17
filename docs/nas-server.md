@@ -69,7 +69,7 @@ kara-nas restore [--overwrite] [--replace 歌曲id=網址]   # 從資料備份�
 ### 工作（job）與任務（task）
 
 - **工作**：使用者層級的要求。一首歌一件工作：「這 12 首製作伴唱帶」會建立 12 件工作
-- 一件工作 = 一首歌 + 步驟（`download`、`separate`、`karaoke`、`check`、`retime`）+ 選項（`force`、`realign`、`line`、`mode`、`targets`）
+- 一件工作 = 一首歌 + 步驟（`download`、`separate`、`karaoke`、`check`、`retime`）+ 選項（`force`、`realign`、`line`、`mode`、`anchor`、`next`、`targets`）
 - 工作執行時一步一步問 planner「下一個動作是什麼」：
   - NAS 本機動作（下載、抽音軌、封裝、轉 speech.wav、套用結果）在 NAS 的 goroutine 做；匯出由使用者按「匯出」時才做
   - AI 動作建立**任務**放進任務佇列，等 worker 領走；完成後套用結果，再問下一步
@@ -118,7 +118,8 @@ kara-nas restore [--overwrite] [--replace 歌曲id=網址]   # 從資料備份�
 | `GET /songs/{id}/lyrics?view=doc\|file\|annotated\|plain` · `PUT /songs/{id}/lyrics` | 歌詞的四種檢視；需要自動讀音的句子還沒算好時，回應標示 `pending_readings` |
 | `POST /lyrics/convert` | 文字 ↔ 結構互轉，含括號讀音轉換 |
 | `GET /songs/{id}/timing` · `PATCH /songs/{id}/timing/lines/{n}` | 每句時間；移動單句（`{delta}` 或 `{start}`），回傳一起被推動的句子 |
-| `POST /songs/{id}/timing/shifts` | 依序移動好幾句（`{shifts: [{line, delta 或 start}], dry_run}`），全部成功才存檔；`dry_run` 只回傳結果，播放畫面用來預覽還沒儲存的調整 |
+| `POST /songs/{id}/timing/edits` | 依序套用一串調整（`{edits: [{line, delta 或 start} 或 {line, retime}], dry_run}`），全部成功才存檔；`dry_run` 只回傳結果，播放畫面用來預覽還沒儲存的調整 |
+| `GET /jobs/{id}/result` | AI 重對（`retime`）做完的新時間；工作本身不存檔，放進 `timing/edits` 的 `retime` 才套用 |
 | `PATCH /songs/{id}/lines/{n}` | 播放畫面直接改一句的文字或演唱者（改文字之後要重新對時） |
 | `GET /songs/{id}/qa` | 對時檢查結果（只列有疑慮的句子） |
 | `GET /media/{id}/{file}` | 媒體檔（支援 Range，給 `<video>` 播放與拖曳） |

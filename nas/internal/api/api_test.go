@@ -19,6 +19,7 @@ import (
 	"github.com/zoosewu/kara-creator/nas/internal/app"
 	"github.com/zoosewu/kara-creator/nas/internal/config"
 	"github.com/zoosewu/kara-creator/nas/internal/fakeworker"
+	"github.com/zoosewu/kara-creator/nas/internal/jobs"
 	"github.com/zoosewu/kara-creator/nas/internal/media"
 )
 
@@ -246,7 +247,7 @@ func TestEndToEnd(t *testing.T) {
 	start1 := timing.Lines[1].Start
 	var preview app.TimingView
 	shifts := []map[string]any{{"line": 1, "delta": 0.3}, {"line": 0, "start": 0.05}}
-	if code := c.do("POST", "/api/v1/songs/dQw4w9WgXcQ/timing/shifts", map[string]any{"shifts": shifts, "dry_run": true}, &preview); code != 200 {
+	if code := c.do("POST", "/api/v1/songs/dQw4w9WgXcQ/timing/edits", map[string]any{"edits": shifts, "dry_run": true}, &preview); code != 200 {
 		t.Fatal(code)
 	}
 	if preview.Lines[1].Start-start1 < 0.29 || preview.Lines[0].Start != 0.05 || len(preview.Adjustments) != 3 {
@@ -256,19 +257,53 @@ func TestEndToEnd(t *testing.T) {
 	if timing.Lines[1].Start != start1 || len(timing.Adjustments) != 1 {
 		t.Fatalf("dry run 不存檔：%+v", timing)
 	}
-	if code := c.do("POST", "/api/v1/songs/dQw4w9WgXcQ/timing/shifts", map[string]any{"shifts": shifts}, &timing); code != 200 || len(timing.Adjustments) != 3 {
+	if code := c.do("POST", "/api/v1/songs/dQw4w9WgXcQ/timing/edits", map[string]any{"edits": shifts}, &timing); code != 200 || len(timing.Adjustments) != 3 {
 		t.Fatalf("%d %+v", code, timing)
 	}
 	c.do("GET", "/api/v1/songs/dQw4w9WgXcQ/timing", nil, &preview)
 	if preview.Lines[1].Start != timing.Lines[1].Start || len(preview.Adjustments) != 3 {
 		t.Fatalf("儲存後要寫進檔案：%+v", preview)
 	}
-	if code := c.do("POST", "/api/v1/songs/dQw4w9WgXcQ/timing/shifts", map[string]any{"shifts": []map[string]any{{"line": 1, "delta": 0.1}, {"line": 9, "delta": 0.1}}}, nil); code != 400 {
+	if code := c.do("POST", "/api/v1/songs/dQw4w9WgXcQ/timing/edits", map[string]any{"edits": []map[string]any{{"line": 1, "delta": 0.1}, {"line": 9, "delta": 0.1}}}, nil); code != 400 {
 		t.Fatalf("有一步失敗就整串不存：%d", code)
 	}
 	c.do("GET", "/api/v1/songs/dQw4w9WgXcQ/timing", nil, &preview)
 	if len(preview.Adjustments) != 3 {
 		t.Fatalf("失敗時不能存一半：%+v", preview.Adjustments)
+	}
+
+	// AI 重對：工作做完只回傳結果（以畫面上的開頭為準），放進調整裡按儲存才存檔
+	anchor := timing.Lines[1].Start + 0.4
+	var created app.JobResult
+	if code := c.do("POST", "/api/v1/jobs", map[string]any{"songs": []string{"dQw4w9WgXcQ"}, "steps": []string{"retime"}, "line": 1, "mode": "line", "anchor": anchor}, &created); code != 202 || len(created.Created) != 1 {
+		t.Fatalf("%d %+v", code, created)
+	}
+	jobURL := "/api/v1/jobs/" + created.Created[0].ID
+	waitFor(t, "AI 重對完成", func() bool {
+		var j jobs.Summary
+		c.do("GET", jobURL, nil, &j)
+		return j.Status == jobs.Done
+	})
+	var result struct {
+		Line   int              `json:"line"`
+		Mode   string           `json:"mode"`
+		Anchor float64          `json:"anchor"`
+		Lines  []map[string]any `json:"lines"`
+	}
+	if code := c.do("GET", jobURL+"/result", nil, &result); code != 200 || result.Anchor != anchor || len(result.Lines) != 1 {
+		t.Fatalf("%d %+v", code, result)
+	}
+	var unchanged app.TimingView
+	c.do("GET", "/api/v1/songs/dQw4w9WgXcQ/timing", nil, &unchanged)
+	if len(unchanged.Adjustments) != 3 || unchanged.Lines[1].Start != timing.Lines[1].Start {
+		t.Fatalf("AI 重對做完不存檔：%+v", unchanged)
+	}
+	retimeEdit := []map[string]any{{"line": 1, "retime": result}}
+	if code := c.do("POST", "/api/v1/songs/dQw4w9WgXcQ/timing/edits", map[string]any{"edits": retimeEdit}, &timing); code != 200 || len(timing.Adjustments) != 4 {
+		t.Fatalf("%d %+v", code, timing)
+	}
+	if last := timing.Adjustments[3]; last.Retime != "line" || last.Anchor == nil || *last.Anchor != anchor {
+		t.Fatalf("儲存時記下 AI 重對：%+v", last)
 	}
 	waitFor(t, "調整後需更新", func() bool {
 		c.do("GET", "/api/v1/songs/dQw4w9WgXcQ", nil, &song)

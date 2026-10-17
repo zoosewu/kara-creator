@@ -288,27 +288,28 @@ type ShiftRequest struct {
 	Following bool     `json:"following,omitempty" doc:"之後的句子一起移（UI 只移單句；整段偏掉交給 AI 重對）"`
 }
 
-// ShiftOp 是一串調整裡的一步：移動第 line 句。
-type ShiftOp struct {
-	Line      int      `json:"line" minimum:"0" doc:"第幾句（從 0 起算，與對時結果一致）"`
-	Delta     *float64 `json:"delta,omitempty" doc:"移動量（秒）；正數往後、負數往前"`
-	Start     *float64 `json:"start,omitempty" doc:"新的開始時間（秒）；和 delta 擇一"`
-	Following bool     `json:"following,omitempty" doc:"之後的句子一起移"`
+// TimingEdit 是一串調整裡的一步：移動第 line 句（delta 或 start），或套用 AI 重對的結果（retime）。
+type TimingEdit struct {
+	Line      int                  `json:"line" minimum:"0" doc:"第幾句（從 0 起算，與對時結果一致）"`
+	Delta     *float64             `json:"delta,omitempty" doc:"移動量（秒）；正數往後、負數往前"`
+	Start     *float64             `json:"start,omitempty" doc:"新的開始時間（秒）；和 delta 擇一"`
+	Following bool                 `json:"following,omitempty" doc:"之後的句子一起移"`
+	Retime    *timing.RetimeResult `json:"retime,omitempty" doc:"AI 重對的結果（GET /jobs/{id}/result）；有給就不看 delta、start"`
 }
 
-// ShiftBatch 是依序套用的一串調整。
-type ShiftBatch struct {
-	Shifts []ShiftOp `json:"shifts" minItems:"1" maxItems:"1000" doc:"依序套用"`
-	DryRun bool      `json:"dry_run,omitempty" doc:"只回傳套用後的結果、不存檔（給畫面預覽還沒儲存的調整）"`
+// TimingEdits 是依序套用的一串調整。
+type TimingEdits struct {
+	Edits  []TimingEdit `json:"edits" minItems:"1" maxItems:"1000" doc:"依序套用"`
+	DryRun bool         `json:"dry_run,omitempty" doc:"只回傳套用後的結果、不存檔（給畫面預覽還沒儲存的調整）"`
 }
 
 // Shift 移動第 line 句（連鎖推動前後句）。只改對時，之後伴唱帶顯示需更新（只重燒）。
 func (a *App) Shift(id string, line int, req ShiftRequest) (TimingView, error) {
-	return a.ShiftMany(id, ShiftBatch{Shifts: []ShiftOp{{Line: line, Delta: req.Delta, Start: req.Start, Following: req.Following}}})
+	return a.EditTiming(id, TimingEdits{Edits: []TimingEdit{{Line: line, Delta: req.Delta, Start: req.Start, Following: req.Following}}})
 }
 
-// ShiftMany 依序套用一串調整，全部成功才存檔（dry run 不存檔）。Pushed 是最後一步一起被推動的句子。
-func (a *App) ShiftMany(id string, req ShiftBatch) (TimingView, error) {
+// EditTiming 依序套用一串調整，全部成功才存檔（dry run 不存檔）。Pushed 是最後一步一起被推動的句子。
+func (a *App) EditTiming(id string, req TimingEdits) (TimingView, error) {
 	if _, ok := a.Store.Song(id); !ok {
 		return TimingView{}, errNotFound
 	}
@@ -326,7 +327,14 @@ func (a *App) ShiftMany(id string, req ShiftBatch) (TimingView, error) {
 	}
 	now := a.Now().Format(time.RFC3339)
 	var pushed []int
-	for _, op := range req.Shifts {
+	for _, op := range req.Edits {
+		if op.Retime != nil {
+			pushed = nil
+			if err := al.ApplyRetime(*op.Retime, now); err != nil {
+				return TimingView{}, invalid("第 %d 句：%s", op.Retime.Line+1, err.Error())
+			}
+			continue
+		}
 		var delta float64
 		switch {
 		case op.Delta != nil:
@@ -340,7 +348,7 @@ func (a *App) ShiftMany(id string, req ShiftBatch) (TimingView, error) {
 			return TimingView{}, invalid("移動量不對")
 		}
 		if pushed, err = al.Shift(op.Line, delta, op.Following, now); err != nil {
-			if len(req.Shifts) > 1 {
+			if len(req.Edits) > 1 {
 				return TimingView{}, invalid("第 %d 句：%s", op.Line+1, err.Error())
 			}
 			return TimingView{}, invalid("%s", err.Error())
@@ -480,6 +488,8 @@ type JobRequest struct {
 	Realign     bool     `json:"realign,omitempty" doc:"重新對時"`
 	Line        int      `json:"line,omitempty" doc:"retime：第幾句（從 0 起算）"`
 	Mode        string   `json:"mode,omitempty" enum:"from,line," doc:"retime：from = 這句及之後全部、line = 只重對這句"`
+	Anchor      *float64 `json:"anchor,omitempty" doc:"retime：這句的開頭（畫面上還沒儲存的時間）；沒給就用存檔的"`
+	Next        *float64 `json:"next,omitempty" doc:"retime line：下一句的開頭；沒給就用存檔的"`
 	OnlyNeeded  bool     `json:"only_needed,omitempty" doc:"批次：只做還沒做完的（已完成、缺歌詞、處理中的略過）"`
 	Interactive bool     `json:"interactive,omitempty" doc:"使用者在畫面上等結果（AI 優先處理）；AI 重對一律是"`
 }
@@ -525,7 +535,7 @@ func (a *App) SubmitJobs(req JobRequest) (JobResult, error) {
 			}
 		}
 		s, err := a.Jobs.Submit(jobs.Request{Steps: req.Steps, Song: id, Title: v.Title, Priority: priority,
-			Options: jobs.Options{Force: req.Force, Realign: req.Realign, Line: req.Line, Mode: req.Mode}})
+			Options: jobs.Options{Force: req.Force, Realign: req.Realign, Line: req.Line, Mode: req.Mode, Anchor: req.Anchor, Next: req.Next}})
 		if err != nil {
 			res.Errors = append(res.Errors, v.Title+"："+err.Error())
 			continue

@@ -148,6 +148,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{id}/result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * AI 重對的結果
+         * @description retime 工作做完後的新時間（不會自動存檔）：放進 POST /songs/{id}/timing/edits 的 retime 套用。
+         */
+        get: operations["get-job-result"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{id}/retry": {
         parameters: {
             query?: never;
@@ -395,6 +415,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/songs/{id}/timing/edits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 依序套用一串時間的調整
+         * @description 每一步是移動一句（和「移動一句」相同）或套用 AI 重對的結果；全部成功才存檔。dry_run 只回傳結果不存檔，給畫面預覽還沒儲存的調整。
+         */
+        post: operations["edit-timing"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/songs/{id}/timing/lines/{n}": {
         parameters: {
             query?: never;
@@ -413,26 +453,6 @@ export interface paths {
          * @description 只移這一句：往後撞到下一句時把它往後推、往前撞到上一句時把它往前推（連鎖），唱不完的部分壓縮。回傳的 pushed 是一起被推動的句子。之後伴唱帶顯示需更新（只重燒，不重新對時）。
          */
         patch: operations["shift-line"];
-        trace?: never;
-    };
-    "/api/v1/songs/{id}/timing/shifts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * 依序移動好幾句
-         * @description 一串調整依序套用（每一步和「移動一句」相同），全部成功才存檔；dry_run 只回傳結果不存檔，給畫面預覽還沒儲存的調整。
-         */
-        post: operations["shift-lines"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
         trace?: never;
     };
     "/api/v1/system": {
@@ -808,6 +828,11 @@ export interface components {
              * @example https://example.com/api/v1/schemas/JobRequest.json
              */
             readonly $schema?: string;
+            /**
+             * Format: double
+             * @description retime：這句的開頭（畫面上還沒儲存的時間）；沒給就用存檔的
+             */
+            anchor?: number;
             /** @description 全部重做（含覆蓋手改的字幕） */
             force?: boolean;
             /** @description 使用者在畫面上等結果（AI 優先處理）；AI 重對一律是 */
@@ -822,6 +847,11 @@ export interface components {
              * @enum {string}
              */
             mode?: "from" | "line" | "";
+            /**
+             * Format: double
+             * @description retime line：下一句的開頭；沒給就用存檔的
+             */
+            next?: number;
             /** @description 批次：只做還沒做完的（已完成、缺歌詞、處理中的略過） */
             only_needed?: boolean;
             /** @description 重新對時 */
@@ -1007,6 +1037,39 @@ export interface components {
             /** @description 目的地已經有不是這個程式放的同名檔，沒有覆蓋 */
             skipped: string[];
         };
+        RetimeResult: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/v1/schemas/RetimeResult.json
+             */
+            readonly $schema?: string;
+            /**
+             * Format: double
+             * @description 重對時這句的開頭（秒）
+             */
+            anchor: number;
+            /**
+             * Format: int64
+             * @description 第幾句（從 0 起算）
+             */
+            line: number;
+            /** @description 新的時間：from 是第 line 句到最後一句，line 只有一句 */
+            lines: components["schemas"]["RetimedLine"][];
+            /**
+             * @description from = 這句及之後全部、line = 只重對這句
+             * @enum {string}
+             */
+            mode: "from" | "line";
+        };
+        RetimedLine: {
+            /** Format: double */
+            end: number;
+            /** Format: double */
+            start: number;
+            text: string;
+            words: components["schemas"]["Word"][];
+        };
         Ruby: {
             /** Format: int64 */
             end: number;
@@ -1057,37 +1120,6 @@ export interface components {
              * @description 字幕大小（1 = 預設）
              */
             subtitle_scale?: number;
-        };
-        ShiftBatch: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/v1/schemas/ShiftBatch.json
-             */
-            readonly $schema?: string;
-            /** @description 只回傳套用後的結果、不存檔（給畫面預覽還沒儲存的調整） */
-            dry_run?: boolean;
-            /** @description 依序套用 */
-            shifts: components["schemas"]["ShiftOp"][];
-        };
-        ShiftOp: {
-            /**
-             * Format: double
-             * @description 移動量（秒）；正數往後、負數往前
-             */
-            delta?: number;
-            /** @description 之後的句子一起移 */
-            following?: boolean;
-            /**
-             * Format: int64
-             * @description 第幾句（從 0 起算，與對時結果一致）
-             */
-            line: number;
-            /**
-             * Format: double
-             * @description 新的開始時間（秒）；和 delta 擇一
-             */
-            start?: number;
         };
         ShiftRequest: {
             /**
@@ -1244,6 +1276,39 @@ export interface components {
             ytdlp: string;
             /** @description 可以退回的上一版 */
             ytdlp_prev?: string;
+        };
+        TimingEdit: {
+            /**
+             * Format: double
+             * @description 移動量（秒）；正數往後、負數往前
+             */
+            delta?: number;
+            /** @description 之後的句子一起移 */
+            following?: boolean;
+            /**
+             * Format: int64
+             * @description 第幾句（從 0 起算，與對時結果一致）
+             */
+            line: number;
+            /** @description AI 重對的結果（GET /jobs/{id}/result）；有給就不看 delta、start */
+            retime?: components["schemas"]["RetimeResult"];
+            /**
+             * Format: double
+             * @description 新的開始時間（秒）；和 delta 擇一
+             */
+            start?: number;
+        };
+        TimingEdits: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/v1/schemas/TimingEdits.json
+             */
+            readonly $schema?: string;
+            /** @description 只回傳套用後的結果、不存檔（給畫面預覽還沒儲存的調整） */
+            dry_run?: boolean;
+            /** @description 依序套用 */
+            edits: components["schemas"]["TimingEdit"][];
         };
         TimingLine: {
             /** Format: double */
@@ -1675,6 +1740,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LogOut"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-job-result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 工作 id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetimeResult"];
                 };
             };
             /** @description Error */
@@ -2212,21 +2309,19 @@ export interface operations {
             };
         };
     };
-    "shift-line": {
+    "edit-timing": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 /** @description 歌曲 id */
                 id: string;
-                /** @description 第幾句（從 0 起算，與對時結果一致） */
-                n: number;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ShiftRequest"];
+                "application/json": components["schemas"]["TimingEdits"];
             };
         };
         responses: {
@@ -2250,19 +2345,21 @@ export interface operations {
             };
         };
     };
-    "shift-lines": {
+    "shift-line": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 /** @description 歌曲 id */
                 id: string;
+                /** @description 第幾句（從 0 起算，與對時結果一致） */
+                n: number;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ShiftBatch"];
+                "application/json": components["schemas"]["ShiftRequest"];
             };
         };
         responses: {

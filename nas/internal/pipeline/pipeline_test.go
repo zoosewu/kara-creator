@@ -55,6 +55,8 @@ type env struct {
 	ai *countingAI
 	mu sync.Mutex
 	l  []string
+
+	result any // 工作最後回傳的結果（AI 重對）
 }
 
 func newEnv(t *testing.T) *env {
@@ -103,7 +105,28 @@ func newEnv(t *testing.T) *env {
 }
 
 func (e *env) run() Run {
-	return Run{Log: func(s string) { e.mu.Lock(); e.l = append(e.l, s); e.mu.Unlock() }}
+	return Run{Log: func(s string) { e.mu.Lock(); e.l = append(e.l, s); e.mu.Unlock() },
+		Result: func(v any) error { e.mu.Lock(); e.result = v; e.mu.Unlock(); return nil }}
+}
+
+// retime 讓 AI 重對，再像畫面按「儲存」一樣把結果套用、存檔。
+func (e *env) retime(ctx context.Context, line int, mode string) error {
+	e.t.Helper()
+	if err := e.p.Retime(ctx, "abc", RetimeOptions{Line: line, Mode: mode}, e.run()); err != nil {
+		return err
+	}
+	r, ok := e.result.(timing.RetimeResult)
+	if !ok {
+		e.t.Fatalf("AI 重對要回傳結果：%#v", e.result)
+	}
+	al, err := planner.ReadAlignment(e.st, "abc")
+	if err != nil {
+		return err
+	}
+	if err := al.ApplyRetime(r, "now"); err != nil {
+		return err
+	}
+	return e.p.writeAlignment("abc", al)
 }
 
 func (e *env) status() planner.Result {
@@ -206,12 +229,18 @@ func TestKaraokeFlow(t *testing.T) {
 		t.Fatal("內容改了，手改的 ASS 要重新產生")
 	}
 
-	// AI 只重對第 2 句（假的 worker 會給不同的時間）：只改對時；之後只重燒、重新檢查
-	if err := e.p.Retime(ctx, "abc", 1, "line", e.run()); err != nil {
+	// AI 只重對第 2 句（假的 worker 會給不同的時間）：工作本身不存檔，按儲存（套用結果）之後才改對時；之後只重燒、重新檢查
+	if err := e.p.Retime(ctx, "abc", RetimeOptions{Line: 1, Mode: "line"}, e.run()); err != nil {
 		t.Fatal(err)
 	}
 	if got := e.ai.take(); got != "align_line" {
 		t.Fatal(got)
+	}
+	if r := e.status(); r.Status.Karaoke != planner.Done {
+		t.Fatalf("AI 重對做完還沒儲存，不能改到對時：%+v", r.Status)
+	}
+	if err := e.retime(ctx, 1, "line"); err != nil || e.ai.take() != "align_line" {
+		t.Fatal(err)
 	}
 	if r := e.status(); r.Status.Karaoke != planner.NeedsRender || !r.AlignOK {
 		t.Fatalf("%+v", r.Status)
@@ -220,7 +249,7 @@ func TestKaraokeFlow(t *testing.T) {
 
 	// 改歌詞文字：只重對改過的那一句（其他句子不動，見 TestPartialRealign）
 	e.writeLyrics("[女] 自己編的第一句改了\n[女] 第二句\n")
-	if err := e.p.Retime(ctx, "abc", 0, "line", e.run()); err == nil || !strings.Contains(err.Error(), "歌詞改過") {
+	if err := e.p.Retime(ctx, "abc", RetimeOptions{Line: 0, Mode: "line"}, e.run()); err == nil || !strings.Contains(err.Error(), "歌詞改過") {
 		t.Fatalf("歌詞改過不能 AI 重對：%v", err)
 	}
 	e.karaoke("align_line,render,qa")
@@ -246,7 +275,7 @@ func TestKaraokeFlow(t *testing.T) {
 	}
 
 	// AI 重對這句及之後全部
-	if err := e.p.Retime(ctx, "abc", 0, "from", e.run()); err != nil || e.ai.take() != "align_from" {
+	if err := e.retime(ctx, 0, "from"); err != nil || e.ai.take() != "align_from" {
 		t.Fatal(err)
 	}
 

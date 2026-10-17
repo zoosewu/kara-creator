@@ -22,7 +22,7 @@ func (r *runner) Download(ctx context.Context, job jobs.Job, env jobs.Env) (stri
 }
 
 func (r *runner) Process(ctx context.Context, job jobs.Job, env jobs.Env) error {
-	run := pipeline.Run{Log: env.Log, Progress: env.Progress, Stage: env.Stage, Priority: job.Priority}
+	run := pipeline.Run{Log: env.Log, Progress: env.Progress, Stage: env.Stage, Result: env.Result, Priority: job.Priority}
 	p, id, opt := r.a.Pipe, job.Song, job.Options
 	defer r.a.invalidate(id)
 	for _, step := range job.Steps {
@@ -38,7 +38,7 @@ func (r *runner) Process(ctx context.Context, job jobs.Job, env jobs.Env) error 
 		case jobs.StepCheck:
 			err = p.Check(ctx, id, opt.Force, run)
 		case jobs.StepRetime:
-			err = p.Retime(ctx, id, opt.Line, opt.Mode, run)
+			err = p.Retime(ctx, id, pipeline.RetimeOptions{Line: opt.Line, Mode: opt.Mode, Anchor: opt.Anchor, Next: opt.Next}, run)
 		}
 		if err != nil {
 			return err

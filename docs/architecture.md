@@ -105,13 +105,14 @@ docs/                     本設計文件；openapi.json 由 Go 產生（CI 檢�
 ### AI 重對（播放畫面）
 
 ```
-使用者在第 k 句按「AI 重對這句及之後全部」→ NAS 建立互動優先的工作
-→ 任務 align_from（speech.wav、全部歌詞句子與讀音、first=k、anchor=第 k 句目前的開頭）
-→ [AI] 回傳第 k 句之後的新結果 → [NAS] 套用到 alignment.json（之前的句子不動、上一句尾音截到 anchor），記 adjustments
-→ SSE 通知前端更新畫面
+使用者在第 k 句按「AI 重對這句及之後全部」→ NAS 建立互動優先的工作（anchor = 畫面上第 k 句目前的開頭，含還沒儲存的調整）
+→ 任務 align_from（speech.wav、全部歌詞句子與讀音、first=k、anchor）
+→ [AI] 回傳第 k 句之後的新結果 → [NAS] 記在工作上（不存檔），SSE 通知工作完成
+→ 前端取回結果（GET /jobs/{id}/result），放進還沒儲存的調整，用 dry run 預覽
+→ 使用者按「儲存」→ POST /songs/{id}/timing/edits 依序套用（之前的句子不動、上一句尾音截到 anchor），記 adjustments
 ```
 
-「只重對這句」同理，用 `align_line`。
+「只重對這句」同理，用 `align_line`（範圍到畫面上下一句的開頭）。
 
 ### 編輯歌詞（假名）
 

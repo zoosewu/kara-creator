@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/zoosewu/kara-creator/nas/internal/readings"
 	"github.com/zoosewu/kara-creator/nas/internal/scheduler"
 	"github.com/zoosewu/kara-creator/nas/internal/song"
+	"github.com/zoosewu/kara-creator/nas/internal/timing"
 )
 
 // ---- 輸入輸出 ------------------------------------------------------------------
@@ -65,9 +67,9 @@ type shiftIn struct {
 	Body app.ShiftRequest
 }
 
-type shiftsIn struct {
+type timingEditsIn struct {
 	ID   string `path:"id" doc:"歌曲 id"`
-	Body app.ShiftBatch
+	Body app.TimingEdits
 }
 
 type folderIn struct {
@@ -237,10 +239,10 @@ func register(api huma.API, a *app.App) {
 			return &body[app.TimingView]{v}, nil
 		})
 
-	huma.Register(api, op("shift-lines", http.MethodPost, "/songs/{id}/timing/shifts", "依序移動好幾句",
-		"一串調整依序套用（每一步和「移動一句」相同），全部成功才存檔；dry_run 只回傳結果不存檔，給畫面預覽還沒儲存的調整。", tLyrics),
-		func(ctx context.Context, in *shiftsIn) (*body[app.TimingView], error) {
-			v, err := a.ShiftMany(in.ID, in.Body)
+	huma.Register(api, op("edit-timing", http.MethodPost, "/songs/{id}/timing/edits", "依序套用一串時間的調整",
+		"每一步是移動一句（和「移動一句」相同）或套用 AI 重對的結果；全部成功才存檔。dry_run 只回傳結果不存檔，給畫面預覽還沒儲存的調整。", tLyrics),
+		func(ctx context.Context, in *timingEditsIn) (*body[app.TimingView], error) {
+			v, err := a.EditTiming(in.ID, in.Body)
 			if err != nil {
 				return nil, fail(err)
 			}
@@ -325,6 +327,20 @@ func register(api huma.API, a *app.App) {
 				return nil, huma.Error404NotFound("找不到工作")
 			}
 			return &body[jobs.Summary]{s}, nil
+		})
+
+	huma.Register(api, op("get-job-result", http.MethodGet, "/jobs/{id}/result", "AI 重對的結果",
+		"retime 工作做完後的新時間（不會自動存檔）：放進 POST /songs/{id}/timing/edits 的 retime 套用。", tJobs),
+		func(ctx context.Context, in *jobID) (*body[timing.RetimeResult], error) {
+			raw, ok := a.Jobs.Result(in.ID)
+			if !ok {
+				return nil, huma.Error404NotFound("這件工作沒有結果")
+			}
+			var r timing.RetimeResult
+			if err := json.Unmarshal(raw, &r); err != nil {
+				return nil, err
+			}
+			return &body[timing.RetimeResult]{r}, nil
 		})
 
 	huma.Register(api, op("get-job-log", http.MethodGet, "/jobs/{id}/log", "工作的紀錄", "即時更新請用 SSE 的 job.log 事件。", tJobs),

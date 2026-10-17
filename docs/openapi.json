@@ -720,6 +720,11 @@
             "readOnly": true,
             "type": "string"
           },
+          "anchor": {
+            "description": "retime：這句的開頭（畫面上還沒儲存的時間）；沒給就用存檔的",
+            "format": "double",
+            "type": "number"
+          },
           "force": {
             "description": "全部重做（含覆蓋手改的字幕）",
             "type": "boolean"
@@ -741,6 +746,11 @@
               ""
             ],
             "type": "string"
+          },
+          "next": {
+            "description": "retime line：下一句的開頭；沒給就用存檔的",
+            "format": "double",
+            "type": "number"
           },
           "only_needed": {
             "description": "批次：只做還沒做完的（已完成、缺歌詞、處理中的略過）",
@@ -1287,6 +1297,81 @@
         ],
         "type": "object"
       },
+      "RetimeResult": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/RetimeResult.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "anchor": {
+            "description": "重對時這句的開頭（秒）",
+            "format": "double",
+            "type": "number"
+          },
+          "line": {
+            "description": "第幾句（從 0 起算）",
+            "format": "int64",
+            "type": "integer"
+          },
+          "lines": {
+            "description": "新的時間：from 是第 line 句到最後一句，line 只有一句",
+            "items": {
+              "$ref": "#/components/schemas/RetimedLine"
+            },
+            "type": "array"
+          },
+          "mode": {
+            "description": "from = 這句及之後全部、line = 只重對這句",
+            "enum": [
+              "from",
+              "line"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "line",
+          "mode",
+          "anchor",
+          "lines"
+        ],
+        "type": "object"
+      },
+      "RetimedLine": {
+        "additionalProperties": false,
+        "properties": {
+          "end": {
+            "format": "double",
+            "type": "number"
+          },
+          "start": {
+            "format": "double",
+            "type": "number"
+          },
+          "text": {
+            "type": "string"
+          },
+          "words": {
+            "items": {
+              "$ref": "#/components/schemas/Word"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "text",
+          "start",
+          "end",
+          "words"
+        ],
+        "type": "object"
+      },
       "Ruby": {
         "additionalProperties": false,
         "properties": {
@@ -1413,66 +1498,6 @@
             "type": "number"
           }
         },
-        "type": "object"
-      },
-      "ShiftBatch": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/api/v1/schemas/ShiftBatch.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "dry_run": {
-            "description": "只回傳套用後的結果、不存檔（給畫面預覽還沒儲存的調整）",
-            "type": "boolean"
-          },
-          "shifts": {
-            "description": "依序套用",
-            "items": {
-              "$ref": "#/components/schemas/ShiftOp"
-            },
-            "maxItems": 1000,
-            "minItems": 1,
-            "type": "array"
-          }
-        },
-        "required": [
-          "shifts"
-        ],
-        "type": "object"
-      },
-      "ShiftOp": {
-        "additionalProperties": false,
-        "properties": {
-          "delta": {
-            "description": "移動量（秒）；正數往後、負數往前",
-            "format": "double",
-            "type": "number"
-          },
-          "following": {
-            "description": "之後的句子一起移",
-            "type": "boolean"
-          },
-          "line": {
-            "description": "第幾句（從 0 起算，與對時結果一致）",
-            "format": "int64",
-            "minimum": 0,
-            "type": "integer"
-          },
-          "start": {
-            "description": "新的開始時間（秒）；和 delta 擇一",
-            "format": "double",
-            "type": "number"
-          }
-        },
-        "required": [
-          "line"
-        ],
         "type": "object"
       },
       "ShiftRequest": {
@@ -1873,6 +1898,70 @@
           "songs",
           "workers",
           "started_at"
+        ],
+        "type": "object"
+      },
+      "TimingEdit": {
+        "additionalProperties": false,
+        "properties": {
+          "delta": {
+            "description": "移動量（秒）；正數往後、負數往前",
+            "format": "double",
+            "type": "number"
+          },
+          "following": {
+            "description": "之後的句子一起移",
+            "type": "boolean"
+          },
+          "line": {
+            "description": "第幾句（從 0 起算，與對時結果一致）",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "retime": {
+            "$ref": "#/components/schemas/RetimeResult",
+            "description": "AI 重對的結果（GET /jobs/{id}/result）；有給就不看 delta、start"
+          },
+          "start": {
+            "description": "新的開始時間（秒）；和 delta 擇一",
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "line"
+        ],
+        "type": "object"
+      },
+      "TimingEdits": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/TimingEdits.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "dry_run": {
+            "description": "只回傳套用後的結果、不存檔（給畫面預覽還沒儲存的調整）",
+            "type": "boolean"
+          },
+          "edits": {
+            "description": "依序套用",
+            "items": {
+              "$ref": "#/components/schemas/TimingEdit"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "edits"
         ],
         "type": "object"
       },
@@ -2616,6 +2705,50 @@
         ]
       }
     },
+    "/api/v1/jobs/{id}/result": {
+      "get": {
+        "description": "retime 工作做完後的新時間（不會自動存檔）：放進 POST /songs/{id}/timing/edits 的 retime 套用。",
+        "operationId": "get-job-result",
+        "parameters": [
+          {
+            "description": "工作 id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "工作 id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetimeResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "AI 重對的結果",
+        "tags": [
+          "工作"
+        ]
+      }
+    },
     "/api/v1/jobs/{id}/retry": {
       "post": {
         "description": "用同樣的步驟與選項（含新增歌曲時附上的歌詞、資料夾）重新排一件工作。只有失敗或取消的工作可以重試；回傳新的工作。",
@@ -3321,6 +3454,60 @@
         ]
       }
     },
+    "/api/v1/songs/{id}/timing/edits": {
+      "post": {
+        "description": "每一步是移動一句（和「移動一句」相同）或套用 AI 重對的結果；全部成功才存檔。dry_run 只回傳結果不存檔，給畫面預覽還沒儲存的調整。",
+        "operationId": "edit-timing",
+        "parameters": [
+          {
+            "description": "歌曲 id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "歌曲 id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TimingEdits"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimingView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "依序套用一串時間的調整",
+        "tags": [
+          "歌詞與時間"
+        ]
+      }
+    },
     "/api/v1/songs/{id}/timing/lines/{n}": {
       "patch": {
         "description": "只移這一句：往後撞到下一句時把它往後推、往前撞到上一句時把它往前推（連鎖），唱不完的部分壓縮。回傳的 pushed 是一起被推動的句子。之後伴唱帶顯示需更新（只重燒，不重新對時）。",
@@ -3382,60 +3569,6 @@
           }
         },
         "summary": "移動一句",
-        "tags": [
-          "歌詞與時間"
-        ]
-      }
-    },
-    "/api/v1/songs/{id}/timing/shifts": {
-      "post": {
-        "description": "一串調整依序套用（每一步和「移動一句」相同），全部成功才存檔；dry_run 只回傳結果不存檔，給畫面預覽還沒儲存的調整。",
-        "operationId": "shift-lines",
-        "parameters": [
-          {
-            "description": "歌曲 id",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "description": "歌曲 id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ShiftBatch"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TimingView"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorModel"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "summary": "依序移動好幾句",
         "tags": [
           "歌詞與時間"
         ]

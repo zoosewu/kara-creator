@@ -58,33 +58,36 @@ const (
 
 // Options 是工作的選項。
 type Options struct {
-	Force     bool   `json:"force,omitempty"`      // 全部重做（含覆蓋手改的字幕）
-	Realign   bool   `json:"realign,omitempty"`    // 重新對時
-	Line      int    `json:"line,omitempty"`       // retime：第幾句（從 0 起算）
-	Mode      string `json:"mode,omitempty"`       // retime：from | line
-	AudioOnly bool   `json:"audio_only,omitempty"` // download：只要音訊
-	Folder    string `json:"folder,omitempty"`     // download：新歌放進哪個資料夾
-	Lyrics    string `json:"lyrics,omitempty"`     // download：一起送來的歌詞
+	Force     bool     `json:"force,omitempty"`      // 全部重做（含覆蓋手改的字幕）
+	Realign   bool     `json:"realign,omitempty"`    // 重新對時
+	Line      int      `json:"line,omitempty"`       // retime：第幾句（從 0 起算）
+	Mode      string   `json:"mode,omitempty"`       // retime：from | line
+	Anchor    *float64 `json:"anchor,omitempty"`     // retime：這句的開頭（畫面上還沒儲存的時間）；沒給就用存檔的
+	Next      *float64 `json:"next,omitempty"`       // retime line：下一句的開頭；沒給就用存檔的
+	AudioOnly bool     `json:"audio_only,omitempty"` // download：只要音訊
+	Folder    string   `json:"folder,omitempty"`     // download：新歌放進哪個資料夾
+	Lyrics    string   `json:"lyrics,omitempty"`     // download：一起送來的歌詞
 }
 
 // Job 是一件工作。
 type Job struct {
-	ID       string    `json:"id"`
-	Steps    []string  `json:"steps"`
-	Song     string    `json:"song"` // 歌曲 id；下載完才知道
-	URL      string    `json:"url,omitempty"`
-	Title    string    `json:"title"`
-	Options  Options   `json:"options"`
-	Priority string    `json:"priority"` // interactive | batch
-	Status   string    `json:"status"`
-	Lane     string    `json:"lane"`
-	Stage    string    `json:"stage"`
-	Progress *float64  `json:"progress"`
-	Error    string    `json:"error,omitempty"`
-	Logs     []string  `json:"logs,omitempty"`
-	Created  time.Time `json:"created"`
-	Started  time.Time `json:"started,omitzero"`
-	Finished time.Time `json:"finished,omitzero"`
+	ID       string          `json:"id"`
+	Steps    []string        `json:"steps"`
+	Song     string          `json:"song"` // 歌曲 id；下載完才知道
+	URL      string          `json:"url,omitempty"`
+	Title    string          `json:"title"`
+	Options  Options         `json:"options"`
+	Priority string          `json:"priority"` // interactive | batch
+	Status   string          `json:"status"`
+	Lane     string          `json:"lane"`
+	Stage    string          `json:"stage"`
+	Progress *float64        `json:"progress"`
+	Error    string          `json:"error,omitempty"`
+	Logs     []string        `json:"logs,omitempty"`
+	Result   json.RawMessage `json:"result,omitempty"` // 工作的結果（AI 重對的新時間）
+	Created  time.Time       `json:"created"`
+	Started  time.Time       `json:"started,omitzero"`
+	Finished time.Time       `json:"finished,omitzero"`
 
 	cancelling bool
 	cancel     context.CancelFunc
@@ -135,6 +138,7 @@ type Env struct {
 	Log      func(line string)
 	Progress func(p float64) // 負值 = 不知道
 	Stage    func(name string)
+	Result   func(v any) error // 記下工作的結果
 }
 
 // Config 是佇列的設定。
@@ -335,6 +339,17 @@ func (m *Manager) Get(id string) (Summary, bool) {
 	return j.summary(), true
 }
 
+// Result 回傳工作的結果（還沒有時 ok 為 false）。
+func (m *Manager) Result(id string) (json.RawMessage, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	j, ok := m.jobs[id]
+	if !ok || j.Result == nil {
+		return nil, false
+	}
+	return j.Result, true
+}
+
 // Logs 回傳第 offset 行之後的紀錄。
 func (m *Manager) Logs(id string, offset int) ([]string, bool) {
 	m.mu.Lock()
@@ -497,6 +512,16 @@ func (m *Manager) env(j *Job) Env {
 			j.Stage = name
 			m.notify(j)
 			m.mu.Unlock()
+		},
+		Result: func(v any) error {
+			raw, err := json.Marshal(v)
+			if err != nil {
+				return err
+			}
+			m.mu.Lock()
+			j.Result = raw
+			m.mu.Unlock()
+			return nil
 		},
 	}
 }
