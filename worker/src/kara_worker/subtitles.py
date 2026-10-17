@@ -288,15 +288,15 @@ def _char_times(words: list[dict]) -> list[tuple[float, float]]:
     return times
 
 
-TITLE_MIN = 2.0      # 標題畫面至少顯示幾秒，放不下就不放
+TITLE_MIN = 2.0      # 放在空檔時至少顯示幾秒
 TITLE_MAX = 7.5      # 最多顯示幾秒
-TITLE_SEARCH = 90.0  # 前奏太短時，往後找這麼多秒內的第一段間奏
+TITLE_SEARCH = 40.0  # 前奏太短時，往後找這麼多秒內的第一段間奏；找不到就強制放在開頭
 
 
-def _title_window(lines: list[dict], appear: list[float], style: Style) -> tuple[float, float] | None:
+def _title_window(lines: list[dict], appear: list[float], style: Style) -> tuple[float, float]:
     """標題畫面的時間：放在第一段夠長的空檔（超過 break_gap 秒，和字幕判斷間奏同一個標準）：
-    前奏（歌曲開頭到第一句）夠長就放前奏；開頭直接唱副歌的話，放在歌曲前段（TITLE_SEARCH 秒內）的第一段間奏，
-    前一句的字幕收掉之後出現、下一段字幕出現之前消失。都放不下就不放。"""
+    前奏（歌曲開頭到第一句）夠長就放前奏；開頭直接唱副歌的話，放在開頭 TITLE_SEARCH 秒內的第一段間奏，
+    前一句的字幕收掉之後出現、下一段字幕出現之前消失。都沒有就強制放在開頭（標題在畫面中央，不會壓到下方的歌詞）。"""
     for i in range(len(lines)):
         if i and lines[i]["start"] > TITLE_SEARCH:
             break
@@ -307,7 +307,7 @@ def _title_window(lines: list[dict], appear: list[float], style: Style) -> tuple
         end = min(appear[i] - 0.3, start + TITLE_MAX)
         if end - start >= TITLE_MIN:
             return start, end
-    return None
+    return 0.5, 0.5 + TITLE_MAX
 
 
 def _schedule(lines: list[dict], style: Style) -> tuple[list[float], list[int]]:

@@ -100,10 +100,11 @@ def test_title_window():
     assert start == 20 + style.tail + 0.3 and end == start + subtitles.TITLE_MAX
     start, end = window((1, 5), (5, 20), (29, 31))
     assert end == 29 - style.lead - 0.3
-    # 間奏太晚（不算歌曲前段）、間奏太短、完全沒有間奏：不放
-    assert window((1, 5), (5, 95), (110, 112)) is None
-    assert window((1, 5), (5, 20), (25, 28)) is None
-    assert window((1, 5), (5, 9)) is None
+    # 開頭 40 秒內沒有夠長的空檔（間奏太晚、太短、完全沒有）：強制放在開頭
+    forced = (0.5, 0.5 + subtitles.TITLE_MAX)
+    assert window((1, 5), (5, 30), (45, 48)) == forced
+    assert window((1, 5), (5, 20), (25, 28)) == forced
+    assert window((1, 5), (5, 9)) == forced
 
 
 def test_bitrate_cap():
