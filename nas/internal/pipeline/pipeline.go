@@ -784,6 +784,12 @@ func (p *Pipeline) Check(ctx context.Context, id string, force bool, run Run) er
 
 // ---- AI 重對 -------------------------------------------------------------------
 
+// 播放畫面的 AI 重對是使用者正在等的：同一個優先等級裡最先派（只重對一句又比重對之後全部先）。
+const (
+	UrgencyRetimeFrom = 1
+	UrgencyRetimeLine = 2
+)
+
 // RetimeOptions 是 AI 重對的設定：以第 Line 句的開頭為準（Anchor 沒給就用存檔的；Next 是只重對這句時的範圍結尾）。
 type RetimeOptions struct {
 	Line         int
@@ -828,7 +834,7 @@ func (p *Pipeline) Retime(ctx context.Context, id string, o RetimeOptions, run R
 	proto := toProto(rubies)
 	result := timing.RetimeResult{Line: line, Mode: mode, Anchor: anchor}
 	if mode == timing.RetimeFrom {
-		res, err := p.d.AI.Submit(ctx, run.spec(scheduler.Spec{Kind: wp.KindAlignFrom, Song: id, Inputs: inputs,
+		res, err := p.d.AI.Submit(ctx, run.spec(scheduler.Spec{Kind: wp.KindAlignFrom, Urgency: UrgencyRetimeFrom, Song: id, Inputs: inputs,
 			Params: wp.AlignFromParams{AlignParams: wp.AlignParams{Texts: texts, Rubies: proto, Language: r.Language,
 				Model: planner.WhisperModel}, First: line, Anchor: anchor}}))
 		if err != nil {
@@ -849,7 +855,7 @@ func (p *Pipeline) Retime(ctx context.Context, id string, o RetimeOptions, run R
 			v := al.Lines[line+1].Start
 			t1 = &v
 		}
-		res, err := p.d.AI.Submit(ctx, run.spec(scheduler.Spec{Kind: wp.KindAlignLine, Song: id, Inputs: inputs,
+		res, err := p.d.AI.Submit(ctx, run.spec(scheduler.Spec{Kind: wp.KindAlignLine, Urgency: UrgencyRetimeLine, Song: id, Inputs: inputs,
 			Params: wp.AlignLineParams{Text: texts[line], Rubies: proto[line], T0: anchor, T1: t1, Language: r.Language}}))
 		if err != nil {
 			return err

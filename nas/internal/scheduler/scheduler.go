@@ -47,6 +47,7 @@ type Input struct {
 type Spec struct {
 	Kind     string
 	Priority string // wp.Priority*
+	Urgency  int    // 同一個優先等級裡的先後，大的先（播放畫面的 AI 重對：只重對一句 2、重對之後全部 1；其他 0）
 	Song     string
 	Inputs   map[string]Input
 	Params   any
@@ -239,16 +240,9 @@ func (s *Scheduler) broadcast() {
 
 var priorityRank = map[string]int{wp.PriorityRealtime: 0, wp.PriorityInteractive: 1, wp.PriorityBatch: 2}
 
-// urgency 是同一個優先等級裡的先後：使用者在播放畫面等的 AI 重對最急，只重對一句又比重對之後全部急。
-var urgency = map[string]int{wp.KindAlignLine: 0, wp.KindAlignFrom: 1}
-
-// rank 是挑任務的順序（小的先）：優先等級，再來是同一等級裡的先後。
+// rank 是挑任務的順序（小的先）：優先等級，再來是同一等級裡的先後（Urgency 大的先）。
 func rank(t *task) [2]int {
-	u, ok := urgency[t.Kind]
-	if !ok {
-		u = len(urgency)
-	}
-	return [2]int{priorityRank[t.Priority], u}
+	return [2]int{priorityRank[t.Priority], -t.spec.Urgency}
 }
 
 // pick 替 worker 挑一件任務（持有鎖時呼叫）。

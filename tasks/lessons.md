@@ -63,4 +63,7 @@
 - 跑完整的 CI 檢查，不只是測試：`gofmt -l .`（CI 會擋）、`go vet`、`go test`、前端 `npm run check`、worker 的 `ruff check` 與 `pytest`。
   2026-10-06 的 restore --sources 只跑了測試，gofmt 沒過，CI 失敗了兩天才發現。
 - push 之後查 Actions 的結果（`xh https://api.github.com/repos/zoosewu/kara-creator/actions/runs`），不要假設會過。
-
+- 檢查指令不要用 `&&` 串成一行又只看最後的輸出：`test -z "$(gofmt -l .)" && go vet && go test | rg -v ok` 在 gofmt 不過時
+  後面全部被跳過、什麼都不印，看起來像通過。2026-10-17 因此連續 push 三個 gofmt 沒過的 commit。
+  每一步都印出結果（例如 `echo "gofmt: $(gofmt -l . | wc -l) files"`、`echo vet-ok`），沒看到每一步的結果就不算通過。
+- 說「還沒 push 的 commit」之前先 `git fetch` 再 `git log origin/main..HEAD`，不要憑記憶（使用者可能已經自己 push 了）。

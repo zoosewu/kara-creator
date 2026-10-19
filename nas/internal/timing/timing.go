@@ -209,9 +209,9 @@ var RetimeModes = map[string]string{RetimeFrom: "重新對時這句及之後全�
 // RetimeResult 是 AI 重對的結果：第 Line 句起（from）或只有這句（line）的新時間，以 Anchor 為開頭。
 // 工作做完不存檔，交給畫面放進還沒儲存的調整，按儲存時用 ApplyRetime 套用。
 type RetimeResult struct {
-	Line   int       `json:"line" doc:"第幾句（從 0 起算）"`
-	Mode   string    `json:"mode" enum:"from,line" doc:"from = 這句及之後全部、line = 只重對這句"`
-	Anchor float64   `json:"anchor" doc:"重對時這句的開頭（秒）"`
+	Line   int           `json:"line" doc:"第幾句（從 0 起算）"`
+	Mode   string        `json:"mode" enum:"from,line" doc:"from = 這句及之後全部、line = 只重對這句"`
+	Anchor float64       `json:"anchor" doc:"重對時這句的開頭（秒）"`
 	Lines  []RetimedLine `json:"lines" doc:"新的時間：from 是第 line 句到最後一句，line 只有一句"`
 }
 

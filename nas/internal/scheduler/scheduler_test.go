@@ -209,19 +209,20 @@ func TestPriorityAndCache(t *testing.T) {
 func TestRetimeFirst(t *testing.T) {
 	e := newEnv(t, Options{})
 	in := map[string]Input{}
-	submit := func(name, kind, priority string) {
+	submit := func(name, kind, priority string, urgency int) {
 		in[name] = e.input(name+".wav", []byte(name))
 		n := e.s.Pending()
 		go func() {
-			_, _ = e.s.Submit(context.Background(), Spec{Kind: kind, Priority: priority, Inputs: map[string]Input{wp.InputAudio: in[name]}, Params: 1})
+			_, _ = e.s.Submit(context.Background(), Spec{Kind: kind, Priority: priority, Urgency: urgency,
+				Inputs: map[string]Input{wp.InputAudio: in[name]}, Params: 1})
 		}()
 		waitFor(t, "排入 "+name, func() bool { return e.s.Pending() == n+1 })
 	}
-	// 排入順序：批次、編輯完的製作伴唱帶（互動）、AI 重對之後全部、AI 重對一句
-	submit("batch", wp.KindAlign, wp.PriorityBatch)
-	submit("edited", wp.KindAlign, wp.PriorityInteractive)
-	submit("from", wp.KindAlignFrom, wp.PriorityInteractive)
-	submit("line", wp.KindAlignLine, wp.PriorityInteractive)
+	// 排入順序：批次、編輯完的製作伴唱帶（互動；改了一句歌詞，也是 align_line 但不是 AI 重對）、AI 重對之後全部、AI 重對一句
+	submit("batch", wp.KindAlign, wp.PriorityBatch, 0)
+	submit("edited", wp.KindAlignLine, wp.PriorityInteractive, 0)
+	submit("from", wp.KindAlignFrom, wp.PriorityInteractive, 1)
+	submit("line", wp.KindAlignLine, wp.PriorityInteractive, 2)
 	e.s.mu.Lock()
 	defer e.s.mu.Unlock()
 	// 快取裡有 edited 的輸入：也不能插到 AI 重對前面
