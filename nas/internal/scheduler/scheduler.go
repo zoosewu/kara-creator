@@ -239,6 +239,18 @@ func (s *Scheduler) broadcast() {
 
 var priorityRank = map[string]int{wp.PriorityRealtime: 0, wp.PriorityInteractive: 1, wp.PriorityBatch: 2}
 
+// urgency 是同一個優先等級裡的先後：使用者在播放畫面等的 AI 重對最急，只重對一句又比重對之後全部急。
+var urgency = map[string]int{wp.KindAlignLine: 0, wp.KindAlignFrom: 1}
+
+// rank 是挑任務的順序（小的先）：優先等級，再來是同一等級裡的先後。
+func rank(t *task) [2]int {
+	u, ok := urgency[t.Kind]
+	if !ok {
+		u = len(urgency)
+	}
+	return [2]int{priorityRank[t.Priority], u}
+}
+
 // pick 替 worker 挑一件任務（持有鎖時呼叫）。
 func (s *Scheduler) pick(w *Worker, channel string) *task {
 	if w.Disabled || !w.VersionOK {
@@ -255,15 +267,16 @@ func (s *Scheduler) pick(w *Worker, channel string) *task {
 	}
 	sort.Slice(candidates, func(a, b int) bool {
 		x, y := candidates[a], candidates[b]
-		if priorityRank[x.Priority] != priorityRank[y.Priority] {
-			return priorityRank[x.Priority] < priorityRank[y.Priority]
+		if rx, ry := rank(x), rank(y); rx != ry {
+			return rx[0] < ry[0] || rx[0] == ry[0] && rx[1] < ry[1]
 		}
 		return x.created.Before(y.created) || x.created.Equal(y.created) && x.ID < y.ID
 	})
-	top := priorityRank[candidates[0].Priority]
+	// 快取只在同一個順序裡比較：不能讓比較不急的任務靠快取插隊
+	top := rank(candidates[0])
 	var same []*task
 	for _, t := range candidates {
-		if priorityRank[t.Priority] == top {
+		if rank(t) == top {
 			same = append(same, t)
 		}
 	}

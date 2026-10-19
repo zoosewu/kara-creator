@@ -39,7 +39,7 @@ func ChannelOf(kind string) string {
 // 優先順序，由高到低。
 const (
 	PriorityRealtime    = "realtime"    // 即時：reading
-	PriorityInteractive = "interactive" // 互動：播放畫面的 AI 重對、單獨的檢查、使用者在等的重新燒錄
+	PriorityInteractive = "interactive" // 互動：播放畫面的 AI 重對、編輯完按的製作伴唱帶
 	PriorityBatch       = "batch"       // 批次：製作伴唱帶、批次重新處理
 )
 

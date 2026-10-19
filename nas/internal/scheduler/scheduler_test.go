@@ -206,6 +206,42 @@ func TestPriorityAndCache(t *testing.T) {
 	}
 }
 
+func TestRetimeFirst(t *testing.T) {
+	e := newEnv(t, Options{})
+	in := map[string]Input{}
+	submit := func(name, kind, priority string) {
+		in[name] = e.input(name+".wav", []byte(name))
+		n := e.s.Pending()
+		go func() {
+			_, _ = e.s.Submit(context.Background(), Spec{Kind: kind, Priority: priority, Inputs: map[string]Input{wp.InputAudio: in[name]}, Params: 1})
+		}()
+		waitFor(t, "排入 "+name, func() bool { return e.s.Pending() == n+1 })
+	}
+	// 排入順序：批次、編輯完的製作伴唱帶（互動）、AI 重對之後全部、AI 重對一句
+	submit("batch", wp.KindAlign, wp.PriorityBatch)
+	submit("edited", wp.KindAlign, wp.PriorityInteractive)
+	submit("from", wp.KindAlignFrom, wp.PriorityInteractive)
+	submit("line", wp.KindAlignLine, wp.PriorityInteractive)
+	e.s.mu.Lock()
+	defer e.s.mu.Unlock()
+	// 快取裡有 edited 的輸入：也不能插到 AI 重對前面
+	w := &Worker{Name: "pc", VersionOK: true, Kinds: []string{wp.KindAlign, wp.KindAlignFrom, wp.KindAlignLine},
+		cached: map[string]bool{in["edited"].SHA256: true}}
+	name := map[string]string{}
+	for k, v := range in {
+		name[v.SHA256] = k
+	}
+	got := []string{}
+	for range 4 {
+		tk := e.s.pick(w, wp.ChannelHeavy)
+		got = append(got, name[tk.Inputs[wp.InputAudio].SHA256])
+		tk.state = leased
+	}
+	if strings.Join(got, ",") != "line,from,edited,batch" {
+		t.Fatalf("派工順序 %v：AI 重對一句 > 重對之後全部 > 其他互動 > 批次", got)
+	}
+}
+
 func TestCacheAging(t *testing.T) {
 	now := time.Now()
 	e := newEnv(t, Options{Now: func() time.Time { return now }, CacheAging: time.Minute})

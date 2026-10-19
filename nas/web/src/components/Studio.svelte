@@ -514,7 +514,7 @@
     if (!(await save())) return
     retimed = textChanged = false
     close()
-    const res = await store.runJob([id], ['karaoke'])
+    const res = await store.runJob([id], ['karaoke'], { interactive: true }) // 編輯完在等結果：比批次優先
     if (res?.created.length) store.notify('已排入佇列：製作伴唱帶')
   }
 

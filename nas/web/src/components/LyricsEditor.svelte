@@ -444,7 +444,7 @@
             if (!v) return
             if (!v.doc.lines.some((l) => l.kind === 'lyric')) return store.notify('歌詞是空的，無法製作伴唱帶', true)
             close(true)
-            const res = await store.runJob([id], ['karaoke'])
+            const res = await store.runJob([id], ['karaoke'], { interactive: true }) // 編輯完在等結果：比批次優先
             if (res?.created.length) store.notify(`已排入佇列：製作伴唱帶${convertedNote(v)}`)
           }}>儲存並製作伴唱帶</button
         >
