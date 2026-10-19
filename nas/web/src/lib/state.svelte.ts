@@ -16,7 +16,8 @@ class Store {
   workers = $state<Worker[]>([])
 
   /** 選取的資料夾（新歌存入這裡）；空字串 = 最上層 */
-  folder = $state<string>(load('folder', ''))
+  // 新歌預設資料夾（設定裡選；只記在這台瀏覽器）
+  newSongFolder = $state<string>(load('folder', ''))
   collapsed = new SvelteSet<string>(load<string[]>('collapsed', []))
   selected = new SvelteSet<string>()
   lastPick: string | null = null
@@ -40,7 +41,7 @@ class Store {
     this.settings = data.settings
     this.workers = data.workers
     this.jobs = data.jobs
-    if (this.folder && !this.folders.some((f) => f.id === this.folder)) this.selectFolder('')
+    if (this.newSongFolder && !this.folders.some((f) => f.id === this.newSongFolder)) this.setNewSongFolder('')
     for (const id of [...this.selected]) if (!this.songs.has(id)) this.selected.delete(id)
     if (!this.selectedJob && this.jobs.length) this.selectedJob = this.jobs[0].id
     this.loaded = true
@@ -166,10 +167,9 @@ class Store {
     return this.songsIn(folder).concat(...this.childFolders(folder).map((f) => this.songsUnder(f.id)))
   }
 
-  selectFolder(id: string) {
-    this.folder = id
-    if (id) this.collapsed.delete(id)
-    this.remember()
+  setNewSongFolder(id: string) {
+    this.newSongFolder = id
+    save('folder', id)
   }
 
   toggleFolder(id: string) {
@@ -179,7 +179,6 @@ class Store {
   }
 
   remember() {
-    save('folder', this.folder)
     save('collapsed', [...this.collapsed])
   }
 

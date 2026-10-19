@@ -131,9 +131,6 @@
       bind:this={root}
       type="button"
       class="lib-root {dnd.over?.key === 'root' ? dnd.over.cls : ''}"
-      class:selected={store.folder === ''}
-      title="選取最上層（新歌存入這裡）"
-      onclick={() => store.selectFolder('')}
       ondragover={(e) => dnd.overRow(e, root!, 'root', { kind: 'root' })}
       ondragleave={(e) => dnd.leave(e, root!, 'root')}
       ondrop={(e) => dnd.drop(e, root!, { kind: 'root' })}

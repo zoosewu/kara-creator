@@ -14,7 +14,7 @@
       () =>
         api<{ id: string }>('/songs', {
           method: 'POST',
-          body: { url: url.trim(), folder: store.folder, audio_only: audioOnly, lyrics: lyrics.trim(), make },
+          body: { url: url.trim(), folder: store.newSongFolder, audio_only: audioOnly, lyrics: lyrics.trim(), make },
         }),
       '已排入佇列',
     )
@@ -39,6 +39,6 @@
       <summary>附上歌詞</summary>
       <textarea rows="6" spellcheck="false" placeholder="一行一句。也可以之後再從「歌詞」輸入。" bind:value={lyrics}></textarea>
     </details>
-    <span class="muted">新歌存入：{store.pathLabel(store.folder)}</span>
+    <span class="muted">新歌存入：{store.pathLabel(store.newSongFolder)}</span>
   </div>
 </section>

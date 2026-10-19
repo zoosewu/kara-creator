@@ -202,7 +202,6 @@ details textarea { width: 100%; margin-top: 8px; resize: vertical; font-family: 
   font-weight: 600; font-size: 13px;
 }
 .lib-root:hover { background: var(--surface-2); }
-.lib-root.selected { background: var(--accent-soft); color: var(--accent); }
 
 /* 每一列依層級縮排；--depth 由 JS 設定。 */
 .tree-row { padding-left: calc(8px + var(--depth, 0) * 22px); }
@@ -214,9 +213,7 @@ details textarea { width: 100%; margin-top: 8px; resize: vertical; font-family: 
   cursor: pointer; user-select: none;
 }
 .folder-row:hover { background: var(--surface-2); }
-.folder-row.selected { background: var(--accent-soft); }
 .folder-row > svg.folder-icon { width: 19px; height: 19px; color: var(--muted); flex: none; }
-.folder-row.selected > svg.folder-icon { color: var(--accent); }
 .caret {
   display: inline-grid; place-items: center; flex: none;
   width: 22px; height: 22px; border: 0; border-radius: 6px; background: none;
@@ -229,7 +226,7 @@ details textarea { width: 100%; margin-top: 8px; resize: vertical; font-family: 
 .folder-name { font-weight: 600; }
 .folder-meta { font-size: 12px; color: var(--muted); margin-left: 8px; }
 .row-tools { display: flex; gap: 10px; opacity: .6; transition: opacity .12s; }
-.folder-row:hover .row-tools, .folder-row:focus-within .row-tools, .folder-row.selected .row-tools { opacity: 1; }
+.folder-row:hover .row-tools, .folder-row:focus-within .row-tools { opacity: 1; }
 
 .grip { flex: none; width: 14px; height: 14px; color: var(--border); cursor: grab; }
 .tree-row:hover .grip { color: var(--muted); }

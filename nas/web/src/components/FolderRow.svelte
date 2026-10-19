@@ -22,17 +22,15 @@
 <div
   bind:this={row}
   class="folder-row tree-row {dnd.over?.key === key ? dnd.over.cls : ''}"
-  class:selected={store.folder === folder.id}
   class:dragging-source={dnd.isSource('folder', folder.id)}
   style="--depth:{depth}"
-  title="選取（新歌存入這裡）"
   role="treeitem"
-  aria-selected={store.folder === folder.id}
+  aria-selected="false"
   aria-expanded={open}
   tabindex="0"
   draggable={!editing}
-  onclick={() => store.selectFolder(folder.id)}
-  onkeydown={(e) => e.key === 'Enter' && store.selectFolder(folder.id)}
+  onclick={() => store.toggleFolder(folder.id)}
+  onkeydown={(e) => e.key === 'Enter' && store.toggleFolder(folder.id)}
   ondragstart={(e) => dnd.start(e, 'folder', folder.id, folder.parent)}
   ondragend={() => dnd.end()}
   ondragover={(e) => dnd.overRow(e, row!, key, info)}

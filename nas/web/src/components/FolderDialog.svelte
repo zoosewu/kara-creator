@@ -32,7 +32,6 @@
   async function remove() {
     if (!folder || !confirm(`刪除資料夾「${folder.name}」？\n裡面的歌曲與子資料夾會移到上一層。`)) return
     if (!(await store.attempt(() => api(`/folders/${folder.id}`, { method: 'DELETE' }), '已刪除資料夾'))) return
-    if (store.folder && store.pathOf(store.folder).includes(folder.id)) store.selectFolder(folder.parent)
     close()
   }
 </script>

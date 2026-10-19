@@ -3,6 +3,7 @@
   import { api, type Font, type System } from '../lib/api'
   import { store } from '../lib/state.svelte'
   import { ui } from '../lib/ui.svelte'
+  import FolderSelect from './FolderSelect.svelte'
   import Icon from './Icon.svelte'
 
   const BASE_RATIO = 0.075 // 預設字幕字高 / 畫面高（和 worker 的 subtitles.Style 一致）
@@ -19,6 +20,7 @@
   let fonts = $state<Font[]>([])
   let chosen = $state<Record<string, string>>({ ...(store.settings.fonts ?? {}) })
   let exportOriginal = $state(store.settings.export_original ?? false)
+  let newSongFolder = $state(store.newSongFolder)
   let system = $state<System | null>(null)
   let box = $state<HTMLDivElement>()
   let boxHeight = $state(0)
@@ -51,7 +53,9 @@
     e.preventDefault()
     const fontBody: Record<string, string | null> = {}
     for (const [l] of LANGS) if ((chosen[l] ?? '') !== (store.settings.fonts?.[l] ?? '')) fontBody[l] = chosen[l] || null
-    if (await store.attempt(() => api('/settings', { method: 'PATCH', body: { subtitle_scale: scale / 100, fonts: fontBody, export_original: exportOriginal } }), '已儲存設定')) close()
+    if (!(await store.attempt(() => api('/settings', { method: 'PATCH', body: { subtitle_scale: scale / 100, fonts: fontBody, export_original: exportOriginal } }), '已儲存設定'))) return
+    store.setNewSongFolder(newSongFolder)
+    close()
   }
 
   async function rollback() {
@@ -69,7 +73,7 @@
   <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
   <form class="dialog" role="dialog" aria-modal="true" aria-labelledby="settings-heading" onsubmit={submit}>
     <header class="dialog-head">
-      <h2 id="settings-heading">設定（所有歌）</h2>
+      <h2 id="settings-heading">設定</h2>
       <button type="button" class="icon-btn" aria-label="關閉" onclick={close}><Icon name="close" size={18} /></button>
     </header>
     <div class="dialog-body">
@@ -109,6 +113,10 @@
           ? ''
           : ' 目前沒有字型檔。'}
       </p>
+
+      <h3 class="field">新歌</h3>
+      <label class="field">預設資料夾<FolderSelect bind:value={newSongFolder} /></label>
+      <p class="hint">用網址新增的歌存在這裡；只記在這台瀏覽器。放進 inbox 的歌在曲庫最上層。</p>
 
       <h3 class="field">匯出</h3>
       <label class="check-field"><input type="checkbox" bind:checked={exportOriginal} /> 也匯出原曲音訊</label>
