@@ -5,6 +5,7 @@
   import { onMount, tick } from 'svelte'
   import { api, enc, type EditorLine, type JobSummary, type LyricsViews, type QAView, type RetimeResult, type TimingView } from '../lib/api'
   import { menu } from '../lib/menu.svelte'
+  import { prefs } from '../lib/prefs.svelte'
   import { store } from '../lib/state.svelte'
   import { ui, type StudioOpts } from '../lib/ui.svelte'
   import { fmtClock, nextSinger, sameText } from '../lib/util'
@@ -32,7 +33,7 @@
   type SongView_media = (typeof song.media)[number]
   let selected = $state(0)
   let playing = $state(-1)
-  let follow = $state(true)
+  let follow = $state(prefs.studioFollow)
   let retimed = $state(false)
   let textChanged = $state(false)
   // 還沒儲存的調整（按「儲存」才送出，避免誤觸）：時間的調整（移動、AI 重對的結果）依序記在 ops，
@@ -57,7 +58,9 @@
   let editingText = $state<number | null>(null)
   let pendingJob = $state<{ id: string; index: number; mode: string; count: number } | null>(null)
   let statusText = $state('')
-  let rate = $state(1)
+  let rate = $state(prefs.rate)
+  let volume = $state(prefs.volume)
+  let muted = $state(prefs.muted)
   let paused = $state(true)
   let now = $state(0)
   let duration = $state(1)
@@ -156,7 +159,7 @@
       const near = timing.findIndex((t) => t.end >= start)
       select(near >= 0 ? near : 0, { manual: false })
     }
-    setSource(media0.find((m) => m.kind === opts.kind) ?? media0[0], start, true)
+    setSource(media0.find((m) => m.kind === opts.kind) ?? media0.find((m) => m.kind === prefs.studioKind) ?? media0[0], start, true)
     cancelAnimationFrame(raf)
     raf = requestAnimationFrame(loop)
   }
@@ -615,7 +618,7 @@
       <div class="studio-stage">
         <div class="stage-frame" bind:this={frame}>
           <!-- svelte-ignore a11y_media_has_caption -->
-          <video bind:this={video} preload="auto" playsinline onclick={() => (video!.paused ? video!.play() : video!.pause())}></video>
+          <video bind:this={video} bind:volume bind:muted preload="auto" playsinline onclick={() => (video!.paused ? video!.play() : video!.pause())}></video>
           {#if !burned}
             <div class="live-trans" style="font-size:{transFont}px;top:{transTop}px;left:{subSide}px;right:{subSide}px">{trans}</div>
             <div
@@ -653,12 +656,30 @@
             title="播放速度"
             aria-label="播放速度"
             bind:value={rate}
-            onchange={() => video && (video.playbackRate = rate)}
+            onchange={() => (video && (video.playbackRate = rate), prefs.set('rate', rate))}
           >
             <option value={0.5}>0.5×</option>
             <option value={0.75}>0.75×</option>
             <option value={1}>1×</option>
           </select>
+          <button
+            type="button"
+            class="icon-btn"
+            title={muted ? '取消靜音' : '靜音'}
+            aria-label={muted ? '取消靜音' : '靜音'}
+            onclick={() => ((muted = !muted), prefs.set('muted', muted))}><Icon name={muted || volume === 0 ? 'mute' : 'volume'} size={18} /></button
+          >
+          <input
+            class="studio-volume"
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            aria-label="音量"
+            title="音量 {Math.round(volume * 100)}%"
+            bind:value={volume}
+            onchange={() => prefs.set('volume', volume)}
+          />
         </div>
         <div class="studio-keys">
           <span><kbd>空白</kbd> 播放 / 暫停</span>

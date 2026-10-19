@@ -578,6 +578,7 @@ ruby.editing { background: var(--accent-soft); }
 .studio-controls { display: flex; align-items: center; gap: 10px; }
 .studio-controls input[type=range] { flex: 1; accent-color: var(--accent); }
 .studio-controls select { width: auto; }
+.studio-controls input.studio-volume { flex: 0 0 72px; }
 .studio-clock { font-variant-numeric: tabular-nums; font-size: 13px; min-width: 64px; }
 .studio-keys { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--muted); }
 kbd {

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte'
   import { api, enc, type EditorLine, type LyricsViews, type QAView, type Segment, type TimingView, type Views } from '../lib/api'
+  import { prefs } from '../lib/prefs.svelte'
   import { store } from '../lib/state.svelte'
   import { ui } from '../lib/ui.svelte'
   import { fmtClock, nextSinger, sameText } from '../lib/util'
@@ -63,7 +64,7 @@
       exists = v.exists
       qa = new Map(q.lines.map((c) => [c.index, c]))
       timing = t.lines
-      mode = v.doc.lines.some((l) => l.kind === 'lyric') ? 'visual' : 'plain'
+      mode = v.doc.lines.some((l) => l.kind === 'lyric') ? prefs.editorMode : 'plain'
       if (mode !== 'visual') text = views![mode]
       status = exists ? '' : '還沒有歌詞檔'
       loaded = true
@@ -104,6 +105,7 @@
     closePops()
     if (!(await store.attempt(sync))) return
     mode = m
+    prefs.set('editorMode', m)
     if (m !== 'visual') text = views![m]
   }
 

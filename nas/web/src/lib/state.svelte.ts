@@ -2,6 +2,7 @@
 // 初次載入 GET /library，之後靠 SSE（/api/v1/events）更新，不輪詢。
 import { SvelteMap, SvelteSet } from 'svelte/reactivity'
 import { api, type FolderView, type JobSummary, type Settings, type SongView, type Worker } from './api'
+import { prefs } from './prefs.svelte'
 import { load, save } from './util'
 
 type LibraryOut = { folders: FolderView[]; songs: SongView[]; settings: Settings; workers: Worker[]; jobs: JobSummary[] }
@@ -16,8 +17,6 @@ class Store {
   workers = $state<Worker[]>([])
 
   /** 選取的資料夾（新歌存入這裡）；空字串 = 最上層 */
-  // 新歌預設資料夾（設定裡選；只記在這台瀏覽器）
-  newSongFolder = $state<string>(load('folder', ''))
   collapsed = new SvelteSet<string>(load<string[]>('collapsed', []))
   selected = new SvelteSet<string>()
   lastPick: string | null = null
@@ -41,7 +40,7 @@ class Store {
     this.settings = data.settings
     this.workers = data.workers
     this.jobs = data.jobs
-    if (this.newSongFolder && !this.folders.some((f) => f.id === this.newSongFolder)) this.setNewSongFolder('')
+    if (prefs.newSongFolder && !this.folders.some((f) => f.id === prefs.newSongFolder)) prefs.set('newSongFolder', '')
     for (const id of [...this.selected]) if (!this.songs.has(id)) this.selected.delete(id)
     if (!this.selectedJob && this.jobs.length) this.selectedJob = this.jobs[0].id
     this.loaded = true
@@ -165,11 +164,6 @@ class Store {
   /** 資料夾裡（含所有子資料夾）的歌。 */
   songsUnder(folder: string): SongView[] {
     return this.songsIn(folder).concat(...this.childFolders(folder).map((f) => this.songsUnder(f.id)))
-  }
-
-  setNewSongFolder(id: string) {
-    this.newSongFolder = id
-    save('folder', id)
   }
 
   toggleFolder(id: string) {
