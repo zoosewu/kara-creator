@@ -809,26 +809,28 @@
                     onclick={(e) => (e.stopPropagation(), playLine(i))}><Icon name="warn" /></button
                   >
                 {:else}<span></span>{/if}
-                <span
-                  class="studio-time"
-                  title={t?.mismatch
-                    ? '歌詞改過，這是改之前的時間'
-                    : draftLines.has(i) && savedTiming[i]
-                      ? `還沒儲存（原本 ${fmtClock(savedTiming[i].start)}）`
-                      : '開始時間'}>{t ? fmtClock(t.start) : '—'}</span
-                >
-                <button type="button" class="btn small set-now" disabled={!t} title="把開始設成目前位置（Enter）" onclick={(e) => (e.stopPropagation(), setNow(i))}
-                  >設為現在</button
-                >
-                <button
-                  type="button"
-                  class="btn small ai-btn"
-                  disabled={!t || t.mismatch || Boolean(pendingJob)}
-                  aria-haspopup="menu"
-                  title="AI 重對：以這句目前的開頭為準重新對時"
-                  aria-label="AI 重對"
-                  onclick={(e) => (e.stopPropagation(), retimeMenu(e.currentTarget, i))}>AI<Icon name="caret" /></button
-                >
+                <div class="line-tools">
+                  <span
+                    class="studio-time"
+                    title={t?.mismatch
+                      ? '歌詞改過，這是改之前的時間'
+                      : draftLines.has(i) && savedTiming[i]
+                        ? `還沒儲存（原本 ${fmtClock(savedTiming[i].start)}）`
+                        : '開始時間'}>{t ? fmtClock(t.start) : '—'}</span
+                  >
+                  <button type="button" class="btn small set-now" disabled={!t} title="把開始設成目前位置（Enter）" onclick={(e) => (e.stopPropagation(), setNow(i))}
+                    >設為現在</button
+                  >
+                  <button
+                    type="button"
+                    class="btn small ai-btn"
+                    disabled={!t || t.mismatch || Boolean(pendingJob)}
+                    aria-haspopup="menu"
+                    title="AI 重對：以這句目前的開頭為準重新對時"
+                    aria-label="AI 重對"
+                    onclick={(e) => (e.stopPropagation(), retimeMenu(e.currentTarget, i))}>AI<Icon name="caret" /></button
+                  >
+                </div>
               </div>
             {/if}
           {/each}

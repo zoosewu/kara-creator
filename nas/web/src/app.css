@@ -159,11 +159,11 @@ input[type=range] { padding: 0; border: none; border-radius: 0; background: none
 /* 亮色時顯示月亮（點了切到暗色），暗色時顯示太陽。 */
 :root[data-theme="dark"] .i-moon, :root[data-theme="light"] .i-sun { display: none; }
 
-.layout { max-width: 1280px; margin: 0 auto; padding: 8px 24px 32px; display: grid; gap: 16px; }
+.layout { max-width: 1280px; margin: 0 auto; padding: 8px 24px 32px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
 .panel-head { display: flex; align-items: baseline; gap: 8px; padding: 14px 16px 10px; }
 .columns { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; align-items: start; }
-@media (max-width: 960px) { .columns { grid-template-columns: 1fr; } }
+@media (max-width: 960px) { .columns { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---- 新增歌曲 ---- */
 .new-song { padding: 14px 16px; }
@@ -193,7 +193,7 @@ details textarea { width: 100%; margin-top: 8px; resize: vertical; font-family: 
 .crumbs button.current:hover { background: none; }
 .crumbs .sep { color: var(--border); }
 .crumbs .count { margin-left: 6px; color: var(--muted); font-size: 12px; }
-.lib-tools { display: flex; align-items: center; gap: 8px; }
+.lib-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 /* ---- 樹狀曲庫 ---- */
 .lib-root {
@@ -613,7 +613,7 @@ kbd {
 }
 .studio-lines { flex: 1; overflow: auto; padding: 0 8px 12px; border-top: 1px solid var(--border); }
 .studio-line {
-  display: grid; grid-template-columns: 30px 22px 30px minmax(0, 1fr) 28px auto auto auto; align-items: center; gap: 4px 8px;
+  display: grid; grid-template-columns: var(--play-size) 22px 30px minmax(0, 1fr) 28px auto; align-items: center; gap: 4px 8px;
   padding: 6px 8px; border-radius: 8px; cursor: pointer; border: 1px solid transparent;
 }
 .studio-line:hover { background: var(--surface-2); }
@@ -750,3 +750,87 @@ ruby.slot rt { color: var(--border); }
 .path-box { display: flex; gap: 6px; align-items: center; }
 .path-box input { flex: 1; font-family: var(--mono); font-size: 12px; }
 .pending-readings { font-size: 12px; color: var(--muted); }
+
+/* ==== RWD：平板、手機 ==========================================================
+   斷點：單欄 ≤ 960px、手機 ≤ 640px；觸控看 (hover: none)，不看寬度。 */
+:root { --play-size: 30px; }
+.line-tools { display: flex; align-items: center; gap: 8px; }
+.studio-lines { container-type: inline-size; }
+.activity-toggle { display: none; }
+.status-tip.touch { pointer-events: auto; }
+.status-play { margin-top: 4px; justify-content: center; }
+
+/* 歌詞欄窄（平板橫式的右欄、手機）：每句兩行，第二行放時間與工具，歌詞才有完整寬度 */
+@container (max-width: 520px) {
+  .studio-line { grid-template-columns: var(--play-size) 22px 30px minmax(0, 1fr) 28px; }
+  .line-tools { grid-column: 4 / -1; }
+}
+
+/* 單欄：處理狀態可以收合（預設收起來） */
+@media (max-width: 960px) {
+  .activity-toggle {
+    display: flex; align-items: center; gap: 8px; width: 100%; box-sizing: border-box; padding: 12px 16px;
+    background: none; border: 0; font: inherit; color: var(--text); text-align: left; cursor: pointer;
+  }
+  .activity-toggle .caret { width: 22px; height: 22px; }
+  .activity.collapsed > :not(.activity-toggle) { display: none; }
+  .log { height: 240px; }
+}
+
+/* 平板直式、手機：播放畫面上下排，影片高度有上限，歌詞清單多看幾句 */
+@media (max-width: 900px) {
+  .studio { height: 100%; }
+  .studio-body { grid-template-columns: minmax(0, 1fr); }
+  .stage-frame { width: min(100%, calc(30dvh * 16 / 9)); align-self: center; }
+}
+
+/* 手機 */
+@media (max-width: 640px) {
+  .hide-phone { display: none !important; }
+  .topbar { padding: 12px 12px 4px; }
+  .layout { padding: 4px 8px 24px; gap: 10px; }
+  .new-row input[type=url] { flex: 1 1 100%; }
+  .song { padding-right: 8px; gap: 4px 8px; }
+  .preview { margin-left: 0; }
+  .preview-main { width: 44px; }
+  .actions { gap: 2px; }
+  .actions .divider { display: none; }
+
+  /* 對話框、播放畫面佔滿全螢幕 */
+  .overlay.center { padding: 0; }
+  .dialog { width: 100%; height: 100%; max-height: none; border: 0; border-radius: 0; }
+  .studio { width: 100%; height: 100%; border: 0; border-radius: 0; }
+  /* 標題列兩行：歌名與關閉一行，動作一行 */
+  .sheet-head { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+  .sheet-head > .grow { flex: 1 1 calc(100% - 56px); }
+  .sheet-head > :last-child { order: 1; }
+  .sheet-head > :not(.grow):not(:last-child) { order: 2; }
+  .sheet-head .seg-toggle { max-width: 100%; overflow-x: auto; }
+  .sheet-body { padding: 12px; }
+  .sheet-foot { padding: 10px 12px; }
+
+  .studio-stage { padding: 8px 12px; gap: 8px; }
+  /* 控制列：播放、時間、速度、音量一行，進度條自己一行 */
+  .studio-controls { flex-wrap: wrap; row-gap: 6px; }
+  .studio-controls input[type=range]:not(.studio-volume) { order: 5; flex: 1 1 100%; }
+  .studio-controls select { padding: 6px 4px; }
+  .studio-controls input.studio-volume { flex: 1 1 40px; min-width: 40px; }
+  .studio-lines { padding: 0 4px 8px; }
+  .studio-line { padding: 6px 4px; gap: 4px 6px; }
+  .studio-foot { flex-wrap: wrap; padding: 10px 12px; }
+  .studio-foot > .grow { flex-basis: 100%; }
+}
+
+/* 觸控：沒有「滑上去」，要滑過才出現的按鈕一律顯示；按鈕放大好點；拖曳搬移用「勾選 → 移動到…」 */
+@media (hover: none) {
+  :root { --play-size: 36px; }
+  .line-play { width: 36px; height: 36px; }
+  .edit-btn, .studio-text .edit-btn { opacity: .7; }
+  .row-tools { opacity: 1; }
+  .grip { display: none; }
+  .song { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .studio-keys { display: none; }
+  .pick { width: 20px; height: 20px; }
+  .btn.small, .view-link, .run-btn { min-height: 36px; }
+  .icon-btn, .edit-btn, .qa-flag { min-width: 36px; min-height: 36px; }
+}

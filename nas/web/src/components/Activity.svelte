@@ -2,12 +2,18 @@
   import { api, type JobSummary, type Worker } from '../lib/api'
   import { store } from '../lib/state.svelte'
   import { fmtTime, STEP_NAMES } from '../lib/util'
+  import Icon from './Icon.svelte'
 
   const LANES: [string, string, string][] = [
     ['download', '下載', '只用網路，最多同時 2 首'],
     ['process', 'AI 處理', '去人聲、對時、燒錄、檢查'],
     ['system', '收尾', '資料備份'],
   ]
+
+  // 窄螢幕（單欄）時整塊可以收合，預設收起來；寬螢幕一律展開（收合按鈕只在窄螢幕顯示）
+  let open = $state(!matchMedia('(max-width: 960px)').matches)
+  let activeJobs = $derived(store.jobs.filter((j) => j.status === 'queued' || j.status === 'running').length)
+  let onlineWorkers = $derived(store.workers.filter((w) => w.online && !w.disabled).length)
 
   let logLines = $state<string[]>([])
   let logTitle = $state('')
@@ -90,7 +96,12 @@
   }
 </script>
 
-<aside class="panel activity">
+<aside class="panel activity" class:collapsed={!open}>
+  <button type="button" class="activity-toggle" aria-expanded={open} onclick={() => (open = !open)}>
+    <span class="caret" class:open><Icon name="caret" /></span>
+    <b>處理狀態</b>
+    <span class="muted">{activeJobs ? `${activeJobs} 件進行中` : '閒置'} · AI 伺服器 {onlineWorkers ? `${onlineWorkers} 台在線` : '離線'}</span>
+  </button>
   <div class="panel-head"><h2>AI 伺服器</h2></div>
   <div class="workers">
     {#each store.workers as w (w.name)}

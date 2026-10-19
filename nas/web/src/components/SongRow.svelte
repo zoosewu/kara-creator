@@ -97,11 +97,31 @@
   let problem = $derived(Boolean(qa?.wrong) || steps.some((v) => ['missing', 'needs_align'].includes(v.cls)))
   let jump = $derived(qa ? { jumpToQa: true } : approval.status === 'stale' ? { line: approval.changed?.[0] ?? null } : {})
 
+  // 觸控裝置沒有「滑上去」：點一下打開提示（提示裡有「播放」），點旁邊或捲動就收起來
+  const touch = matchMedia('(hover: none)').matches
   let tip = $state<{ left: number; top: number } | null>(null)
   function showTip(e: Event) {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    tip = { left: Math.min(r.left, window.innerWidth - 340), top: r.bottom + 6 }
+    tip = { left: Math.max(8, Math.min(r.left, window.innerWidth - 340)), top: r.bottom + 6 }
   }
+  function tapTag(e: MouseEvent) {
+    if (!touch) return ui.openStudio(song.id, jump)
+    if (tip) tip = null
+    else showTip(e)
+  }
+  $effect(() => {
+    if (!tip || !touch) return
+    const close = (e: Event) => {
+      if (!(e.target as HTMLElement).closest?.('.status-tip, .status-tag')) tip = null
+    }
+    const hide = () => (tip = null)
+    window.addEventListener('pointerdown', close)
+    window.addEventListener('scroll', hide, true)
+    return () => {
+      window.removeEventListener('pointerdown', close)
+      window.removeEventListener('scroll', hide, true)
+    }
+  })
 
   let meta = $derived(
     [
@@ -148,7 +168,9 @@
 
   function redoMenu(anchor: HTMLElement) {
     const hasTiming = ['done', 'needs_render', 'needs_align'].includes(karaoke)
+    const phone = matchMedia('(max-width: 640px)').matches
     menu.show(anchor, busy ? '處理中，請等目前的工作結束' : '重新處理', [
+      ...(phone ? [{ label: '複製檔案位置', desc: song.path, action: reveal }] : []),
       { label: '重新去人聲', desc: '之後需重新對時', disabled: busy, action: () => run(['separate'], { force: true }) },
       { label: '重新對時', desc: '重新抓每個字的時間；已確認會失效', disabled: busy || !hasLyrics, action: () => run(['karaoke'], { realign: true }) },
       { label: '檢查對時', desc: '標出可能不準的句子', disabled: busy || !hasTiming, action: () => run(['check'], { force: true }) },
@@ -232,16 +254,16 @@
           disabled={!song.media.length}
           aria-describedby={tip ? `tip-${song.id}` : undefined}
           aria-label="狀態 {doneCount}/{steps.length}：{steps.map((v) => `${v.label}${v.state}`).join('、')}"
-          onmouseenter={showTip}
-          onmouseleave={() => (tip = null)}
-          onfocus={showTip}
-          onblur={() => (tip = null)}
-          onclick={() => ui.openStudio(song.id, jump)}
+          onmouseenter={(e) => !touch && showTip(e)}
+          onmouseleave={() => !touch && (tip = null)}
+          onfocus={(e) => !touch && showTip(e)}
+          onblur={() => !touch && (tip = null)}
+          onclick={tapTag}
         >
           {#if running}<i class="pulse"></i>{:else}<i></i>{/if}✓ {doneCount}/{steps.length}
         </button>
         {#if tip}
-          <div class="status-tip" id="tip-{song.id}" role="tooltip" style="left:{tip.left}px;top:{tip.top}px">
+          <div class="status-tip" class:touch id="tip-{song.id}" role="tooltip" style="left:{tip.left}px;top:{tip.top}px">
             {#each steps as v (v.label)}
               <div class="status-step stage {v.cls}">
                 <i></i><span class="status-label">{v.label}</span><span class="status-state">{v.state}{#if v.detail}<small>{v.detail}</small>{/if}</span>
@@ -252,7 +274,11 @@
                 <i></i><span class="status-label">對時檢查</span><span class="status-state">{qaText}</span>
               </div>
             {/if}
-            {#if song.media.length}
+            {#if song.media.length && touch}
+              <button type="button" class="btn small primary status-play" onclick={() => ((tip = null), ui.openStudio(song.id, jump))}
+                ><Icon name="play" />播放{qa ? `（從第一句${qa.wrong ? '可能不準' : '待確認'}的開始）` : ''}</button
+              >
+            {:else if song.media.length}
               <div class="status-foot">點一下播放{qa ? `，從第一句${qa.wrong ? '可能不準' : '待確認'}的開始` : approval.status === 'stale' && approval.changed?.length ? '，從改過的句子開始' : ''}</div>
             {/if}
           </div>
@@ -278,7 +304,7 @@
           ><Icon name="lyrics" />{hasLyrics ? '歌詞' : '輸入歌詞'}</button
         >
         <button type="button" class="view-link" onclick={() => (ui.song = song.id)}><Icon name="tag" />資訊</button>
-        <button type="button" class="view-link" title="複製這首歌在 NAS 上的資料夾路徑：{song.path}" onclick={reveal}
+        <button type="button" class="view-link hide-phone" title="複製這首歌在 NAS 上的資料夾路徑：{song.path}" onclick={reveal}
           ><Icon name="folder" />檔案位置</button
         >
         <button
