@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -258,11 +259,14 @@ func (a *App) compute(id string) (*SongView, error) {
 		if file == "" {
 			return
 		}
-		if _, err := os.Stat(a.Store.SongPath(id, file)); err != nil {
+		st, err := os.Stat(a.Store.SongPath(id, file))
+		if err != nil {
 			return
 		}
+		// 網址帶上檔案的修改時間：重燒之後網址就不同，播放器不會拿到瀏覽器快取裡的舊影片
 		l := mediaLabels[kind]
-		v.Media = append(v.Media, MediaView{Kind: kind, Label: l[0], Hint: l[1], URL: "/media/" + id + "/" + file})
+		url := fmt.Sprintf("/media/%s/%s?v=%d", id, file, st.ModTime().UnixMilli())
+		v.Media = append(v.Media, MediaView{Kind: kind, Label: l[0], Hint: l[1], URL: url})
 	}
 	if rec := sg.Stages.Render[song.TargetInstrumental]; rec != nil {
 		add("karaoke", rec.Video.Name)

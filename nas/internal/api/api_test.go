@@ -228,6 +228,9 @@ func TestEndToEnd(t *testing.T) {
 	if err != nil || resp.StatusCode != 200 || resp.Header.Get("Accept-Ranges") != "bytes" {
 		t.Fatalf("媒體檔要能播放（支援 Range）：%v %v", resp, err)
 	}
+	if !strings.Contains(song.Media[0].URL, "?v=") || resp.Header.Get("Cache-Control") != "no-cache" {
+		t.Fatalf("重燒會覆蓋同名檔案：網址要帶版本、每次跟 NAS 確認（%s，%q）", song.Media[0].URL, resp.Header.Get("Cache-Control"))
+	}
 	resp.Body.Close()
 
 	// 3. 歌詞、時間、檢查

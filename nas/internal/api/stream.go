@@ -102,6 +102,9 @@ func serve(w http.ResponseWriter, r *http.Request, path string, immutable bool) 
 	}
 	if immutable {
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable") // 網址就是內容的雜湊
+	} else {
+		// 同一個檔名會被重燒覆蓋：每次都要跟 NAS 確認（沒變只回 304）。不設的話瀏覽器會自己估計快取時間，播到舊的影片
+		w.Header().Set("Cache-Control", "no-cache")
 	}
 	http.ServeContent(w, r, filepath.Base(path), st.ModTime(), f)
 }
