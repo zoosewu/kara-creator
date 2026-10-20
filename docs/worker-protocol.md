@@ -22,7 +22,7 @@ container 用環境變數：`KARA_NAS`、`KARA_WORKER_NAME`、`KARA_WORKER_TOKEN
 `versions.json`（repo 根目錄，兩邊共用）：
 
 ```json
-{ "protocol": 1, "separate": 1, "align": 7, "qa": 4, "reading": 2, "render": 4 }
+{ "protocol": 1, "separate": 1, "align": 7, "qa": 4, "reading": 2, "render": 5 }
 ```
 
 - `align`：對時方法（`align.py`）改了就加一（**會讓所有歌整首重新對時、手動調整被取代，先問使用者**）

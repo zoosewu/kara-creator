@@ -34,6 +34,13 @@ def test_build_ass():
     assert ",Ruby,," in text and "}そ\n" in text and "}ら\n" in text   # 日文自動假名（一拍一個事件）
     assert ",Trans,," in text and "天空" in text         # 翻譯
     assert ",Title,," in text and "自己編的歌" in text    # 標題畫面
+    title = next(ln for ln in text.splitlines() if ",Title,," in ln)
+    assert "\\pos(" not in title                       # 前奏夠長：置中
+    # 一開頭就唱、沒有間奏：強制放在開頭，往上移到翻譯和上行歌詞之間
+    params["lines"] = [{"text": "空を", "start": 1.0, "end": 2.0,
+                        "words": [{"text": "空", "start": 1.0, "end": 1.5}, {"text": "を", "start": 1.5, "end": 2.0}]}]
+    title = next(ln for ln in tasks.build_ass(params, (1920, 1080), NOTO).splitlines() if ",Title,," in ln)
+    assert f"\\an5\\pos(960,{round(1080 * subtitles.TITLE_FORCED_Y)})" in title
 
 
 def test_split_core():
@@ -91,17 +98,17 @@ def test_title_window():
         appear, _ = subtitles._schedule(lines, style)
         return subtitles._title_window(lines, appear, style)
     # 前奏超過 6 秒（和間奏同一個標準）：放在開頭，最多 7.5 秒
-    assert window((10, 12), (12, 14)) == (0.5, 7.2)
-    assert window((6.5, 12), (12, 14)) == (0.5, 6.5 - style.lead - 0.3)
+    assert window((10, 12), (12, 14)) == (0.5, 7.2, False)
+    assert window((6.5, 12), (12, 14)) == (0.5, 6.5 - style.lead - 0.3, False)
     # 前奏不到 6 秒：當成開頭直接唱，改放在間奏
     assert window((5.5, 10), (10, 20), (35, 38))[0] == 20 + style.tail + 0.3
     # 開頭直接唱副歌：放在第一段間奏，前一句字幕收掉之後、下一段字幕出現之前
-    start, end = window((1, 5), (5, 20), (35, 38))
+    start, end, _ = window((1, 5), (5, 20), (35, 38))
     assert start == 20 + style.tail + 0.3 and end == start + subtitles.TITLE_MAX
-    start, end = window((1, 5), (5, 20), (29, 31))
+    start, end, _ = window((1, 5), (5, 20), (29, 31))
     assert end == 29 - style.lead - 0.3
     # 開頭 40 秒內沒有夠長的空檔（間奏太晚、太短、完全沒有）：強制放在開頭
-    forced = (0.5, 0.5 + subtitles.TITLE_MAX)
+    forced = (0.5, 0.5 + subtitles.TITLE_MAX, True)
     assert window((1, 5), (5, 30), (45, 48)) == forced
     assert window((1, 5), (5, 20), (25, 28)) == forced
     assert window((1, 5), (5, 9)) == forced

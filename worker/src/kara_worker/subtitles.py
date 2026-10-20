@@ -175,7 +175,9 @@ def build(lines: list[dict], width: int, height: int, style: Style, *, font_file
             while note_size > 12 and measure.width(note, note_size) > width * 0.9:
                 note_size -= 1
             sub += f"\\N{{\\fs{note_size}}}{_escape(note)}"
-        events.append((card[0], card[1], "Title", "{\\fad(400,400)}" + _escape(title) + sub))
+        # 和歌詞同時出現時往上移，不擋到上行歌詞（最大字幕、含假名）也不擋到上方的翻譯
+        pos = f"\\an5\\pos({width // 2},{round(height * TITLE_FORCED_Y)})" if card[2] else ""
+        events.append((card[0], card[1], "Title", "{" + pos + "\\fad(400,400)}" + _escape(title) + sub))
 
     rs = round(fs * style.ruby_ratio)
     header = f"""[Script Info]
@@ -291,12 +293,13 @@ def _char_times(words: list[dict]) -> list[tuple[float, float]]:
 TITLE_MIN = 2.0      # 放在空檔時至少顯示幾秒
 TITLE_MAX = 7.5      # 最多顯示幾秒
 TITLE_SEARCH = 40.0  # 前奏太短時，往後找這麼多秒內的第一段間奏；找不到就強制放在開頭
+TITLE_FORCED_Y = 0.33  # 強制放在開頭（和歌詞同時出現）時，標題中心的高度 / 畫面高：放在上方翻譯和上行歌詞（最大字幕、含假名）之間
 
 
-def _title_window(lines: list[dict], appear: list[float], style: Style) -> tuple[float, float]:
+def _title_window(lines: list[dict], appear: list[float], style: Style) -> tuple[float, float, bool]:
     """標題畫面的時間：放在第一段夠長的空檔（超過 break_gap 秒，和字幕判斷間奏同一個標準）：
     前奏（歌曲開頭到第一句）夠長就放前奏；開頭直接唱副歌的話，放在開頭 TITLE_SEARCH 秒內的第一段間奏，
-    前一句的字幕收掉之後出現、下一段字幕出現之前消失。都沒有就強制放在開頭（標題在畫面中央，不會壓到下方的歌詞）。"""
+    前一句的字幕收掉之後出現、下一段字幕出現之前消失。都沒有就強制放在開頭，和歌詞同時出現（第三個值為 True）。"""
     for i in range(len(lines)):
         if i and lines[i]["start"] > TITLE_SEARCH:
             break
@@ -306,8 +309,8 @@ def _title_window(lines: list[dict], appear: list[float], style: Style) -> tuple
         start = prev_end + style.tail + 0.3 if i else 0.5
         end = min(appear[i] - 0.3, start + TITLE_MAX)
         if end - start >= TITLE_MIN:
-            return start, end
-    return 0.5, 0.5 + TITLE_MAX
+            return start, end, False
+    return 0.5, 0.5 + TITLE_MAX, True
 
 
 def _schedule(lines: list[dict], style: Style) -> tuple[list[float], list[int]]:
