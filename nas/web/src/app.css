@@ -425,6 +425,7 @@ body.is-dragging .lib-root { border-color: var(--accent); border-style: dashed; 
 .dialog-foot { display: flex; align-items: center; gap: 8px; justify-content: flex-end; padding: 16px 20px; }
 .field { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
 .field input, .field select { font-size: 14px; width: 100%; min-width: 0; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 4px 0 0; font-size: 12px; }
 .facts dt { color: var(--muted); }
 .facts dd { margin: 0; word-break: break-all; }

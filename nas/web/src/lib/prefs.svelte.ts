@@ -1,9 +1,11 @@
 // 只記在這台瀏覽器的偏好（localStorage）：不影響伴唱帶與匯出，所以不存在 NAS 上。
+import type { Mode, Track } from './playback'
 import { load, save } from './util'
 
 const KEYS = {
   newSongFolder: 'folder', // 新歌預設資料夾（設定）
-  studioKind: 'studioKind', // 播放畫面預設版本（設定；'' = 最完整的版本）
+  studioMode: 'studioMode', // 播放畫面預設字幕：模擬 / 燒錄（設定）
+  studioTrack: 'studioTrack', // 播放畫面預設聲音：伴唱 / 人聲 / 原始影片（設定）
   studioFollow: 'studioFollow', // 播放畫面「選取跟著播放走」的預設（設定）
   volume: 'volume', // 以下記住上次的狀態
   muted: 'muted',
@@ -14,7 +16,8 @@ const KEYS = {
 
 class Prefs {
   newSongFolder = $state<string>(load(KEYS.newSongFolder, ''))
-  studioKind = $state<string>(load(KEYS.studioKind, ''))
+  studioMode = $state<Mode>(load(KEYS.studioMode, 'burned'))
+  studioTrack = $state<Track>(load(KEYS.studioTrack, 'instrumental'))
   studioFollow = $state<boolean>(load(KEYS.studioFollow, true))
   volume = $state<number>(load(KEYS.volume, 1))
   muted = $state<boolean>(load(KEYS.muted, false))

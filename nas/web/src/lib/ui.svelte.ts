@@ -1,6 +1,8 @@
 // 哪個對話框開著（一次一個主要畫面：資訊、資料夾、設定、歌詞、播放）。
 // 播放畫面開著時，歌詞編輯器和資訊可以疊在上面（影片在背景繼續播），關掉後回到播放畫面。
-export type StudioOpts = { kind?: string; line?: number | null; jumpToQa?: boolean; at?: number }
+import type { Mode, Track } from './playback'
+
+export type StudioOpts = { mode?: Mode; track?: Track; line?: number | null; jumpToQa?: boolean; at?: number }
 
 class UI {
   song = $state<string | null>(null) // 資訊對話框

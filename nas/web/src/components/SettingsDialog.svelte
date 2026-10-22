@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { api, type Font, type System } from '../lib/api'
+  import { MODES, TRACKS } from '../lib/playback'
   import { prefs } from '../lib/prefs.svelte'
   import { store } from '../lib/state.svelte'
   import { ui } from '../lib/ui.svelte'
@@ -22,16 +23,9 @@
   let chosen = $state<Record<string, string>>({ ...(store.settings.fonts ?? {}) })
   let exportOriginal = $state(store.settings.export_original ?? false)
   let newSongFolder = $state(prefs.newSongFolder)
-  let studioKind = $state(prefs.studioKind)
+  let studioMode = $state(prefs.studioMode)
+  let studioTrack = $state(prefs.studioTrack)
   let studioFollow = $state(prefs.studioFollow)
-  const KINDS: [string, string][] = [
-    ['', '最完整的版本（伴唱帶優先）'],
-    ['karaoke', '伴唱帶'],
-    ['karaoke_original', '原曲＋字幕'],
-    ['instrumental', '伴奏（即時字幕）'],
-    ['vocals', '人聲'],
-    ['source', '原始影片'],
-  ]
   let system = $state<System | null>(null)
   let box = $state<HTMLDivElement>()
   let boxHeight = $state(0)
@@ -66,7 +60,8 @@
     for (const [l] of LANGS) if ((chosen[l] ?? '') !== (store.settings.fonts?.[l] ?? '')) fontBody[l] = chosen[l] || null
     if (!(await store.attempt(() => api('/settings', { method: 'PATCH', body: { subtitle_scale: scale / 100, fonts: fontBody, export_original: exportOriginal } }), '已儲存設定'))) return
     prefs.set('newSongFolder', newSongFolder)
-    prefs.set('studioKind', studioKind)
+    prefs.set('studioMode', studioMode)
+    prefs.set('studioTrack', studioTrack)
     prefs.set('studioFollow', studioFollow)
     close()
   }
@@ -129,14 +124,22 @@
 
       <h3 class="field">這台瀏覽器</h3>
       <label class="field">新歌預設資料夾<FolderSelect bind:value={newSongFolder} /></label>
-      <label class="field"
-        >播放畫面預設版本
-        <select bind:value={studioKind}>
-          {#each KINDS as [kind, label]}<option value={kind}>{label}</option>{/each}
-        </select>
-      </label>
+      <div class="field-row">
+        <label class="field"
+          >播放畫面預設字幕
+          <select bind:value={studioMode}>
+            {#each MODES as [mode, label, hint]}<option value={mode} title={hint}>{label}</option>{/each}
+          </select>
+        </label>
+        <label class="field"
+          >預設聲音
+          <select bind:value={studioTrack}>
+            {#each TRACKS as [track, label]}<option value={track}>{label}</option>{/each}
+          </select>
+        </label>
+      </div>
       <label class="check-field"><input type="checkbox" bind:checked={studioFollow} /> 播放畫面預設「選取跟著播放走」</label>
-      <p class="hint">只記在這台瀏覽器。放進 inbox 的歌在曲庫最上層；沒有預設版本時播最完整的版本。</p>
+      <p class="hint">只記在這台瀏覽器。放進 inbox 的歌在曲庫最上層；沒有那個版本時（例如還沒做好伴唱帶）用最接近的。</p>
 
       <h3 class="field">匯出</h3>
       <label class="check-field"><input type="checkbox" bind:checked={exportOriginal} /> 也匯出原曲音訊</label>

@@ -3,6 +3,8 @@
   import { api, enc } from '../lib/api'
   import { dnd } from '../lib/drag.svelte'
   import { menu } from '../lib/menu.svelte'
+  import { choose, label, MODES, plan, TRACKS } from '../lib/playback'
+  import { prefs } from '../lib/prefs.svelte'
   import { store } from '../lib/state.svelte'
   import { ui } from '../lib/ui.svelte'
   import { copyText, fmtDateTime, fmtDuration, LANGUAGE_NAMES } from '../lib/util'
@@ -186,15 +188,19 @@
     ])
   }
 
+  // 按播放鍵會開的版本（設定裡的預設；沒有那個版本就用最接近的）
+  let playDefault = $derived.by(() => {
+    const pick = choose(song.media, prefs.studioMode, prefs.studioTrack)
+    return pick ? label(...pick) : ''
+  })
+
   function previewMenu(anchor: HTMLElement) {
     menu.show(
       anchor,
       '播放其他版本',
-      song.media.map((m, i) => ({
-        label: m.label + (i === 0 ? '（預設）' : ''),
-        desc: m.hint,
-        action: () => ui.openStudio(song.id, { kind: m.kind }),
-      })),
+      MODES.flatMap(([m, , hint]) =>
+        TRACKS.filter(([t]) => plan(song.media, m, t)).map(([t]) => ({ label: label(m, t), desc: hint, action: () => ui.openStudio(song.id, { mode: m, track: t }) })),
+      ),
     )
   }
 
@@ -324,8 +330,8 @@
         type="button"
         class="preview-main"
         disabled={!song.media.length}
-        title={song.media.length ? `播放${song.media[0].label}` : '還沒有可播放的影片'}
-        aria-label={song.media.length ? `播放${song.media[0].label}` : '播放'}
+        title={playDefault ? `播放（${playDefault}）` : '還沒有可播放的影片'}
+        aria-label={playDefault ? `播放（${playDefault}）` : '播放'}
         onclick={() => ui.openStudio(song.id)}><Icon name="play" /></button
       >
       <button
@@ -338,6 +344,6 @@
         onclick={(e) => previewMenu(e.currentTarget)}><Icon name="caret" /></button
       >
     </div>
-    <span class="preview-label">{song.media[0]?.label ?? '尚無影片'}</span>
+    <span class="preview-label">{playDefault || '尚無影片'}</span>
   </div>
 </article>

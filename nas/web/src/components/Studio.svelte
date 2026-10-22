@@ -5,6 +5,7 @@
   import { onMount, tick } from 'svelte'
   import { api, enc, type EditorLine, type JobSummary, type LyricsViews, type QAView, type RetimeResult, type TimingView } from '../lib/api'
   import { menu } from '../lib/menu.svelte'
+  import { choose, MODES, plan, TRACKS, type Mode, type Track } from '../lib/playback'
   import { prefs } from '../lib/prefs.svelte'
   import { store } from '../lib/state.svelte'
   import { ui, type StudioOpts } from '../lib/ui.svelte'
@@ -17,7 +18,6 @@
   const { id, opts } = props
   let song = $derived(store.songs.get(id)!)
 
-  const BURNED = new Set(['karaoke', 'karaoke_original'])
   const SUB_PREVIEW = 4 // 還沒開始唱時，提前幾秒先顯示第一句
   const SUB_LONG_GAP = 8 // 兩句之間空這麼久算間奏：唱完 SUB_LINGER 秒後先收起來
   const SUB_LINGER = 2
@@ -30,8 +30,11 @@
   let pendingReadings = $state(0) // 自動讀音還沒算好的句數（AI 伺服器算好會通知）
   let timing = $state<TimingView['lines']>([])
   let qa = $state(new Map<number, QAView['lines'][number]>())
-  let media = $state<SongView_media | null>(null)
-  type SongView_media = (typeof song.media)[number]
+  // 播放的版本：字幕（模擬 / 燒錄）× 聲音（伴唱 / 人聲 / 原始影片）；聲音不是畫面本身的時候，畫面靜音、另外播放（extAudio）
+  let mode = $state<Mode>('burned')
+  let track = $state<Track>('instrumental')
+  let extAudio = $state(false)
+  let audio = $state<HTMLAudioElement>()
   let selected = $state(0)
   let playing = $state(-1)
   let follow = $state(prefs.studioFollow)
@@ -81,7 +84,7 @@
   // 第幾句歌詞（依序）在 lines 裡的位置
   let lyricIdx = $derived(lines.map((l, i) => (l.kind === 'lyric' ? i : -1)).filter((i) => i >= 0))
   let changed = $derived(new Set(song?.approval.status === 'stale' ? (song.approval.changed ?? []) : []))
-  let burned = $derived(media ? BURNED.has(media.kind) : false)
+  let burned = $derived(mode === 'burned')
 
   function timeOf(i: number) {
     const t = timing[i]
@@ -176,16 +179,27 @@
       const near = timing.findIndex((t) => t.end >= start)
       select(near >= 0 ? near : 0, { manual: false })
     }
-    setSource(media0.find((m) => m.kind === opts.kind) ?? media0.find((m) => m.kind === prefs.studioKind) ?? media0[0], start, true)
+    const pick = choose(media0, opts.mode ?? prefs.studioMode, opts.track ?? prefs.studioTrack)
+    if (pick) setSource(pick[0], pick[1], start, true)
     cancelAnimationFrame(raf)
     raf = requestAnimationFrame(loop)
   }
 
-  function setSource(m: SongView_media, at: number, autoplay?: boolean) {
+  /** 換成另一個版本，從 at 秒繼續（沒有那個組合時換成最接近的）。 */
+  function setSource(m: Mode, t: Track, at: number, autoplay?: boolean) {
+    const pick = choose(song.media, m, t)
+    if (!pick) return
+    ;[mode, track] = pick
+    const p = plan(song.media, mode, track)!
     const v = video!
     const play = autoplay ?? !v.paused
-    media = m
-    v.src = m.url
+    extAudio = Boolean(p.audio)
+    if (audio) {
+      audio.pause()
+      if (p.audio) audio.src = p.audio
+      else audio.removeAttribute('src')
+    }
+    v.src = p.picture
     v.playbackRate = rate
     v.addEventListener(
       'loadedmetadata',
@@ -193,19 +207,40 @@
         v.currentTime = at || 0
         duration = v.duration || 1
         fit()
+        syncAudio()
         if (play) v.play().catch(() => {})
       },
       { once: true },
     )
   }
 
-  /** 調整時正在看已燒字幕的成品：換到沒有字幕的版本，才看得到即時預覽。 */
+  /** 另外播放的聲音跟著畫面：時間、速度、播放 / 暫停都以畫面為準。 */
+  function syncAudio() {
+    const v = video
+    if (!extAudio || !audio || !v) return
+    audio.playbackRate = v.playbackRate
+    if (Math.abs(audio.currentTime - v.currentTime) > 0.2) audio.currentTime = v.currentTime
+    if (v.paused !== audio.paused) (v.paused ? audio.pause() : audio.play().catch(() => {}))
+  }
+
+  // 音量、靜音套用到聽得到的那個：另外播放聲音時畫面一律靜音
+  $effect(() => {
+    const ext = extAudio
+    if (video) {
+      video.volume = volume
+      video.muted = ext || muted
+    }
+    if (audio) {
+      audio.volume = volume
+      audio.muted = muted
+    }
+  })
+
+  /** 調整時正在看燒好的字幕：換到模擬（同樣的聲音），才看得到調整後的字幕。 */
   function ensureLive() {
-    if (!media || !BURNED.has(media.kind)) return
-    const live = ['instrumental', 'source'].map((k) => song.media.find((m) => m.kind === k)).find(Boolean)
-    if (!live) return
-    setSource(live, video!.currentTime)
-    store.notify(`已切換到「${live.label}」預覽調整`)
+    if (mode !== 'burned' || !choose(song.media, 'live', track)) return
+    setSource('live', track, video!.currentTime)
+    store.notify('已切換到「模擬」預覽調整')
   }
 
   /**
@@ -264,6 +299,7 @@
     if (!v) return
     now = v.currentTime
     paused = v.paused
+    syncAudio()
     if (!timing.length) return
     let current = -1
     timing.forEach((t, i) => {
@@ -624,9 +660,26 @@
       >
       <button type="button" class="btn small" title="編輯歌名、歌手、語言" onclick={async () => (await settle('開資訊')) && (ui.song = id)}><Icon name="tag" />資訊</button>
       <button type="button" class="btn small" title="開啟歌詞編輯器" onclick={async () => (await settle('開歌詞編輯器')) && ui.openEditor(id, { over: true })}><Icon name="lyrics" />完整歌詞</button>
-      <div class="seg-toggle" title="播放的版本（不影響成品）">
-        {#each song.media as m}
-          <button type="button" class:on={media?.kind === m.kind} title={m.hint} onclick={() => setSource(m, video?.currentTime ?? 0)}>{m.label}</button>
+      <div class="seg-toggle" role="group" aria-label="字幕">
+        {#each MODES as [m, label, hint]}
+          <button
+            type="button"
+            class:on={mode === m}
+            disabled={!TRACKS.some(([t]) => plan(song.media, m, t))}
+            title={TRACKS.some(([t]) => plan(song.media, m, t)) ? hint : '還沒有伴唱帶'}
+            onclick={() => setSource(m, track, video?.currentTime ?? 0)}>{label}</button
+          >
+        {/each}
+      </div>
+      <div class="seg-toggle" role="group" aria-label="聲音">
+        {#each TRACKS as [t, label]}
+          <button
+            type="button"
+            class:on={track === t}
+            disabled={!plan(song.media, mode, t)}
+            title={plan(song.media, mode, t) ? '' : '還沒有去人聲'}
+            onclick={() => setSource(mode, t, video?.currentTime ?? 0)}>{label}</button
+          >
         {/each}
       </div>
       <button type="button" class="icon-btn" title="關閉（Esc）" aria-label="關閉" onclick={close}><Icon name="close" size={18} /></button>
@@ -635,7 +688,17 @@
       <div class="studio-stage">
         <div class="stage-frame" bind:this={frame}>
           <!-- svelte-ignore a11y_media_has_caption -->
-          <video bind:this={video} bind:volume bind:muted preload="auto" playsinline onclick={() => (video!.paused ? video!.play() : video!.pause())}></video>
+          <video
+            bind:this={video}
+            preload="auto"
+            playsinline
+            onclick={() => (video!.paused ? video!.play() : video!.pause())}
+            onplay={syncAudio}
+            onpause={syncAudio}
+            onseeked={syncAudio}
+            onratechange={syncAudio}
+          ></video>
+          <audio bind:this={audio} preload="auto"></audio>
           {#if !burned}
             <div class="live-trans" style="font-size:{transFont}px;top:{transTop}px;left:{subSide}px;right:{subSide}px">{trans}</div>
             <div
