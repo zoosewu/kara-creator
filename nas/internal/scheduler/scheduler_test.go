@@ -321,8 +321,11 @@ func (r rawWorker) post(path string, body any) (*http.Response, []byte) {
 	return resp, buf.Bytes()
 }
 
-func (e *env) raw(name string) rawWorker {
-	r := rawWorker{t: e.t, url: e.srv.URL, instance: name + "-instance"}
+func (e *env) raw(name string) rawWorker { return e.raw2(name, name+"-instance") }
+
+// raw2 指定 instance（同名的 worker 重新啟動）。
+func (e *env) raw2(name, instance string) rawWorker {
+	r := rawWorker{t: e.t, url: e.srv.URL, instance: instance}
 	resp, _ := r.post("/hello", wp.Hello{Name: name, Instance: r.instance, Versions: kara.Current,
 		Kinds: []string{wp.KindAlign}, Channels: []string{wp.ChannelHeavy}})
 	if resp.StatusCode != 200 {
@@ -366,6 +369,44 @@ func TestLostWorkerReassigned(t *testing.T) {
 	resp, _ := lost.post("/tasks/"+tk.ID+"/complete", wp.Complete{Instance: lost.instance, Result: json.RawMessage(`{}`)})
 	if resp.StatusCode != http.StatusNotFound && resp.StatusCode != http.StatusConflict {
 		t.Fatalf("太晚的回報應該被拒絕：%s", resp.Status)
+	}
+}
+
+// 改派時的紀錄與事件不能在持有排程器的鎖時送出：app 收到後會回頭查 Workers()（工作佇列算處理上限），
+// 以前租約到期改派時兩邊互等，整個 NAS 卡住（2026-10-22）。
+func TestCallbacksOutsideLock(t *testing.T) {
+	e := newEnv(t, Options{Lease: 200 * time.Millisecond, MaxReassign: 5})
+	e.s.OnEvent = func(Event) { e.s.Workers() }
+	audio := e.input("a.wav", []byte("a"))
+	var l logs
+	errc := make(chan error, 1)
+	go func() {
+		_, err := e.s.Submit(context.Background(), Spec{Kind: wp.KindAlign, Priority: wp.PriorityBatch,
+			Inputs: map[string]Input{wp.InputAudio: audio}, Params: wp.AlignParams{Texts: []string{"一"}},
+			Log: func(s string) { e.s.Workers(); l.add(s) }})
+		errc <- err
+	}()
+	waitFor(t, "排入", func() bool { return e.s.Pending() == 1 })
+	w := e.raw("pc")
+	// 處理失敗可以重試（fail）、租約到期（expire）、同名重新啟動（hello）、關閉（bye）：都會改派
+	tk := w.lease()
+	w.post("/tasks/"+tk.ID+"/fail", wp.Fail{Instance: w.instance, Error: "顯示卡記憶體不足", Retryable: true})
+	w.lease() // 不送心跳，等租約到期
+	waitFor(t, "失聯改派", func() bool { return l.has("失聯") })
+	w.lease()
+	w = e.raw2("pc", "pc-restarted")
+	waitFor(t, "重新啟動改派", func() bool { return l.has("重新啟動") })
+	w.lease()
+	w.post("/bye", wp.Bye{Instance: w.instance})
+	waitFor(t, "關閉改派", func() bool { return l.has("關閉了") })
+	e.worker(fakeworker.Options{Name: "pc"})
+	select {
+	case err := <-errc:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("等不到任務完成（排程器卡住了）")
 	}
 }
 

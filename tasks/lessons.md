@@ -58,6 +58,15 @@
   先量「舊程式自己跑兩次」的差異當基準，不能直接要求逐位元相同。
 - 對照新舊程式的雜訊（例如 ffmpeg 的 Broken pipe）時，用同一件任務分別跑新舊兩版比較，不要憑印象判斷是不是新增的。
 
+## 鎖
+
+- 持有鎖時不要呼叫外面傳進來的 callback：呼叫端常拿著自己的鎖再回頭呼叫你，兩把鎖順序相反就互相等待。
+  2026-10-22 排程器在租約到期改派時（持有排程器的鎖）寫工作紀錄（要工作佇列的鎖），同時工作佇列在派工時
+  （持有工作佇列的鎖）查 `Sched.Workers()`，整個 NAS 的 API 卡住，網頁看起來像曲庫全空了。
+  現在排程器的 callback 一律排進 `after`，`unlock()` 放開鎖之後才執行；「另外開 goroutine 呼叫」不能解決，只是換個時間點撞上。
+- 伺服器卡住時先抓 goroutine 的 stack 再重啟：`docker kill -s QUIT kara-nas` 會把 stack 印到 `docker logs`
+  （之後 container 不會自動重啟，要 `docker compose up -d`）。直接 restart 就沒有證據了。
+
 ## commit 前
 
 - 跑完整的 CI 檢查，不只是測試：`gofmt -l .`（CI 會擋）、`go vet`、`go test`、前端 `npm run check`、worker 的 `ruff check` 與 `pytest`。

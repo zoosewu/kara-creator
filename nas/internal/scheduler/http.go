@@ -102,7 +102,7 @@ func (s *Scheduler) hello(w http.ResponseWriter, r *http.Request) {
 	}
 	s.workers[req.Name] = wk
 	s.event(req.Name)
-	s.mu.Unlock()
+	s.unlock()
 
 	if diff != nil {
 		writeJSON(w, http.StatusConflict, wp.VersionMismatch{Detail: "AI 伺服器的版本和 NAS 不同，請更新", Diff: diff, NAS: s.opt.Versions})
@@ -123,12 +123,12 @@ func (s *Scheduler) lease(w http.ResponseWriter, r *http.Request) {
 		s.mu.Lock()
 		wk := s.workerOf(req.Instance)
 		if wk == nil {
-			s.mu.Unlock()
+			s.unlock()
 			detail(w, http.StatusNotFound, "NAS 不認得這個 AI 伺服器，請重新連線（hello）")
 			return
 		}
 		if !wk.VersionOK {
-			s.mu.Unlock()
+			s.unlock()
 			writeJSON(w, http.StatusConflict, wp.VersionMismatch{Detail: "AI 伺服器的版本和 NAS 不同，請更新", Diff: wk.Diff, NAS: s.opt.Versions})
 			return
 		}
@@ -146,7 +146,7 @@ func (s *Scheduler) lease(w http.ResponseWriter, r *http.Request) {
 			}
 			task, started, name := t.Task, t.spec.Started, wk.Name
 			s.event(wk.Name)
-			s.mu.Unlock()
+			s.unlock()
 			if started != nil {
 				started(name)
 			}
@@ -154,7 +154,7 @@ func (s *Scheduler) lease(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		wake := s.wake
-		s.mu.Unlock()
+		s.unlock()
 		select {
 		case <-wake:
 		case <-timeout.C:
@@ -188,7 +188,7 @@ func (s *Scheduler) progress(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	t := s.leased(w, r.PathValue("id"), req.Instance)
 	if t == nil {
-		s.mu.Unlock()
+		s.unlock()
 		return
 	}
 	t.deadline = s.opt.Now().Add(s.opt.Lease)
@@ -206,7 +206,7 @@ func (s *Scheduler) progress(w http.ResponseWriter, r *http.Request) {
 			s.event(name)
 		}
 	}
-	s.mu.Unlock()
+	s.unlock()
 	if !cancel {
 		for _, line := range req.Logs {
 			if spec.Log != nil {
@@ -225,16 +225,16 @@ func (s *Scheduler) upload(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	t := s.leased(w, r.PathValue("id"), r.URL.Query().Get("instance"))
 	if t == nil {
-		s.mu.Unlock()
+		s.unlock()
 		return
 	}
 	if !slices.Contains(t.Outputs, name) || name != filepath.Base(name) {
-		s.mu.Unlock()
+		s.unlock()
 		detail(w, http.StatusBadRequest, "這件任務不能上傳 "+name)
 		return
 	}
 	dir, err := s.taskDir(t)
-	s.mu.Unlock()
+	s.unlock()
 	if err != nil {
 		detail(w, http.StatusInternalServerError, err.Error())
 		return
@@ -259,7 +259,7 @@ func (s *Scheduler) upload(w http.ResponseWriter, r *http.Request) {
 	sum := hex.EncodeToString(h.Sum(nil))
 	s.mu.Lock()
 	if s.tasks[t.ID] != t || t.dir != dir {
-		s.mu.Unlock()
+		s.unlock()
 		os.Remove(f.Name())
 		detail(w, http.StatusConflict, "這件任務已經改派給其他 AI 伺服器")
 		return
@@ -268,7 +268,7 @@ func (s *Scheduler) upload(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		t.uploads[name] = sum
 	}
-	s.mu.Unlock()
+	s.unlock()
 	if err != nil {
 		detail(w, http.StatusInternalServerError, err.Error())
 		return
@@ -282,7 +282,7 @@ func (s *Scheduler) complete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlock()
 	t := s.leased(w, r.PathValue("id"), req.Instance)
 	if t == nil {
 		return
@@ -307,7 +307,7 @@ func (s *Scheduler) fail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlock()
 	t := s.leased(w, r.PathValue("id"), req.Instance)
 	if t == nil {
 		return
@@ -340,7 +340,7 @@ func (s *Scheduler) blob(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	s.mu.Unlock()
+	s.unlock()
 	if path == "" {
 		detail(w, http.StatusNotFound, "沒有這個輸入檔（只能取派給你的任務的輸入檔）")
 		return
@@ -387,7 +387,7 @@ func (s *Scheduler) bye(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlock()
 	wk := s.workerOf(req.Instance)
 	if wk == nil {
 		w.WriteHeader(http.StatusNoContent)

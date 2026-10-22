@@ -104,7 +104,7 @@ func New(cfg config.Config) (*App, error) {
 	}
 	a.Sched.OnEvent = func(e scheduler.Event) {
 		a.Events.Publish("worker", map[string]string{"name": e.Name})
-		go a.Jobs.Kick() // 排程器的鎖還沒放開：另外開 goroutine，避免互相等待
+		a.Jobs.Kick() // 排程器放開鎖之後才呼叫 OnEvent：Kick 回頭查 Workers() 不會互相等待
 	}
 
 	a.Pipe = pipeline.New(pipeline.Deps{Store: st, Media: a.Media, AI: a.Sched, Fonts: a.fontFor, Versions: a.Versions})

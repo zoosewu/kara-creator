@@ -145,11 +145,13 @@ type Event struct {
 
 // Scheduler 是 AI 任務的佇列。
 //
-// Spec 的 Log、Progress 與 OnEvent 可能在持有排程器的鎖時被呼叫：callback 裡不能再呼叫排程器的方法。
+// Spec 的 callback（Log、Progress、Started）與 OnEvent 都在放開排程器的鎖之後才呼叫：
+// 呼叫端常拿著自己的鎖再回頭查排程器（工作佇列算處理上限時查 Workers），持有鎖時呼叫出去會互相等待。
 type Scheduler struct {
 	opt Options
 
 	mu       sync.Mutex
+	after    []func() // 持有鎖時要呼叫出去的 callback，unlock 放開鎖之後依序執行
 	tasks    map[string]*task
 	workers  map[string]*Worker // 依名稱
 	disabled map[string]bool
@@ -214,7 +216,7 @@ func (s *Scheduler) Submit(ctx context.Context, spec Spec) (*Result, error) {
 	}
 	s.tasks[id] = t
 	s.broadcast()
-	s.mu.Unlock()
+	s.unlock()
 
 	select {
 	case out := <-t.done:
@@ -227,7 +229,7 @@ func (s *Scheduler) Submit(ctx context.Context, spec Spec) (*Result, error) {
 		case leased:
 			t.cancel = true // worker 下一次心跳收到 cancel；結果送來時丟掉
 		}
-		s.mu.Unlock()
+		s.unlock()
 		return nil, ErrCancelled
 	}
 }
@@ -360,7 +362,7 @@ func removeTask(list []WorkerTask, id string) []WorkerTask {
 // expire 收回過期的租約。
 func (s *Scheduler) expire() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlock()
 	now := s.opt.Now()
 	for _, t := range s.tasks {
 		if t.state == leased && now.After(t.deadline) {
@@ -374,22 +376,34 @@ func (s *Scheduler) expire() {
 	}
 }
 
-func (s *Scheduler) log(t *task, line string) {
-	if t.spec.Log != nil {
-		t.spec.Log(line)
+// unlock 放開鎖，然後執行持有鎖時排進來的 callback。
+func (s *Scheduler) unlock() {
+	after := s.after
+	s.after = nil
+	s.mu.Unlock()
+	for _, f := range after {
+		f()
 	}
 }
 
+// log 記一行任務的紀錄（持有鎖時呼叫；放開鎖之後才送出）。
+func (s *Scheduler) log(t *task, line string) {
+	if f := t.spec.Log; f != nil {
+		s.after = append(s.after, func() { f(line) })
+	}
+}
+
+// event 通知 worker 的狀態變了（持有鎖時呼叫；放開鎖之後才送出）。
 func (s *Scheduler) event(name string) {
-	if s.OnEvent != nil {
-		s.OnEvent(Event{Kind: "worker", Name: name})
+	if f := s.OnEvent; f != nil {
+		s.after = append(s.after, func() { f(Event{Kind: "worker", Name: name}) })
 	}
 }
 
 // Workers 回傳所有 worker 的狀態（依名稱排序）。
 func (s *Scheduler) Workers() []Worker {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlock()
 	now := s.opt.Now()
 	out := []Worker{}
 	for _, w := range s.workers {
@@ -406,7 +420,7 @@ func (s *Scheduler) Workers() []Worker {
 // SetDisabled 停用或啟用一台 worker（依名稱）。停用的 worker 領不到新任務，手上的任務照常做完。
 func (s *Scheduler) SetDisabled(name string, disabled bool) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlock()
 	if disabled {
 		s.disabled[name] = true
 	} else {
@@ -421,7 +435,7 @@ func (s *Scheduler) SetDisabled(name string, disabled bool) {
 // Disabled 回傳停用中的 worker 名稱（持久化用）。
 func (s *Scheduler) Disabled() []string {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlock()
 	var out []string
 	for name := range s.disabled {
 		out = append(out, name)
@@ -433,7 +447,7 @@ func (s *Scheduler) Disabled() []string {
 // Pending 回傳還沒做完的任務數（給測試與 UI）。
 func (s *Scheduler) Pending() int {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer s.unlock()
 	return len(s.tasks)
 }
 
