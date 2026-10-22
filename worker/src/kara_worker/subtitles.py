@@ -15,6 +15,7 @@
 """
 from __future__ import annotations
 
+import re
 import struct
 from dataclasses import dataclass
 from pathlib import Path
@@ -168,16 +169,16 @@ def build(lines: list[dict], width: int, height: int, style: Style, *, font_file
 
     card = _title_window(lines, appear, style) if title and lines else None
     if card:
-        sub = f"\\N{{\\fs{round(fs * 0.7)}}}{_escape(artist)}" if artist else ""
+        # 標題畫面不自動換行（WrapStyle 2）：每一欄自己換行，最多兩行，還放不下才縮小字級
+        max_w = width * 0.9
+        text = _title_field(title, round(fs * 1.2), max_w, measure)
+        if artist:
+            text += "\\N" + _title_field(artist, round(fs * 0.7), max_w, measure, sized=True)
         if note:
-            # 備註在第三行，字比演唱者小；太長就縮小字級，不讓它超出畫面（標題畫面不自動換行）
-            note_size = round(fs * 0.5)
-            while note_size > 12 and measure.width(note, note_size) > width * 0.9:
-                note_size -= 1
-            sub += f"\\N{{\\fs{note_size}}}{_escape(note)}"
+            text += "\\N" + _title_field(note, round(fs * 0.5), max_w, measure, sized=True)
         # 和歌詞同時出現時往上移，不擋到上行歌詞（最大字幕、含假名）也不擋到上方的翻譯
         pos = f"\\an5\\pos({width // 2},{round(height * TITLE_FORCED_Y)})" if card[2] else ""
-        events.append((card[0], card[1], "Title", "{" + pos + "\\fad(400,400)}" + _escape(title) + sub))
+        events.append((card[0], card[1], "Title", "{" + pos + "\\fad(400,400)}" + text))
 
     rs = round(fs * style.ruby_ratio)
     header = f"""[Script Info]
@@ -405,6 +406,59 @@ def _fit_size(text: str, fs: int, avail: int, measure: _Measure) -> int:
     """拆句後仍放不下（單一個詞就太長）才縮小字級；下限只為避免 0。"""
     w = measure.width(text, fs)
     return fs if w <= avail else max(6, int(fs * avail / w))
+
+
+TITLE_LINES = 2  # 標題畫面每一欄（歌名、演唱者、備註）最多幾行
+
+
+def _title_field(text: str, size: int, max_w: float, measure: _Measure, *, sized: bool = False) -> str:
+    """標題畫面的一欄：太寬就換行（最多 TITLE_LINES 行，各行盡量一樣長），還放不下才縮小字級。
+    sized：這一欄本來就要指定字級（演唱者、備註比歌名小）。"""
+    base = size
+    while True:
+        rows = _balanced_rows(text, size, max_w, measure)
+        if len(rows) <= TITLE_LINES or size <= 12:
+            break
+        size -= 1
+    body = "\\N".join(_escape(r) for r in rows)
+    if sized or size != base:
+        # 換行之後的行也要同樣字級：\fs 會一直有效到下一個 \fs
+        return "{\\fs" + str(size) + "}" + body
+    return body
+
+
+_TOKEN = re.compile(r"\s+|[A-Za-z0-9'’.\-]+|.")
+
+
+def _balanced_rows(text: str, size: int, max_w: float, measure: _Measure) -> list[str]:
+    """把一行字切成寬度都不超過 max_w 的幾行，各行盡量一樣長（英文字、數字不從中間切開）。"""
+    text = text.strip()
+    total = measure.width(text, size)
+    if total <= max_w:
+        return [text]
+    tokens = _TOKEN.findall(text)
+
+    def wrap(limit: float) -> list[str]:
+        rows, cur = [], ""
+        for tok in tokens:
+            if cur.strip() and measure.width((cur + tok).strip(), size) > limit:
+                rows.append(cur.strip())
+                cur = tok.lstrip()
+            else:
+                cur += tok
+        if cur.strip():
+            rows.append(cur.strip())
+        return rows
+
+    n = len(wrap(max_w))
+    # 從平均寬度開始放寬，找到同樣行數裡各行最平均的切法
+    limit = total / n
+    while limit < max_w:
+        rows = wrap(limit)
+        if len(rows) <= n:
+            return rows
+        limit += max_w * 0.02
+    return wrap(max_w)
 
 
 def _escape(text: str) -> str:

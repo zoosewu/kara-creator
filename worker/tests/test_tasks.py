@@ -114,6 +114,24 @@ def test_title_window():
     assert window((1, 5), (5, 9)) == forced
 
 
+@pytest.mark.skipif(not NOTO.exists(), reason="沒有 Noto Sans CJK")
+def test_title_wrap():
+    m = subtitles._Measure(NOTO, 0)
+    max_w = 1920 * 0.9
+    # 太長的歌名：切成兩行，每行都放得下、兩行差不多長
+    rows = subtitles._balanced_rows("這是一首名字非常非常長而且一行絕對放不下的自己編的歌曲測試標題", 130, max_w, m)
+    widths = [m.width(r, 130) for r in rows]
+    assert len(rows) == 2 and max(widths) <= max_w and min(widths) > max(widths) * 0.8
+    # 英文字不從中間切開
+    rows = subtitles._balanced_rows("Imaginary Singer featuring Another Imaginary Vocalist and Friends", 130, max_w, m)
+    assert len(rows) == 2 and all(not r.startswith(("ing", "er")) for r in rows)
+    assert " ".join(rows).split() == "Imaginary Singer featuring Another Imaginary Vocalist and Friends".split()
+    # 兩行還放不下：縮小字級；短的不動
+    field = subtitles._title_field("作詞：" + "很長的名字" * 30, 54, max_w, m, sized=True)
+    assert field.count("\\N") == 1 and int(field[4:field.index("}")]) < 54
+    assert subtitles._title_field("自己編的歌", 130, max_w, m) == "自己編的歌"
+
+
 def test_bitrate_cap():
     # 上限是來源影像的 1.5 倍，至少 1.5 Mbps；純音訊或讀不到位元率時用最低值
     assert tasks.bitrate_cap(tasks.Video(1920, 1080, 1_800_000)) == 2_700_000
