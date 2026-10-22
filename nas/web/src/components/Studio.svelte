@@ -27,6 +27,7 @@
 
   let lines = $state<EditorLine[]>([])
   let language = $state<string | null>(null)
+  let pendingReadings = $state(0) // 自動讀音還沒算好的句數（AI 伺服器算好會通知）
   let timing = $state<TimingView['lines']>([])
   let qa = $state(new Map<number, QAView['lines'][number]>())
   let media = $state<SongView_media | null>(null)
@@ -100,8 +101,10 @@
     load()
     ui.pauseStudio = () => video?.pause()
     const off = store.on('job', (j: JobSummary) => watchJob(j))
+    const offReadings = store.on('readings', (d: { song: string }) => d.song === id && refreshReadings())
     return () => {
       off()
+      offReadings()
       ui.pauseStudio = null
       cancelAnimationFrame(raf)
     }
@@ -117,10 +120,24 @@
     lines = v.doc.lines
     savedLines = structuredClone($state.snapshot(v.doc.lines))
     language = v.doc.language ?? null
+    pendingReadings = v.pending_readings?.length ?? 0
     timing = savedTiming = t.lines
     ops = []
     edits = new Map()
     qa = new Map(q.lines.map((c) => [c.index, c]))
+  }
+
+  /** AI 算好自動讀音：只換上新的假名（還沒儲存的文字、演唱者不動；文字改過的句子等儲存後再算）。 */
+  async function refreshReadings() {
+    const v = await api<LyricsViews>(`/songs/${enc(id)}/lyrics`).catch(() => null)
+    if (!v) return
+    pendingReadings = v.pending_readings?.length ?? 0
+    v.doc.lines.forEach((fresh, k) => {
+      if (lines[k] && savedLines[k] && fresh.text === savedLines[k].text) {
+        savedLines[k].segments = fresh.segments
+        if (lines[k].text === fresh.text) lines[k].segments = fresh.segments
+      }
+    })
   }
 
   // 疊在上面的歌詞編輯器 / 資訊關掉了：重新讀一次（歌詞、語言可能改了），影片照常播
@@ -701,6 +718,9 @@
               ? `改了第 ${[...changed].map((i) => i + 1).join('、')} 句，看過再確認。`
               : '重新對時過，看過再確認。'}
           </div>
+        {/if}
+        {#if pendingReadings && language === 'ja'}
+          <div class="studio-note studio-pending">{pendingReadings} 句的假名稍後補上（AI 伺服器算好就會出現）</div>
         {/if}
         {#if lyricIdx.length && !timing.length}
           <div class="studio-warn">還沒有對時結果，可以先邊聽邊改歌詞。</div>

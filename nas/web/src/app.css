@@ -834,3 +834,4 @@ ruby.slot rt { color: var(--border); }
   .btn.small, .view-link, .run-btn { min-height: 36px; }
   .icon-btn, .edit-btn, .qa-flag { min-width: 36px; min-height: 36px; }
 }
+.studio-pending { margin: 0 16px 8px; }
