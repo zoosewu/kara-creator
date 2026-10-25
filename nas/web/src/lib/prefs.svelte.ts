@@ -6,7 +6,7 @@ const KEYS = {
   newSongFolder: 'folder', // 新歌預設資料夾（設定）
   studioMode: 'studioMode', // 播放畫面預設字幕：模擬 / 燒錄（設定）
   studioTrack: 'studioTrack', // 播放畫面預設聲音：伴唱 / 人聲 / 原始影片（設定）
-  studioFollow: 'studioFollow', // 播放畫面「選取跟著播放走」的預設（設定）
+  studioFollow: 'studioFollow', // 播放畫面「歌詞跟著播放捲動」的預設（設定）
   volume: 'volume', // 以下記住上次的狀態
   muted: 'muted',
   rate: 'rate',

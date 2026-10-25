@@ -138,7 +138,7 @@
           </select>
         </label>
       </div>
-      <label class="check-field"><input type="checkbox" bind:checked={studioFollow} /> 播放畫面預設「選取跟著播放走」</label>
+      <label class="check-field"><input type="checkbox" bind:checked={studioFollow} /> 播放畫面預設「歌詞跟著播放捲動」</label>
       <p class="hint">只記在這台瀏覽器。放進 inbox 的歌在曲庫最上層；沒有那個版本時（例如還沒做好伴唱帶）用最接近的。</p>
 
       <h3 class="field">匯出</h3>

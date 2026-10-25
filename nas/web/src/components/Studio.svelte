@@ -315,7 +315,7 @@
       playing = p
       if (follow && p >= 0) {
         selected = p
-        if (!v.paused) rows[p]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+        if (!v.paused) rows[p]?.scrollIntoView({ block: 'center', behavior: 'smooth' }) // 跟著播放：唱到的句子放在正中間
       }
     }
     let t0 = show
@@ -394,7 +394,7 @@
     if (!count) return
     selected = Math.max(0, Math.min(count - 1, i))
     if (manual) follow = false
-    tick().then(() => rows[selected]?.scrollIntoView({ block: 'nearest' }))
+    tick().then(() => rows[selected]?.scrollIntoView({ block: manual ? 'nearest' : 'center' })) // 手動點選只捲到看得見，不亂跳
     const t = timing[selected]
     if (seek && t && video) video.currentTime = Math.max(0, t.start - 1.5)
   }
@@ -504,14 +504,14 @@
 
   function retimeMenu(anchor: HTMLElement, i: number) {
     const count = timing.length - i
-    menu.show(anchor, `以第 ${i + 1} 句目前的開頭為準重對`, [
-      { label: `重對這句及之後全部（${count} 句）`, desc: `第 ${i + 1} 句到最後一句，約 10–30 秒`, action: () => retime(i, 'from') },
-      { label: '只重對這句', desc: '只重抓這句的字，幾秒完成', action: () => retime(i, 'line') },
+    menu.show(anchor, `AI 從第 ${i + 1} 句目前的開頭重新抓每個字的時間（先播到開唱的地方按「這裡開唱」會更準）`, [
+      { label: '這句重新對時', desc: '其他句子不動・幾秒完成', action: () => retime(i, 'line') },
+      { label: `從這句到最後重新對時（${count} 句）`, desc: '這句之前的不動・約 10–30 秒', action: () => retime(i, 'from') },
     ])
   }
 
   const retimeLabel = (p: { index: number; mode: string; count: number }) =>
-    p.mode === 'from' ? `AI 重新對時第 ${p.index + 1} 句及之後全部（共 ${p.count} 句）` : `AI 重新對時第 ${p.index + 1} 句（只有這句）`
+    p.mode === 'from' ? `AI 對時：第 ${p.index + 1} 句到最後（${p.count} 句）` : `AI 對時：第 ${p.index + 1} 句`
 
   /** AI 用的是 NAS 上的歌詞：範圍內有還沒儲存的文字修改時不能重對。 */
   function retimeBlocked(i: number) {
@@ -655,7 +655,7 @@
     onclick={approve}><Icon name="check" /><span>{approved ? '已確認（取消）' : '確認沒問題'}</span></button
   >
   <button type="button" class="btn small" title="編輯歌名、歌手、語言" onclick={async () => (await settle('開資訊')) && (ui.song = id)}><Icon name="tag" />資訊</button>
-  <button type="button" class="btn small" title="開啟歌詞編輯器" onclick={async () => (await settle('開歌詞編輯器')) && ui.openEditor(id, { over: true })}><Icon name="lyrics" />完整歌詞</button>
+  <button type="button" class="btn small" title="開啟歌詞編輯器（整首的文字、讀音、翻譯）" onclick={async () => (await settle('開歌詞編輯器')) && ui.openEditor(id, { over: true })}><Icon name="lyrics" />編輯歌詞</button>
   <div class="seg-toggle" role="group" aria-label="字幕">
     {#each MODES as [m, label, hint]}
       <button
@@ -714,8 +714,8 @@
 {#snippet notices()}
   <label
     class="time-following studio-follow"
-    title="選取的句子跟著播放；手動點選時自動關閉"
-    ><input type="checkbox" bind:checked={follow} onchange={() => follow && playing >= 0 && select(playing, { manual: false })} /> 選取跟著播放走</label
+    title="唱到哪句就捲到哪句（放在正中間）；手動點選某一句時會自動關掉"
+    ><input type="checkbox" bind:checked={follow} onchange={() => follow && playing >= 0 && select(playing, { manual: false })} /> 歌詞跟著播放捲動</label
   >
   {#if song.approval.status === 'stale'}
     <div class="approval-note">
@@ -815,7 +815,7 @@
           <span><kbd>空白</kbd> 播放 / 暫停</span>
           <span><kbd>←</kbd><kbd>→</kbd> 倒退 / 快轉 2 秒</span>
           <span><kbd>↑</kbd><kbd>↓</kbd> 上一句 / 下一句</span>
-          <span><kbd>Enter</kbd> 選取的句子從現在開始</span>
+          <span><kbd>Enter</kbd> 選取的句子這裡開唱</span>
           <span><kbd>[</kbd><kbd>]</kbd> 選取的句子 −/+ 0.1 秒（Shift：0.5 秒）</span>
         </div>
       </div>
@@ -862,7 +862,7 @@
                   type="button"
                   class="singer"
                   data-singer={line.singer || undefined}
-                  title="演唱者：點一下切換"
+                  title="演唱者（點一下切換：男 → 女 → 合唱 → 不指定）"
                   onclick={(e) => {
                     e.stopPropagation()
                     cycleSinger(i)
@@ -886,7 +886,11 @@
                       onblur={(e) => setText(i, (e.currentTarget as HTMLInputElement).value)}
                     />
                   {:else}
-                    <span class="studio-words">{line.text}{#if line.translation}<small class="studio-trans">{line.translation}</small>{/if}</span>
+                    <span class="studio-words"
+                      >{line.text}{#if line.translation}<small class="studio-trans">{line.translation}</small>{/if}<small class="studio-time-under"
+                        >{t ? fmtClock(t.start) : ''}</small
+                      ></span
+                    >
                     <button
                       type="button"
                       class="edit-btn"
@@ -917,17 +921,22 @@
                         ? `還沒儲存（原本 ${fmtClock(savedTiming[i].start)}）`
                         : '開始時間'}>{t ? fmtClock(t.start) : '—'}</span
                   >
-                  <button type="button" class="btn small set-now" disabled={!t} title="把開始設成目前位置（Enter）" onclick={(e) => (e.stopPropagation(), setNow(i))}
-                    >設為現在</button
+                  <button
+                    type="button"
+                    class="btn small set-now"
+                    disabled={!t}
+                    title="這句開始唱的那一刻按下：把這句的開頭設在目前播放的位置（選取的句子也可以按 Enter）"
+                    aria-label="這裡開唱"
+                    onclick={(e) => (e.stopPropagation(), setNow(i))}><Icon name="flag" /><span class="btn-text">這裡開唱</span></button
                   >
                   <button
                     type="button"
                     class="btn small ai-btn"
                     disabled={!t || t.mismatch || Boolean(pendingJob)}
                     aria-haspopup="menu"
-                    title="AI 重對：以這句目前的開頭為準重新對時"
-                    aria-label="AI 重對"
-                    onclick={(e) => (e.stopPropagation(), retimeMenu(e.currentTarget, i))}>AI<Icon name="caret" /></button
+                    title="讓 AI 從這句目前的開頭重新抓時間"
+                    aria-label="AI 對時"
+                    onclick={(e) => (e.stopPropagation(), retimeMenu(e.currentTarget, i))}><Icon name="sparkle" /><span class="btn-text">AI 對時</span><Icon name="caret" /></button
                   >
                 </div>
               </div>

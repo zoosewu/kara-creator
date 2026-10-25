@@ -614,7 +614,7 @@ kbd {
 }
 .studio-lines { flex: 1; overflow: auto; padding: 0 8px 12px; border-top: 1px solid var(--border); }
 .studio-line {
-  display: grid; grid-template-columns: var(--play-size) 22px 30px minmax(0, 1fr) 28px auto; align-items: center; gap: 4px 8px;
+  display: grid; grid-template-columns: var(--play-size) 22px 30px minmax(0, 1fr) auto auto; align-items: center; gap: 4px 8px;
   padding: 6px 8px; border-radius: 8px; cursor: pointer; border: 1px solid transparent;
 }
 .studio-line:hover { background: var(--surface-2); }
@@ -764,11 +764,28 @@ ruby.slot rt { color: var(--border); }
 .status-tip.touch { pointer-events: auto; }
 .status-play { margin-top: 4px; justify-content: center; }
 
-/* 歌詞欄窄（平板橫式的右欄、手機）：每句兩行，第二行放時間與工具，歌詞才有完整寬度 */
-@container (max-width: 520px) {
-  .studio-line { grid-template-columns: var(--play-size) 22px 30px minmax(0, 1fr) 28px; }
-  .line-tools { grid-column: 4 / -1; }
+.line-tools .btn { gap: 4px; }
+.line-tools .btn svg { width: 13px; height: 13px; }
+.studio-time-under { display: none; }
+/* 列表底下留一段空白：跟著播放時最後幾句也能捲到正中間 */
+.studio-lines::after { content: ""; display: block; height: 45%; }
+
+/* 歌詞欄比較窄（平板橫式、桌機的右欄）：每句還是一行，時間放到歌詞下面、不顯示句號，歌詞才有空間 */
+@container (max-width: 680px) {
+  .studio-line { grid-template-columns: var(--play-size) 28px minmax(0, 1fr) auto auto; gap: 4px 6px; }
+  .line-no, .line-tools .studio-time { display: none; }
+  .line-tools { gap: 4px; }
+  .studio-time-under { display: block; font: 11px/1.4 var(--sans, inherit); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .studio-line.draft .studio-time-under { color: var(--accent); font-weight: 600; }
+  .studio-line.mismatch .studio-time-under { text-decoration: line-through; }
 }
+/* 很窄（手機）：按鈕只剩圖示（滑鼠提示與無障礙標籤有完整說明） */
+@container (max-width: 480px) {
+  .line-tools .btn-text, .line-tools .ai-btn svg:last-child { display: none; }
+  .line-tools .btn { width: 36px; height: 36px; padding: 0; justify-content: center; }
+  .line-tools .btn svg { width: 16px; height: 16px; }
+}
+
 
 /* 單欄：處理狀態可以收合（預設收起來） */
 @media (max-width: 960px) {
@@ -785,7 +802,17 @@ ruby.slot rt { color: var(--border); }
 @media (max-width: 900px) {
   .studio { height: 100%; }
   .studio-body { grid-template-columns: minmax(0, 1fr); }
-  .stage-frame { width: min(100%, calc(30dvh * 16 / 9)); align-self: center; }
+  .stage-frame { width: min(100%, calc(36dvh * 16 / 9)); align-self: center; }
+}
+
+/* 平板（觸控）：播放畫面佔滿整個螢幕，不留對話框的邊 */
+@media (hover: none) and (max-width: 1366px) {
+  .overlay.center:has(> .studio) { padding: 0; }
+  .studio { width: 100%; height: 100%; border: 0; border-radius: 0; }
+}
+/* 平板橫式：影片和歌詞各一半，歌詞欄寬一點 */
+@media (min-width: 901px) and (max-width: 1280px) {
+  .studio-body { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
 
 /* 手機 */
