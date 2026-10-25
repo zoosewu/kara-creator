@@ -34,6 +34,7 @@
   let mode = $state<Mode>('burned')
   let track = $state<Track>('instrumental')
   let extAudio = $state(false)
+  let sheetOpen = $state(false) // 手機：「⋯」打開的面板（標題列、版本、速度、音量、提示都收在裡面）
   let audio = $state<HTMLAudioElement>()
   let selected = $state(0)
   let playing = $state(-1)
@@ -575,6 +576,7 @@
     if (ui.song || ui.editor) return
     if (e.key === 'Escape') {
       if (menu.open) return menu.close()
+      if (sheetOpen) return (sheetOpen = false)
       return close()
     }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
@@ -639,49 +641,122 @@
   </div>
 {/snippet}
 
+{#snippet actions()}
+  <button
+    type="button"
+    class="btn small"
+    class:approved
+    disabled={!approved && song.status.karaoke !== 'done'}
+    title={approved
+      ? '已確認，點一下取消'
+      : song.status.karaoke !== 'done'
+        ? '伴唱帶做好後才能確認'
+        : '確認這一版沒問題'}
+    onclick={approve}><Icon name="check" /><span>{approved ? '已確認（取消）' : '確認沒問題'}</span></button
+  >
+  <button type="button" class="btn small" title="編輯歌名、歌手、語言" onclick={async () => (await settle('開資訊')) && (ui.song = id)}><Icon name="tag" />資訊</button>
+  <button type="button" class="btn small" title="開啟歌詞編輯器" onclick={async () => (await settle('開歌詞編輯器')) && ui.openEditor(id, { over: true })}><Icon name="lyrics" />完整歌詞</button>
+  <div class="seg-toggle" role="group" aria-label="字幕">
+    {#each MODES as [m, label, hint]}
+      <button
+        type="button"
+        class:on={mode === m}
+        disabled={!TRACKS.some(([t]) => plan(song.media, m, t))}
+        title={TRACKS.some(([t]) => plan(song.media, m, t)) ? hint : '還沒有伴唱帶'}
+        onclick={() => setSource(m, track, video?.currentTime ?? 0)}>{label}</button
+      >
+    {/each}
+  </div>
+  <div class="seg-toggle" role="group" aria-label="聲音">
+    {#each TRACKS as [t, label]}
+      <button
+        type="button"
+        class:on={track === t}
+        disabled={!plan(song.media, mode, t)}
+        title={plan(song.media, mode, t) ? '' : '還沒有去人聲'}
+        onclick={() => setSource(mode, t, video?.currentTime ?? 0)}>{label}</button
+      >
+    {/each}
+  </div>
+{/snippet}
+
+{#snippet playback()}
+  <select
+    title="播放速度"
+    aria-label="播放速度"
+    bind:value={rate}
+    onchange={() => (video && (video.playbackRate = rate), prefs.set('rate', rate))}
+  >
+    <option value={0.5}>0.5×</option>
+    <option value={0.75}>0.75×</option>
+    <option value={1}>1×</option>
+  </select>
+  <button
+    type="button"
+    class="icon-btn"
+    title={muted ? '取消靜音' : '靜音'}
+    aria-label={muted ? '取消靜音' : '靜音'}
+    onclick={() => ((muted = !muted), prefs.set('muted', muted))}><Icon name={muted || volume === 0 ? 'mute' : 'volume'} size={18} /></button
+  >
+  <input
+    class="studio-volume"
+    type="range"
+    min="0"
+    max="1"
+    step="0.05"
+    aria-label="音量"
+    title="音量 {Math.round(volume * 100)}%"
+    bind:value={volume}
+    onchange={() => prefs.set('volume', volume)}
+  />
+{/snippet}
+
+{#snippet notices()}
+  <label
+    class="time-following studio-follow"
+    title="選取的句子跟著播放；手動點選時自動關閉"
+    ><input type="checkbox" bind:checked={follow} onchange={() => follow && playing >= 0 && select(playing, { manual: false })} /> 選取跟著播放走</label
+  >
+  {#if song.approval.status === 'stale'}
+    <div class="approval-note">
+      <Icon name="warn" />{changed.size
+        ? `改了第 ${[...changed].map((i) => i + 1).join('、')} 句，看過再確認。`
+        : '重新對時過，看過再確認。'}
+    </div>
+  {/if}
+  {#if pendingReadings && language === 'ja'}
+    <div class="studio-note studio-pending">{pendingReadings} 句的假名稍後補上（AI 伺服器算好就會出現）</div>
+  {/if}
+  {#if lyricIdx.length && !timing.length}
+    <div class="studio-warn">還沒有對時結果，可以先邊聽邊改歌詞。</div>
+  {:else if lyricIdx.length && (mismatch || textChanged)}
+    <div class="studio-warn">
+      {song.align_patch
+        ? '歌詞改過了，按「更新伴唱帶」重對改過的句子。'
+        : '歌詞改過了，按「更新伴唱帶」會整首重新對時，手動調整的時間會被取代。'}
+    </div>
+  {/if}
+  {#if qaIndexes.length}
+    {@const wrong = qaIndexes.filter((i) => qa.get(i)!.status === 'wrong').length}
+    <div class="studio-qa">
+      <Icon name="warn" />
+      <span class="grow"
+        >對時檢查：{[wrong ? `${wrong} 句可能不準` : '', qaIndexes.length - wrong ? `${qaIndexes.length - wrong} 句待確認` : ''].filter(Boolean).join('、')}</span
+      >
+      <button type="button" class="btn small" onclick={() => playLine([...qaIndexes].reverse().find((i) => i < selected) ?? qaIndexes.at(-1)!)}>上一個</button>
+      <button type="button" class="btn small" onclick={() => playLine(qaIndexes.find((i) => i > selected) ?? qaIndexes[0])}>下一個</button>
+    </div>
+  {/if}
+{/snippet}
+
 <div class="overlay center" role="presentation" onmousedown={(e) => e.target === e.currentTarget && close()}>
   <div class="studio" role="dialog" aria-modal="true" aria-labelledby="studio-heading">
-    <header class="sheet-head">
+    <header class="sheet-head desk-only">
       <div class="grow">
         <h2 id="studio-heading">播放</h2>
         <div class="muted ellipsis">{song.artist ? `${song.artist} - ${song.title}` : song.title}</div>
       </div>
-      <button
-        type="button"
-        class="btn small"
-        class:approved
-        disabled={!approved && song.status.karaoke !== 'done'}
-        title={approved
-          ? '已確認，點一下取消'
-          : song.status.karaoke !== 'done'
-            ? '伴唱帶做好後才能確認'
-            : '確認這一版沒問題'}
-        onclick={approve}><Icon name="check" /><span>{approved ? '已確認（取消）' : '確認沒問題'}</span></button
-      >
-      <button type="button" class="btn small" title="編輯歌名、歌手、語言" onclick={async () => (await settle('開資訊')) && (ui.song = id)}><Icon name="tag" />資訊</button>
-      <button type="button" class="btn small" title="開啟歌詞編輯器" onclick={async () => (await settle('開歌詞編輯器')) && ui.openEditor(id, { over: true })}><Icon name="lyrics" />完整歌詞</button>
-      <div class="seg-toggle" role="group" aria-label="字幕">
-        {#each MODES as [m, label, hint]}
-          <button
-            type="button"
-            class:on={mode === m}
-            disabled={!TRACKS.some(([t]) => plan(song.media, m, t))}
-            title={TRACKS.some(([t]) => plan(song.media, m, t)) ? hint : '還沒有伴唱帶'}
-            onclick={() => setSource(m, track, video?.currentTime ?? 0)}>{label}</button
-          >
-        {/each}
-      </div>
-      <div class="seg-toggle" role="group" aria-label="聲音">
-        {#each TRACKS as [t, label]}
-          <button
-            type="button"
-            class:on={track === t}
-            disabled={!plan(song.media, mode, t)}
-            title={plan(song.media, mode, t) ? '' : '還沒有去人聲'}
-            onclick={() => setSource(mode, t, video?.currentTime ?? 0)}>{label}</button
-          >
-        {/each}
-      </div>
+      {@render actions()}
       <button type="button" class="icon-btn" title="關閉（Esc）" aria-label="關閉" onclick={close}><Icon name="close" size={18} /></button>
     </header>
     <div class="studio-body">
@@ -714,11 +789,11 @@
           {/if}
         </div>
         {#if burned && timing.length}
-          <div class="studio-note">字幕已燒在影片裡，調整後按「更新伴唱帶」才會反映。</div>
+          <div class="studio-note desk-only">字幕已燒在影片裡，調整後按「更新伴唱帶」才會反映。</div>
         {/if}
         <div class="studio-controls">
           <button type="button" class="btn small" title="播放 / 暫停（空白鍵）" onclick={() => (video!.paused ? video!.play() : video!.pause())}
-            ><Icon name={paused ? 'play' : 'pause'} /><span>{paused ? '播放' : '暫停'}</span></button
+            ><Icon name={paused ? 'play' : 'pause'} /><span class="desk-only">{paused ? '播放' : '暫停'}</span></button
           >
           <span class="studio-clock">{fmtClock(now)}</span>
           <input
@@ -732,34 +807,9 @@
             onpointerup={() => (seeking = false)}
             oninput={(e) => (video!.currentTime = parseFloat((e.currentTarget as HTMLInputElement).value))}
           />
-          <select
-            title="播放速度"
-            aria-label="播放速度"
-            bind:value={rate}
-            onchange={() => (video && (video.playbackRate = rate), prefs.set('rate', rate))}
-          >
-            <option value={0.5}>0.5×</option>
-            <option value={0.75}>0.75×</option>
-            <option value={1}>1×</option>
-          </select>
-          <button
-            type="button"
-            class="icon-btn"
-            title={muted ? '取消靜音' : '靜音'}
-            aria-label={muted ? '取消靜音' : '靜音'}
-            onclick={() => ((muted = !muted), prefs.set('muted', muted))}><Icon name={muted || volume === 0 ? 'mute' : 'volume'} size={18} /></button
-          >
-          <input
-            class="studio-volume"
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            aria-label="音量"
-            title="音量 {Math.round(volume * 100)}%"
-            bind:value={volume}
-            onchange={() => prefs.set('volume', volume)}
-          />
+          <span class="desk-only studio-playback">{@render playback()}</span>
+          <button type="button" class="icon-btn phone-only" title="更多" aria-label="更多選項" onclick={() => (sheetOpen = true)}><Icon name="more" size={20} /></button>
+          <button type="button" class="icon-btn phone-only" title="關閉" aria-label="關閉" onclick={close}><Icon name="close" size={20} /></button>
         </div>
         <div class="studio-keys">
           <span><kbd>空白</kbd> 播放 / 暫停</span>
@@ -770,41 +820,7 @@
         </div>
       </div>
       <div class="studio-side">
-        <label
-          class="time-following studio-follow"
-          title="選取的句子跟著播放；手動點選時自動關閉"
-          ><input type="checkbox" bind:checked={follow} onchange={() => follow && playing >= 0 && select(playing, { manual: false })} /> 選取跟著播放走</label
-        >
-        {#if song.approval.status === 'stale'}
-          <div class="approval-note">
-            <Icon name="warn" />{changed.size
-              ? `改了第 ${[...changed].map((i) => i + 1).join('、')} 句，看過再確認。`
-              : '重新對時過，看過再確認。'}
-          </div>
-        {/if}
-        {#if pendingReadings && language === 'ja'}
-          <div class="studio-note studio-pending">{pendingReadings} 句的假名稍後補上（AI 伺服器算好就會出現）</div>
-        {/if}
-        {#if lyricIdx.length && !timing.length}
-          <div class="studio-warn">還沒有對時結果，可以先邊聽邊改歌詞。</div>
-        {:else if lyricIdx.length && (mismatch || textChanged)}
-          <div class="studio-warn">
-            {song.align_patch
-              ? '歌詞改過了，按「更新伴唱帶」重對改過的句子。'
-              : '歌詞改過了，按「更新伴唱帶」會整首重新對時，手動調整的時間會被取代。'}
-          </div>
-        {/if}
-        {#if qaIndexes.length}
-          {@const wrong = qaIndexes.filter((i) => qa.get(i)!.status === 'wrong').length}
-          <div class="studio-qa">
-            <Icon name="warn" />
-            <span class="grow"
-              >對時檢查：{[wrong ? `${wrong} 句可能不準` : '', qaIndexes.length - wrong ? `${qaIndexes.length - wrong} 句待確認` : ''].filter(Boolean).join('、')}</span
-            >
-            <button type="button" class="btn small" onclick={() => playLine([...qaIndexes].reverse().find((i) => i < selected) ?? qaIndexes.at(-1)!)}>上一個</button>
-            <button type="button" class="btn small" onclick={() => playLine(qaIndexes.find((i) => i > selected) ?? qaIndexes[0])}>下一個</button>
-          </div>
-        {/if}
+        <div class="desk-only studio-notices">{@render notices()}</div>
         <div class="studio-lines">
           {#if !lyricIdx.length}
             <div class="empty-lyrics">
@@ -918,7 +934,7 @@
             {/if}
           {/each}
         </div>
-        <footer class="studio-foot">
+        <footer class="studio-foot" class:dirty>
           <span class="muted ellipsis grow">{dirty ? `${draftCount} 句未儲存${statusText ? `：${statusText}` : ''}` : statusText}</span>
           {#if dirty}
             <button type="button" class="btn" disabled={saving} onclick={discard}>復原</button>
@@ -930,5 +946,28 @@
         </footer>
       </div>
     </div>
+    {#if sheetOpen}
+      <div class="phone-sheet-backdrop phone-only" role="presentation" onclick={(e) => e.target === e.currentTarget && (sheetOpen = false)}>
+        <div class="phone-sheet" role="dialog" aria-label="播放選項">
+          <div class="phone-sheet-head">
+            <div class="grow">
+              <b>{song.title}</b>{#if song.artist}<span class="muted">　{song.artist}</span>{/if}
+            </div>
+            <button type="button" class="icon-btn" aria-label="收起" onclick={() => (sheetOpen = false)}><Icon name="close" size={18} /></button>
+          </div>
+          <div class="phone-sheet-row">{@render actions()}</div>
+          <div class="phone-sheet-row">{@render playback()}</div>
+          {#if burned && timing.length}<div class="studio-note">字幕已燒在影片裡，調整後按「更新伴唱帶」才會反映。</div>{/if}
+          {@render notices()}
+          <button
+            type="button"
+            class="btn primary"
+            disabled={song.status.lyrics !== 'done' || saving}
+            onclick={() => ((sheetOpen = false), runKaraoke())}
+            >{dirty ? '儲存並' : ''}{['pending', 'no_lyrics'].includes(song.status.karaoke) ? '製作伴唱帶' : '更新伴唱帶'}</button
+          >
+        </div>
+      </div>
+    {/if}
   </div>
 </div>

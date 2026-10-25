@@ -755,6 +755,9 @@ ruby.slot rt { color: var(--border); }
 /* ==== RWD：平板、手機 ==========================================================
    斷點：單欄 ≤ 960px、手機 ≤ 640px；觸控看 (hover: none)，不看寬度。 */
 :root { --play-size: 30px; }
+.studio { position: relative; }
+.studio-playback { display: contents; }
+@media (min-width: 641px) { .phone-only { display: none !important; } }
 .line-tools { display: flex; align-items: center; gap: 8px; }
 .studio-lines { container-type: inline-size; }
 .activity-toggle { display: none; }
@@ -810,12 +813,28 @@ ruby.slot rt { color: var(--border); }
   .sheet-body { padding: 12px; }
   .sheet-foot { padding: 10px 12px; }
 
-  .studio-stage { padding: 8px 12px; gap: 8px; }
-  /* 控制列：播放、時間、速度、音量一行，進度條自己一行 */
-  .studio-controls { flex-wrap: wrap; row-gap: 6px; }
-  .studio-controls input[type=range]:not(.studio-volume) { order: 5; flex: 1 1 100%; }
-  .studio-controls select { padding: 6px 4px; }
-  .studio-controls input.studio-volume { flex: 1 1 40px; min-width: 40px; }
+  /* 像直式影片：上面整個是影片，下面一條控制（播放、時間、進度、⋯、關閉），其他都是歌詞；
+     標題列、版本、速度、音量、提示收進「⋯」的面板 */
+  .desk-only { display: none !important; }
+  .studio-stage { padding: 0; gap: 0; }
+  .stage-frame { width: 100%; border-radius: 0; }
+  .studio-controls { padding: 4px 4px 4px 8px; gap: 6px; }
+  .studio-controls .btn.small { padding: 4px 10px; }
+  .studio-foot:not(.dirty) { display: none; }
+  .phone-sheet-backdrop {
+    position: absolute; inset: 0; z-index: 5; display: flex; align-items: flex-end;
+    background: rgba(0, 0, 0, .35); animation: fade .15s ease;
+  }
+  .phone-sheet {
+    width: 100%; max-height: 80%; overflow: auto; box-sizing: border-box;
+    display: grid; gap: 12px; padding: 12px 16px 20px;
+    background: var(--surface); border-radius: 14px 14px 0 0; box-shadow: var(--shadow);
+  }
+  .phone-sheet-head { display: flex; align-items: center; gap: 8px; }
+  .phone-sheet-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .phone-sheet-row .studio-volume { flex: 1 1 100px; }
+  .phone-sheet .studio-follow { padding: 0; }
+  .phone-sheet .approval-note, .phone-sheet .studio-warn, .phone-sheet .studio-qa, .phone-sheet .studio-pending { margin: 0; }
   .studio-lines { padding: 0 4px 8px; }
   .studio-line { padding: 6px 4px; gap: 4px 6px; }
   .studio-foot { flex-wrap: wrap; padding: 10px 12px; }
