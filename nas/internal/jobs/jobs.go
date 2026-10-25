@@ -38,7 +38,7 @@ var Steps = []string{StepDownload, StepSeparate, StepKaraoke, StepCheck, StepRet
 
 // StepNames 是步驟的名稱（畫面顯示）。
 var StepNames = map[string]string{StepDownload: "下載", StepSeparate: "去人聲", StepKaraoke: "製作伴唱帶",
-	StepCheck: "檢查對時", StepRetime: "AI 重新對時", StepWrapup: "收尾"}
+	StepCheck: "檢查對時", StepRetime: "AI 對時", StepWrapup: "資料備份"}
 
 // 狀態。
 const (
@@ -53,7 +53,7 @@ const (
 const (
 	LaneDownload = "download"
 	LaneProcess  = "process"
-	LaneSystem   = "system" // 收尾
+	LaneSystem   = "system" // 資料備份
 )
 
 // Options 是工作的選項。

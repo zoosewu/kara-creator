@@ -46,7 +46,7 @@
       case 'needs_align':
         if (song.align_patch)
           return song.align_patch.realign
-            ? { cls: 'needs_align', text: `伴唱帶需重對 ${song.align_patch.realign} 句`, tip: '只重對改過的句子；已確認會失效' }
+            ? { cls: 'needs_align', text: `伴唱帶需重新對時（${song.align_patch.realign} 句）`, tip: '只重對改過的句子；已確認會失效' }
             : { cls: 'needs_align', text: '伴唱帶需更新', tip: '刪了句子，不必重新對時；已確認會失效' }
         return { cls: 'needs_align', text: '伴唱帶需重新對時', tip: '整首重新對時，手動調整會被取代；已確認會失效' }
       case 'missing':
@@ -101,10 +101,13 @@
 
   // 觸控裝置沒有「滑上去」：點一下打開提示（提示裡有「播放」），點旁邊或捲動就收起來
   const touch = matchMedia('(hover: none)').matches
-  let tip = $state<{ left: number; top: number } | null>(null)
+  // 提示放在 tag 下方；下方空間不夠（例如手機上靠近螢幕底部）就放在上方
+  let tip = $state<{ left: number; top?: number; bottom?: number } | null>(null)
   function showTip(e: Event) {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    tip = { left: Math.max(8, Math.min(r.left, window.innerWidth - 340)), top: r.bottom + 6 }
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - 340))
+    const below = window.innerHeight - r.bottom
+    tip = below < 300 && r.top > below ? { left, bottom: window.innerHeight - r.top + 6 } : { left, top: r.bottom + 6 }
   }
   function tapTag(e: MouseEvent) {
     if (!touch) return ui.openStudio(song.id, jump)
@@ -171,7 +174,7 @@
   function redoMenu(anchor: HTMLElement) {
     const hasTiming = ['done', 'needs_render', 'needs_align'].includes(karaoke)
     const phone = matchMedia('(max-width: 640px)').matches
-    menu.show(anchor, busy ? '處理中，請等目前的工作結束' : '重新處理', [
+    menu.show(anchor, busy ? '處理中，請等目前的工作結束' : '更多', [
       ...(phone ? [{ label: '複製檔案位置', desc: song.path, action: reveal }] : []),
       { label: '重新去人聲', desc: '之後需重新對時', disabled: busy, action: () => run(['separate'], { force: true }) },
       { label: '重新對時', desc: '重新抓每個字的時間；已確認會失效', disabled: busy || !hasLyrics, action: () => run(['karaoke'], { realign: true }) },
@@ -232,7 +235,7 @@
           {#if editing}
             <InlineEdit
               value={song.artist ? `${song.artist} - ${song.title}` : song.title}
-              placeholder="歌手 - 歌名"
+              placeholder="演唱者 - 歌名"
               hint="Enter 儲存 · Esc 取消 · 清空還原自動"
               ondone={() => (editing = false)}
               onsave={saveName}
@@ -241,7 +244,7 @@
             <div class="song-title ellipsis" title="{song.title}&#10;輸出：{song.export}">
               {song.title}{#if song.artist}<span class="artist">{song.artist}</span>{/if}
             </div>
-            <button type="button" class="edit-btn" title="編輯歌手與歌名" aria-label="編輯歌手與歌名" onclick={() => (editing = true)}
+            <button type="button" class="edit-btn" title="編輯演唱者與歌名" aria-label="編輯演唱者與歌名" onclick={() => (editing = true)}
               ><Icon name="edit" /></button
             >
           {/if}
@@ -269,7 +272,7 @@
           {#if running}<i class="pulse"></i>{:else}<i></i>{/if}✓ {doneCount}/{steps.length}
         </button>
         {#if tip}
-          <div class="status-tip" class:touch id="tip-{song.id}" role="tooltip" style="left:{tip.left}px;top:{tip.top}px">
+          <div class="status-tip" class:touch id="tip-{song.id}" role="tooltip" style="left:{tip.left}px;{tip.top != null ? `top:${tip.top}px` : `bottom:${tip.bottom}px`}">
             {#each steps as v (v.label)}
               <div class="status-step stage {v.cls}">
                 <i></i><span class="status-label">{v.label}</span><span class="status-state">{v.state}{#if v.detail}<small>{v.detail}</small>{/if}</span>
@@ -316,9 +319,9 @@
         <button
           type="button"
           class="view-link"
-          title="重新處理…"
+          title="更多（重新處理…）"
           aria-haspopup="menu"
-          aria-label="重新處理"
+          aria-label="更多"
           onclick={(e) => redoMenu(e.currentTarget)}><Icon name="more" /></button
         >
       </div>

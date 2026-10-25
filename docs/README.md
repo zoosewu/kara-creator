@@ -16,7 +16,7 @@
 
 | 檔案 | 內容 |
 | --- | --- |
-| [architecture.md](architecture.md) | 整體架構、repo 目錄結構、各種流程（製作伴唱帶、AI 重對、編輯歌詞）怎麼在兩邊之間跑 |
+| [architecture.md](architecture.md) | 整體架構、repo 目錄結構、各種流程（製作伴唱帶、AI 對時、編輯歌詞）怎麼在兩邊之間跑 |
 | [data.md](data.md) | 曲庫的資料夾結構、紀錄格式、指紋、狀態判斷、確認與匯出、資料備份 |
 | [worker-protocol.md](worker-protocol.md) | NAS ↔ AI 伺服器協定：領工作、租約、檔案、字型、版本、取消、兩個通道、各種任務的參數與結果 |
 | [nas-server.md](nas-server.md) | Go 伺服器：模組、排程器、下載、REST API、即時事件、匯出、備份 |
@@ -31,7 +31,7 @@
 | 分工 | NAS 不做任何重運算；網頁 UI 只負責瀏覽和操作。下載在 NAS（只用網路），燒錄在 AI 伺服器（NVENC） | architecture.md |
 | 領工作 | **AI 伺服器主動向 NAS 領工作**（pull），NAS 不必知道 AI 的位址；一台 AI 只服務一台 NAS | worker-protocol.md |
 | 通道 | AI 伺服器開兩個通道：重工作（GPU，一次一件）與即時工作（假名，CPU，可以同時跑）；協定保留只開即時通道的 worker | worker-protocol.md「通道」 |
-| 排程 | 三級：即時（假名）> 互動（AI 重對、單獨檢查）> 批次。**已經在跑的任務不中斷**，等級只決定下一件派誰 | nas-server.md「排程器」 |
+| 排程 | 三級：即時（假名）> 互動（AI 對時、單獨檢查）> 批次。**已經在跑的任務不中斷**，等級只決定下一件派誰 | nas-server.md「排程器」 |
 | 假名 | AI 伺服器算，**NAS 快取**：AI 伺服器關機時，看過的歌詞照樣有假名 | data.md「讀音快取」 |
 | 字型 | 字型檔放在 NAS（映像內建 Noto Sans CJK，也可以放自訂字型），AI 伺服器缺字型時向 NAS 要。預設：日文 / 英文 Noto Sans CJK JP Bold、中文 / 台語 / 粵語 TC Bold、韓文 KR Bold | data.md「字型」 |
 | 紀錄 | 不依賴絕對路徑和修改時間，用內容的指紋判斷要不要重做；每首歌一個資料夾 | data.md「指紋」 |
@@ -43,7 +43,7 @@
 | yt-dlp | 啟動時與每天檢查一次並自動更新；**保留上一版**，UI 可以一鍵退回 | nas-server.md「下載」 |
 | 連線 | 只在區域網路使用，不需要登入；AI 連線可以設共用 token，UI 可以停用某台 AI | worker-protocol.md「身分」 |
 | API | 網頁前端和外部服務共用同一套 REST API（OpenAPI） | nas-server.md |
-| 收尾 | 佇列清空或曲庫有變動後只做資料備份（不提供 hook） | nas-server.md「收尾」 |
+| 資料備份 | 佇列清空或曲庫有變動後備份 data/（不提供 hook） | nas-server.md「資料備份」 |
 | 原曲＋字幕 | 保留在 API（`targets`），UI 先不做入口 | data.md、worker-protocol.md |
 
 ## 不能破壞的規則

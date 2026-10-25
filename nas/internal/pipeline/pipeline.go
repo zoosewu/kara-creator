@@ -462,7 +462,7 @@ func (p *Pipeline) patchAlign(ctx context.Context, id string, in planner.Input, 
 	if patch.Removed > 0 {
 		removed = fmt.Sprintf("、拿掉 %d 句", patch.Removed)
 	}
-	run.log("  . 歌詞改了：只重對改到的 %d 句%s，其他句子的時間（含手動調整）不動", patch.Realign(), removed)
+	run.log("  . 歌詞改了：只重新對時改到的 %d 句%s", patch.Realign(), removed)
 	texts, rubies := lyricsParams(in.Lyrics)
 	proto := toProto(rubies)
 	worker := "（只拿掉句子）"
@@ -487,7 +487,7 @@ func (p *Pipeline) patchAlign(ctx context.Context, id string, in planner.Input, 
 		if g.To-g.From > 1 {
 			which = fmt.Sprintf("第 %d–%d 句", g.From+1, g.To)
 		}
-		run.log("  . 重對%s（%.2fs–%s%s）", which, w.t0, end, pinned)
+		run.log("  . 重新對時%s（%.2fs–%s%s）", which, w.t0, end, pinned)
 		var lines []wp.Line
 		if g.To-g.From == 1 {
 			res, err := p.d.AI.Submit(ctx, run.spec(scheduler.Spec{Kind: wp.KindAlignLine, Song: id,
@@ -800,7 +800,7 @@ type RetimeOptions struct {
 // Retime 讓 AI 重新對時。不存檔：結果（timing.RetimeResult）記在工作上，畫面放進還沒儲存的調整，按儲存時才套用。
 func (p *Pipeline) Retime(ctx context.Context, id string, o RetimeOptions, run Run) error {
 	line, mode := o.Line, o.Mode
-	run.stage("AI 重新對時")
+	run.stage("AI 對時")
 	desc, ok := timing.RetimeModes[mode]
 	if !ok {
 		return userError("不支援的方式：%s", mode)
@@ -816,7 +816,7 @@ func (p *Pipeline) Retime(ctx context.Context, id string, o RetimeOptions, run R
 	texts, rubies := lyricsParams(in.Lyrics)
 	// 對時之後歌詞（文字與讀音）有沒有改過：比對對時當下記下的歌詞指紋
 	if len(al.Lines) != len(texts) || al.Lyrics != r.LyricsFP {
-		return userError("歌詞改過，和目前的對時結果對不上：請先按「更新伴唱帶」（會整首重新對時）再調整")
+		return userError("歌詞改過了，請先儲存並按「更新伴唱帶」再用 AI 對時")
 	}
 	if line < 0 || line >= len(al.Lines) {
 		return userError("沒有這一句")
@@ -846,7 +846,7 @@ func (p *Pipeline) Retime(ctx context.Context, id string, o RetimeOptions, run R
 			return fmt.Errorf("AI 回傳的對時結果讀不懂：%w", err)
 		}
 		if line+len(out.Lines) != len(al.Lines) {
-			return fmt.Errorf("AI 重對的結果句數不符")
+			return fmt.Errorf("AI 對時的結果句數不符")
 		}
 		result.Lines = timing.RetimedLines(out.Lines)
 	} else {
@@ -868,7 +868,7 @@ func (p *Pipeline) Retime(ctx context.Context, id string, o RetimeOptions, run R
 		result.Lines = timing.RetimedLines([]wp.Line{out.Line})
 	}
 	if run.Result == nil {
-		return fmt.Errorf("沒有地方放 AI 重對的結果")
+		return fmt.Errorf("沒有地方放 AI 對時的結果")
 	}
 	if err := run.Result(result); err != nil {
 		return err

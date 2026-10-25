@@ -75,8 +75,10 @@
     menu.show(anchor, `把 ${ids.length} 首移到…`, entries)
   }
 
-  function redoMenu(anchor: HTMLElement) {
-    menu.show(anchor, '重新處理選取的歌', [
+  function moreMenu(anchor: HTMLElement) {
+    menu.show(anchor, `選取的 ${picked} 首`, [
+      { label: '標記已確認', desc: '只對做好的伴唱帶有效', icon: 'check', action: () => batchApproval(true) },
+      { label: '取消確認', action: () => batchApproval(false) },
       { label: '重新去人聲', desc: '之後需重新對時', action: () => runBatch('redoSeparate') },
       { label: '重新對時', desc: '重新抓每個字的時間；缺歌詞的略過，已確認會失效', action: () => runBatch('realign') },
       { label: '重新檢查對時', desc: '檢查過的也重新檢查；沒有伴唱帶的略過', action: () => runBatch('recheck') },
@@ -138,9 +140,10 @@
       曲庫 <span class="muted">{all.length ? `${all.length} 首` + (made ? ` · 已確認 ${approved} / ${made}` : '') : ''}</span>
     </button>
     <div class="lib-tools">
-      <button type="button" class="view-link" onclick={() => (store.collapsed.clear(), store.remember())}>全部展開</button>
-      <button type="button" class="view-link" onclick={() => (store.folders.forEach((f) => store.collapsed.add(f.id)), store.remember())}>全部收合</button>
-      <button type="button" class="view-link" title="全域設定（套用到所有歌）" onclick={() => (ui.settings = true)}><Icon name="gear" />設定</button>
+      {#if store.folders.length}
+        <button type="button" class="view-link" onclick={() => (store.collapsed.clear(), store.remember())}>全部展開</button>
+        <button type="button" class="view-link" onclick={() => (store.folders.forEach((f) => store.collapsed.add(f.id)), store.remember())}>全部收合</button>
+      {/if}
       <button type="button" class="btn small" title="在最上層新增資料夾" onclick={() => (ui.folder = { id: null, parent: '' })}><Icon name="plus" />新資料夾</button>
       <button
         type="button"
@@ -161,16 +164,12 @@
           ><Icon name="play" />製作伴唱帶</button
         >
         <button type="button" class="run-btn" title="只檢查還沒檢查過或有變動的" onclick={() => runBatch('check')}><Icon name="play" />檢查對時</button>
-        <button type="button" class="view-link" aria-haspopup="menu" title="重新處理" onclick={(e) => redoMenu(e.currentTarget)}
-          ><Icon name="more" />重新處理</button
-        >
         <span class="divider"></span>
-        <button type="button" class="view-link" title="只對做好的伴唱帶有效" onclick={() => batchApproval(true)}
-          ><Icon name="check" />標記已確認</button
-        >
-        <button type="button" class="view-link" onclick={() => batchApproval(false)}>取消確認</button>
         <button type="button" class="view-link" aria-haspopup="menu" title="移到其他資料夾" onclick={(e) => moveMenu(e.currentTarget)}
           ><Icon name="folder" />移動到…</button
+        >
+        <button type="button" class="view-link" aria-haspopup="menu" title="標記已確認、重新處理…" onclick={(e) => moreMenu(e.currentTarget)}
+          ><Icon name="more" />更多</button
         >
         <button type="button" class="view-link" onclick={() => store.selected.clear()}>取消選取</button>
       </div>

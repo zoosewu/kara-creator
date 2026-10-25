@@ -123,7 +123,7 @@ go run ./nas/cmd/fakeworker --nas http://127.0.0.1:8766 --delay 2s
 | 檔案 | 內容 |
 | --- | --- |
 | `lyrics_parse.json` | 歌詞文字 → 結構 → 寫回（讀音簡寫、`{原字|讀音}`、台羅音節數規則、翻譯行、註解、空行、全形空白）與語言判斷 |
-| `lyrics_plain.json` | 「原始歌詞」改過之後新舊句子的對應（插入、刪除、修改） |
+| `lyrics_plain.json` | 「純文字」改過之後新舊句子的對應（插入、刪除、修改） |
 | `paren.json` | 括號讀音提示與轉換 |
 | `language.json` | 依歌詞文字判斷語言 |
 | `readings.json` | 手動與自動讀音的合併、歌詞編輯器的各種檢視 |

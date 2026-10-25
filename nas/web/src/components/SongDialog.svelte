@@ -17,8 +17,8 @@
 
   const LANGUAGE_HINTS: Record<string, string> = {
     '': '依歌詞文字判斷（假名 → 日文、漢字 → 國語、英文字母 → 英文）。',
-    nan: '請在歌詞「標註」模式替每個漢字標台羅（例：我 → guá），沒標的字會對得比較不準。',
-    yue: '請在歌詞「標註」模式替每個漢字標粵拼（例：我 → ngo5），沒標的字會對得比較不準。',
+    nan: '請在歌詞編輯器的「逐句編輯」替每個漢字標台羅（例：我 → guá），沒標的字會對得比較不準。',
+    yue: '請在歌詞編輯器的「逐句編輯」替每個漢字標粵拼（例：我 → ngo5），沒標的字會對得比較不準。',
   }
 
   let folder = $state(song.folder)
@@ -45,7 +45,10 @@
   })
   let languageChanged = $derived(language !== song.info.language && !['pending', 'no_lyrics'].includes(song.status.karaoke))
 
-  onMount(() => titleInput?.focus())
+  // 觸控裝置不自動聚焦：鍵盤一跳出來會擋住一半的畫面
+  onMount(() => {
+    if (!matchMedia('(hover: none)').matches) titleInput?.focus()
+  })
 
   async function submit(e: SubmitEvent) {
     e.preventDefault()
@@ -70,12 +73,11 @@
       <button type="button" class="icon-btn" aria-label="關閉" onclick={() => (ui.song = null)}><Icon name="close" size={18} /></button>
     </header>
     <div class="dialog-body">
-      <label class="field">資料夾<FolderSelect bind:value={folder} /></label>
       <label class="field">歌名<input bind:this={titleInput} bind:value={title} autocomplete="off" placeholder={fbTitle} /></label>
       <label class="field">演唱者<input bind:value={artist} autocomplete="off" placeholder={fbArtist || '（未填）'} /></label>
       <p class="hint">留空則自動使用「{fbTitle}{fbArtist ? ` / ${fbArtist}` : ''}」（{from}）。</p>
       <label class="field">備註<input bind:value={note} autocomplete="off" placeholder="例如：作詞：○○／作曲：○○" /></label>
-      <p class="hint">顯示在標題畫面；前奏不到 6 秒時放在開頭 40 秒內的間奏，沒有間奏就直接放在開頭。</p>
+      <p class="hint">顯示在歌曲開頭的標題畫面（歌名、演唱者下面）。</p>
       <label class="check-field"><input type="checkbox" bind:checked={translation} /> 燒上中文翻譯</label>
       <p class="hint">
         {song.translation_lines
@@ -94,6 +96,7 @@
         </select>
       </label>
       <p class="hint">{LANGUAGE_HINTS[language] ?? ''}{languageChanged ? ' 改了語言要重新對時，已確認會失效。' : ''}</p>
+      <label class="field">資料夾<FolderSelect bind:value={folder} /></label>
       <label class="field"
         >影片連結
         <span class="link-row">

@@ -279,7 +279,7 @@
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="editor-heading">
     <header class="sheet-head">
       <div class="grow">
-        <h2 id="editor-heading">歌詞</h2>
+        <h2 id="editor-heading">編輯歌詞</h2>
         <div class="muted ellipsis">{song.artist ? `${song.artist} - ${song.title}` : song.title}</div>
       </div>
       {#if song.media.length && !overStudio}
@@ -297,9 +297,9 @@
         >
       {/if}
       <div class="seg-toggle">
-        <button type="button" class:on={mode === 'visual'} title="點選切換演唱者、修改讀音" onclick={() => setMode('visual')}>標註</button>
-        <button type="button" class:on={mode === 'annotated'} title="含演唱者標籤與每個漢字讀音的完整原文" onclick={() => setMode('annotated')}>標註原文</button>
-        <button type="button" class:on={mode === 'plain'} title="只有歌詞本身的純文字" onclick={() => setMode('plain')}>原始歌詞</button>
+        <button type="button" class:on={mode === 'visual'} title="一句一句編輯：演唱者、讀音、翻譯、時間" onclick={() => setMode('visual')}>逐句編輯</button>
+        <button type="button" class:on={mode === 'annotated'} title="整首的文字，含演唱者、讀音、翻譯的標註" onclick={() => setMode('annotated')}>標註文字</button>
+        <button type="button" class:on={mode === 'plain'} title="只有歌詞本身，可以直接貼上整首" onclick={() => setMode('plain')}>純文字</button>
       </div>
       <button type="button" class="icon-btn" title="關閉（Esc）" aria-label="關閉" onclick={() => close()}><Icon name="close" size={18} /></button>
     </header>
@@ -340,7 +340,7 @@
         {/if}
         <div class="lines">
           {#if loaded && !hasLines}
-            <div class="empty-lyrics">還沒有歌詞。切到「原始歌詞」貼上歌詞，一行一句。</div>
+            <div class="empty-lyrics">還沒有歌詞。切到「純文字」貼上歌詞，一行一句。</div>
           {/if}
           {#each lines as line, index}
             {#if line.kind === 'blank'}

@@ -7,7 +7,7 @@
   const LANES: [string, string, string][] = [
     ['download', '下載', '只用網路，最多同時 2 首'],
     ['process', 'AI 處理', '去人聲、對時、燒錄、檢查'],
-    ['system', '收尾', '資料備份'],
+    ['system', '資料備份', '佇列清空或曲庫有變動後備份 data/'],
   ]
 
   // 窄螢幕（單欄）時整塊可以收合，預設收起來；寬螢幕一律展開（收合按鈕只在窄螢幕顯示）
@@ -85,7 +85,7 @@
     if (w.tasks.length) {
       const t = w.tasks[0]
       const song = store.songs.get(t.song)
-      const kind = { separate: '去人聲', align: '對時', align_from: 'AI 重對', align_line: 'AI 重對', qa: '檢查對時', render: '燒錄', reading: '假名' }[t.kind] ?? t.kind
+      const kind = { separate: '去人聲', align: '對時', align_from: 'AI 對時', align_line: 'AI 對時', qa: '檢查對時', render: '燒錄', reading: '讀音' }[t.kind] ?? t.kind
       return { cls: 'online busy', text: `${kind}：${song?.title ?? t.song}` }
     }
     return { cls: 'online', text: '閒置' }

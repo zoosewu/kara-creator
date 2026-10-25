@@ -34,7 +34,7 @@ export const sameText = (a: string, b: string) => a.replace(/\s/g, '') === b.rep
 
 export const LANGUAGE_NAMES: Record<string, string> = { zh: '國語', nan: '台語', yue: '粵語', ja: '日文', en: '英文' }
 export const STEP_NAMES: Record<string, string> = {
-  download: '下載', separate: '去人聲', karaoke: '製作伴唱帶', check: '檢查對時', retime: 'AI 重新對時', wrapup: '收尾',
+  download: '下載', separate: '去人聲', karaoke: '製作伴唱帶', check: '檢查對時', retime: 'AI 對時', wrapup: '資料備份',
 }
 export const SINGER_ORDER: (string | null)[] = [null, '男', '女', '合']
 

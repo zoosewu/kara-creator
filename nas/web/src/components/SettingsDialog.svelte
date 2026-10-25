@@ -144,7 +144,7 @@
       <h3 class="field">匯出</h3>
       <label class="check-field"><input type="checkbox" bind:checked={exportOriginal} /> 也匯出原曲音訊</label>
       <p class="hint">
-        另外匯出「歌手 - 歌名_original.m4a」。{exportOriginal !==
+        另外匯出「演唱者 - 歌名_original.m4a」。{exportOriginal !==
         (store.settings.export_original ?? false)
           ? exportOriginal
             ? '下次匯出時加上。'

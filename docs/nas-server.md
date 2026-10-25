@@ -32,7 +32,7 @@ kara-nas restore [--overwrite] [--replace 歌曲id=網址]   # 從資料備份�
 | `titles` | 規格測試 |
 | `library`（排序的編號規則、刪資料夾時內容移到上一層） | 規格測試（`catalog`） |
 | `export`（檔名規則、同名編號、非法字元換成全形底線） | 規格測試（`export_names`）＋實際放置檔案 |
-| `timing`（連鎖往前 / 往後推、壓縮；AI 重對的套用：上一句尾音截到 anchor） | 規格測試（`shift_timing`） |
+| `timing`（連鎖往前 / 往後推、壓縮；AI 對時的套用：上一句尾音截到 anchor） | 規格測試（`shift_timing`） |
 | `readings` | 規格測試（`readings`） |
 | `fingerprint` | 規格測試（`fingerprint`） |
 | `planner`（狀態、標題畫面、要不要燒翻譯、語言、指紋） | 情境測試 |
@@ -81,10 +81,10 @@ kara-nas restore [--overwrite] [--replace 歌曲id=網址]   # 從資料備份�
 | 等級 | 任務 | 通道 |
 | --- | --- | --- |
 | 即時 | `reading` | interactive |
-| 互動 | 播放畫面的 AI 重對（`align_line` 先於 `align_from`）；編輯完按的製作伴唱帶（歌詞編輯器「儲存並製作伴唱帶」、播放畫面「更新伴唱帶」） | heavy |
+| 互動 | 播放畫面的 AI 對時（`align_line` 先於 `align_from`）；編輯完按的製作伴唱帶（歌詞編輯器「儲存並製作伴唱帶」、播放畫面「更新伴唱帶」） | heavy |
 | 批次 | 下載後一路製作、批次製作 / 重新處理 | heavy |
 
-- 同一等級先到先做；互動等級裡 AI 重對最急：只重對一句（`align_line`）> 重對之後全部（`align_from`）> 其他互動任務
+- 同一等級先到先做；互動等級裡 AI 對時最急：只重對一句（`align_line`）> 重對之後全部（`align_from`）> 其他互動任務
 - **已經在跑的任務不會被中斷**：等級只決定 worker 下一次 lease 時拿到哪一件
 - 派工（worker 來 lease 時）：在這個 worker 能做的任務中取最前面的順序；同一個順序裡**優先選輸入檔已在這台快取裡的**（快取不能讓比較不急的插隊），
   但等超過 2 分鐘的任務不再挑快取（避免一直被跳過）
@@ -95,12 +95,12 @@ kara-nas restore [--overwrite] [--replace 歌曲id=網址]   # 從資料備份�
 **還沒結束的工作**和最近的紀錄（最多 200 件、7 天）寫到 `<library>/cache/jobs.json`，
 重新啟動後繼續排隊；執行到一半的本機動作重做（每一步都看紀錄檔判斷，重做是安全的）。
 
-### 收尾
+### 資料備份
 
-- 佇列清空（所有工作都結束）時收尾一次
-- 曲庫有變動（改歌名、資料夾、歌詞、時間…）後安靜 30 秒收尾一次（連續操作只跑一次）
+- 佇列清空（所有工作都結束）時備份一次
+- 曲庫有變動（改歌名、資料夾、歌詞、時間…）後安靜 30 秒備份一次（連續操作只跑一次）
 
-收尾 = 資料備份（寫 `data/`，有變動就 `git commit` + `git push`；push 失敗只記錄）。收尾的紀錄顯示在處理佇列的「收尾」。
+寫 `data/`，有變動就 `git commit` + `git push`（push 失敗只記錄）。紀錄顯示在處理佇列的「資料備份」。
 
 ## REST API（`/api/v1`）
 
@@ -119,7 +119,7 @@ kara-nas restore [--overwrite] [--replace 歌曲id=網址]   # 從資料備份�
 | `POST /lyrics/convert` | 文字 ↔ 結構互轉，含括號讀音轉換 |
 | `GET /songs/{id}/timing` · `PATCH /songs/{id}/timing/lines/{n}` | 每句時間；移動單句（`{delta}` 或 `{start}`），回傳一起被推動的句子 |
 | `POST /songs/{id}/timing/edits` | 依序套用一串調整（`{edits: [{line, delta 或 start} 或 {line, retime}], dry_run}`），全部成功才存檔；`dry_run` 只回傳結果，播放畫面用來預覽還沒儲存的調整 |
-| `GET /jobs/{id}/result` | AI 重對（`retime`）做完的新時間；工作本身不存檔，放進 `timing/edits` 的 `retime` 才套用 |
+| `GET /jobs/{id}/result` | AI 對時（`retime`）做完的新時間；工作本身不存檔，放進 `timing/edits` 的 `retime` 才套用 |
 | `PATCH /songs/{id}/lines/{n}` | 播放畫面直接改一句的文字或演唱者（改文字之後要重新對時） |
 | `GET /songs/{id}/qa` | 對時檢查結果（只列有疑慮的句子） |
 | `GET /media/{id}/{file}` | 媒體檔（支援 Range，給 `<video>` 播放與拖曳） |

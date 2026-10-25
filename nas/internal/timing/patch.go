@@ -142,7 +142,7 @@ func (p *Patch) Window(g Gap) (t0 float64, t1 *float64, err error) {
 // 最後一句唱過下一句開頭的部分也壓縮到它之前。
 func (p *Patch) Fill(g Gap, lines []wp.Line) error {
 	if len(lines) != g.To-g.From {
-		return errors.New("AI 重對的結果句數不符")
+		return errors.New("AI 對時的結果句數不符")
 	}
 	for k, ln := range lines {
 		p.Lines[g.From+k] = cloneLine(ln)

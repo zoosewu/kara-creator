@@ -521,7 +521,7 @@
   /** AI 重對：以畫面上（含還沒儲存的調整）這句的開頭為準；結果放進草稿，按儲存才存檔。 */
   async function retime(i: number, mode: string) {
     if (pendingJob) return
-    if (mode === 'line' ? edits.get(i)?.text !== undefined : retimeBlocked(i)) return store.notify('改過的歌詞還沒儲存，AI 要用儲存後的歌詞重對：請先儲存', true)
+    if (mode === 'line' ? edits.get(i)?.text !== undefined : retimeBlocked(i)) return store.notify('改過的歌詞還沒儲存，AI 對時要用儲存後的歌詞：請先儲存', true)
     const next = mode === 'line' ? timing[i + 1]?.start : undefined
     const res = await store.runJob([id], ['retime'], { line: i, mode, anchor: timing[i].start, ...(next !== undefined ? { next } : {}) })
     const job = res?.created[0]
@@ -552,7 +552,7 @@
 
   function close() {
     if (dirty && !confirm(`有 ${draftCount} 句的調整還沒儲存，確定不儲存就關閉？`)) return
-    if (!dirty && pendingJob && !confirm('AI 重對還沒做完，關閉後結果不會留下，確定關閉？')) return
+    if (!dirty && pendingJob && !confirm('AI 對時還沒做完，關閉後結果不會留下，確定關閉？')) return
     video?.pause()
     cancelAnimationFrame(raf)
     if (retimed || textChanged) store.notify('已儲存，按「更新伴唱帶」後生效')
@@ -648,13 +648,13 @@
     class:approved
     disabled={!approved && song.status.karaoke !== 'done'}
     title={approved
-      ? '已確認，點一下取消'
+      ? '已確認這一版沒問題；點一下取消確認'
       : song.status.karaoke !== 'done'
         ? '伴唱帶做好後才能確認'
         : '確認這一版沒問題'}
-    onclick={approve}><Icon name="check" /><span>{approved ? '已確認（取消）' : '確認沒問題'}</span></button
+    onclick={approve}><Icon name="check" /><span>{approved ? '已確認' : '確認沒問題'}</span></button
   >
-  <button type="button" class="btn small" title="編輯歌名、歌手、語言" onclick={async () => (await settle('開資訊')) && (ui.song = id)}><Icon name="tag" />資訊</button>
+  <button type="button" class="btn small" title="編輯歌名、演唱者、語言" onclick={async () => (await settle('開資訊')) && (ui.song = id)}><Icon name="tag" />資訊</button>
   <button type="button" class="btn small" title="開啟歌詞編輯器（整首的文字、讀音、翻譯）" onclick={async () => (await settle('開歌詞編輯器')) && ui.openEditor(id, { over: true })}><Icon name="lyrics" />編輯歌詞</button>
   <div class="seg-toggle" role="group" aria-label="字幕">
     {#each MODES as [m, label, hint]}
@@ -946,7 +946,7 @@
         <footer class="studio-foot" class:dirty>
           <span class="muted ellipsis grow">{dirty ? `${draftCount} 句未儲存${statusText ? `：${statusText}` : ''}` : statusText}</span>
           {#if dirty}
-            <button type="button" class="btn" disabled={saving} onclick={discard}>復原</button>
+            <button type="button" class="btn" disabled={saving} title="還原到上次儲存的狀態" onclick={discard}>放棄修改</button>
             <button type="button" class="btn primary" disabled={saving} title="儲存調整（Ctrl+S）" onclick={() => save()}>儲存</button>
           {/if}
           <button type="button" class="btn" class:primary={!dirty} disabled={song.status.lyrics !== 'done' || saving} title="用調整後的歌詞與時間重新製作" onclick={runKaraoke}

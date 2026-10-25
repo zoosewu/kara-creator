@@ -239,7 +239,7 @@ func (a *App) touched() {
 }
 
 func (a *App) runWrapup(reason string) {
-	a.Jobs.RunSystem("收尾（"+reason+"）", func(ctx context.Context, logf func(string)) error {
+	a.Jobs.RunSystem("資料備份（"+reason+"）", func(ctx context.Context, logf func(string)) error {
 		return a.Backup.Run(ctx, logf)
 	})
 }

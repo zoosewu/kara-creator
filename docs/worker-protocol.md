@@ -80,7 +80,7 @@ MeCab tagger 不是執行緒安全的：interactive 迴圈用自己的 tagger �
   - `fonts/<sha256>`：字型檔，不自動刪
   - 模型（Whisper、MMS、Demucs）照各套件預設的快取位置；container 版掛 volume
 - 任務裡列出每個輸入的 sha256 與大小；worker 先查快取，沒有才 `GET /blobs/{sha256}`，下載完驗證 sha256
-- NAS 派工時**優先派給快取裡已經有輸入檔的 worker**（hello 和 lease 時回報的清單）。對時、檢查、AI 重對常用同一份 speech.wav，所以同一首歌的後續任務大多會落在同一台
+- NAS 派工時**優先派給快取裡已經有輸入檔的 worker**（hello 和 lease 時回報的清單）。對時、檢查、AI 對時常用同一份 speech.wav，所以同一首歌的後續任務大多會落在同一台
 - 結果檔上傳完、`complete` 被接受後，worker 不必保留結果
 
 ## 字型

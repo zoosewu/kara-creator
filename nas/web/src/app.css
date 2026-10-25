@@ -151,7 +151,7 @@ input[type=range] { padding: 0; border: none; border-radius: 0; background: none
 
 /* ---- 版面 ---- */
 .topbar {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
   max-width: 1280px; margin: 0 auto; padding: 18px 24px 8px;
 }
 .brand { font-weight: 700; font-size: 16px; letter-spacing: .01em; }
@@ -337,7 +337,7 @@ body.is-dragging .lib-root { border-color: var(--accent); border-style: dashed; 
 .status-tag i { width: 7px; height: 7px; border-radius: 50%; background: var(--tone); }
 .status-tag i.pulse { background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
 .status-tip {
-  position: fixed; z-index: 30; width: max-content; max-width: min(330px, calc(100vw - 16px)); padding: 8px 10px;
+  position: fixed; z-index: 30; width: max-content; max-width: min(330px, calc(100vw - 16px)); max-height: calc(100dvh - 16px); overflow: auto; padding: 8px 10px;
   display: grid; gap: 5px; pointer-events: none;
   background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 24px rgba(0, 0, 0, .18);
 }
@@ -419,10 +419,11 @@ body.is-dragging .lib-root { border-color: var(--accent); border-style: dashed; 
   width: min(460px, 100%); max-height: 100%; overflow: auto;
   background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow);
 }
-.dialog-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 6px 20px; }
+.dialog-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 6px 20px; position: sticky; top: 0; z-index: 1; background: var(--surface); }
 .dialog-head h2 { font-size: 15px; }
 .dialog-body { display: grid; gap: 12px; padding: 8px 20px 4px; }
-.dialog-foot { display: flex; align-items: center; gap: 8px; justify-content: flex-end; padding: 16px 20px; }
+/* 標題與按鈕固定不動：長的設定頁不用捲到底才能儲存 */
+.dialog-foot { display: flex; align-items: center; gap: 8px; justify-content: flex-end; padding: 12px 20px; position: sticky; bottom: 0; z-index: 1; background: var(--surface); border-top: 1px solid var(--border); margin-top: 12px; }
 .field { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
 .field input, .field select { font-size: 14px; width: 100%; min-width: 0; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -771,7 +772,7 @@ ruby.slot rt { color: var(--border); }
 .studio-lines::after { content: ""; display: block; height: 45%; }
 
 /* 歌詞欄比較窄（平板橫式、桌機的右欄）：每句還是一行，時間放到歌詞下面、不顯示句號，歌詞才有空間 */
-@container (max-width: 680px) {
+@container (max-width: 640px) {
   .studio-line { grid-template-columns: var(--play-size) 28px minmax(0, 1fr) auto auto; gap: 4px 6px; }
   .line-no, .line-tools .studio-time { display: none; }
   .line-tools { gap: 4px; }
@@ -810,8 +811,8 @@ ruby.slot rt { color: var(--border); }
   .overlay.center:has(> .studio) { padding: 0; }
   .studio { width: 100%; height: 100%; border: 0; border-radius: 0; }
 }
-/* 平板橫式：影片和歌詞各一半，歌詞欄寬一點 */
-@media (min-width: 901px) and (max-width: 1280px) {
+/* 平板橫式、桌機：影片和歌詞各一半，歌詞欄寬一點 */
+@media (min-width: 901px) {
   .studio-body { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
 
@@ -838,6 +839,7 @@ ruby.slot rt { color: var(--border); }
   .sheet-head > :not(.grow):not(:last-child) { order: 2; }
   .sheet-head .seg-toggle { max-width: 100%; overflow-x: auto; }
   .sheet-body { padding: 12px; }
+  .lines .lyric-text, .lines .line-text { font-size: 17px; }
   .sheet-foot { padding: 10px 12px; }
 
   /* 像直式影片：上面整個是影片，下面一條控制（播放、時間、進度、⋯、關閉），其他都是歌詞；

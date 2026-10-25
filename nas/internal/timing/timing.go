@@ -204,7 +204,7 @@ const (
 )
 
 // RetimeModes 是重對方式的說明。
-var RetimeModes = map[string]string{RetimeFrom: "重新對時這句及之後全部", RetimeLine: "只重對這一句"}
+var RetimeModes = map[string]string{RetimeFrom: "從這句到最後重新對時", RetimeLine: "這句重新對時"}
 
 // RetimeResult 是 AI 重對的結果：第 Line 句起（from）或只有這句（line）的新時間，以 Anchor 為開頭。
 // 工作做完不存檔，交給畫面放進還沒儲存的調整，按儲存時用 ApplyRetime 套用。
@@ -244,7 +244,7 @@ func (a *Alignment) ApplyRetime(r RetimeResult, now string) error {
 		return a.ApplyFrom(r.Line, r.Anchor, lines, now)
 	case RetimeLine:
 		if len(lines) != 1 {
-			return invalid("AI 重對的結果句數不符")
+			return invalid("AI 對時的結果句數不符")
 		}
 		return a.ApplyLine(r.Line, r.Anchor, lines[0], now)
 	}
@@ -257,7 +257,7 @@ func (a *Alignment) ApplyFrom(line int, anchor float64, fresh []wp.Line, now str
 		return invalid("沒有這一句")
 	}
 	if line+len(fresh) != len(a.Lines) {
-		return invalid("AI 重對的結果句數不符")
+		return invalid("AI 對時的結果句數不符")
 	}
 	if line > 0 {
 		prev := &a.Lines[line-1]
