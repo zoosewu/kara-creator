@@ -687,7 +687,7 @@ ruby.slot rt { color: var(--border); }
 
 /* 資訊對話框：影片連結 + 複製 */
 .link-row { display: flex; gap: 6px; align-items: center; }
-.link-row input { flex: 1; }
+.link-row input, .link-row select { flex: 1; min-width: 0; }
 .link-row input[readonly] { background: var(--surface-2); color: var(--muted); }
 
 /* 中文翻譯 */
@@ -884,3 +884,13 @@ ruby.slot rt { color: var(--border); }
   .icon-btn, .edit-btn, .qa-flag { min-width: 36px; min-height: 36px; }
 }
 .studio-pending { margin: 0 16px 8px; }
+
+/* 只記在這台瀏覽器的設定（設定對話框、第一次使用的對話框） */
+.new-badge {
+  display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px; font-size: 11px; line-height: 18px;
+  background: var(--accent-soft); color: var(--accent); vertical-align: 1px;
+}
+.more-prefs { border-top: 1px solid var(--border); padding-top: 10px; }
+.more-prefs > summary { font-size: 13px; }
+.more-prefs-body { display: grid; gap: 12px; padding-top: 12px; }
+.onboarding .dialog-body { gap: 14px; }

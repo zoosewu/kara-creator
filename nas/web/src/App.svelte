@@ -2,6 +2,8 @@
   import { onMount } from 'svelte'
   import { store } from './lib/state.svelte'
   import { ui } from './lib/ui.svelte'
+  import { unsetSettings } from './lib/prefs.svelte'
+  import Onboarding from './components/Onboarding.svelte'
   import Icon from './components/Icon.svelte'
   import Toast from './components/Toast.svelte'
   import Menu from './components/Menu.svelte'
@@ -15,7 +17,14 @@
   import Studio from './components/Studio.svelte'
 
   onMount(() => {
-    store.reload().catch((e) => store.notify(e.message, true))
+    store
+      .reload()
+      .then(() => {
+        // 第一次使用，或之後新增了設定項目：請使用者設定一次（要先載入曲庫，才能選資料夾）
+        const fresh = unsetSettings()
+        if (fresh.length) ui.onboarding = fresh
+      })
+      .catch((e) => store.notify(e.message, true))
     store.connect()
   })
 
@@ -54,6 +63,7 @@
 {#if ui.song}{#key ui.song}<SongDialog id={ui.song} />{/key}{/if}
 {#if ui.folder}<FolderDialog target={ui.folder} />{/if}
 {#if ui.settings}<SettingsDialog />{/if}
+{#if ui.onboarding}<Onboarding fresh={ui.onboarding} />{/if}
 
 <Menu />
 <Toast />

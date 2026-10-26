@@ -1,6 +1,7 @@
 // 哪個對話框開著（一次一個主要畫面：資訊、資料夾、設定、歌詞、播放）。
 // 播放畫面開著時，歌詞編輯器和資訊可以疊在上面（影片在背景繼續播），關掉後回到播放畫面。
 import type { Mode, Track } from './playback'
+import type { SettingKey } from './prefs.svelte'
 
 export type StudioOpts = { mode?: Mode; track?: Track; line?: number | null; jumpToQa?: boolean; at?: number }
 
@@ -8,6 +9,7 @@ class UI {
   song = $state<string | null>(null) // 資訊對話框
   folder = $state<{ id: string | null; parent: string } | null>(null) // 資料夾對話框（id null = 新增）
   settings = $state(false)
+  onboarding = $state<SettingKey[] | null>(null) // 第一次使用的設定（還沒設定過的項目）
   editor = $state<string | null>(null) // 歌詞編輯器
   studio = $state<{ id: string; opts: StudioOpts } | null>(null) // 播放畫面
 

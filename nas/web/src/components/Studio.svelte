@@ -63,7 +63,7 @@
   let editingText = $state<number | null>(null)
   let pendingJob = $state<{ id: string; index: number; mode: string; count: number } | null>(null)
   let statusText = $state('')
-  let rate = $state(prefs.rate)
+  let rate = $state(prefs.studioRate) // 從設定的預設速度開始；這裡調整只影響這一次
   let volume = $state(prefs.volume)
   let muted = $state(prefs.muted)
   let paused = $state(true)
@@ -685,7 +685,7 @@
     title="播放速度"
     aria-label="播放速度"
     bind:value={rate}
-    onchange={() => (video && (video.playbackRate = rate), prefs.set('rate', rate))}
+    onchange={() => video && (video.playbackRate = rate)}
   >
     <option value={0.5}>0.5×</option>
     <option value={0.75}>0.75×</option>

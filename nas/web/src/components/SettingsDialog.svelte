@@ -1,11 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { api, type Font, type System } from '../lib/api'
-  import { MODES, TRACKS } from '../lib/playback'
-  import { prefs } from '../lib/prefs.svelte'
+  import { saveSettings, settingDraft } from '../lib/prefs.svelte'
+  import BrowserPrefs from './BrowserPrefs.svelte'
   import { store } from '../lib/state.svelte'
   import { ui } from '../lib/ui.svelte'
-  import FolderSelect from './FolderSelect.svelte'
   import Icon from './Icon.svelte'
 
   const BASE_RATIO = 0.075 // 預設字幕字高 / 畫面高（和 worker 的 subtitles.Style 一致）
@@ -22,10 +21,7 @@
   let fonts = $state<Font[]>([])
   let chosen = $state<Record<string, string>>({ ...(store.settings.fonts ?? {}) })
   let exportOriginal = $state(store.settings.export_original ?? false)
-  let newSongFolder = $state(prefs.newSongFolder)
-  let studioMode = $state(prefs.studioMode)
-  let studioTrack = $state(prefs.studioTrack)
-  let studioFollow = $state(prefs.studioFollow)
+  let browser = $state(settingDraft()) // 只記在這台瀏覽器的設定
   let system = $state<System | null>(null)
   let box = $state<HTMLDivElement>()
   let boxHeight = $state(0)
@@ -59,10 +55,7 @@
     const fontBody: Record<string, string | null> = {}
     for (const [l] of LANGS) if ((chosen[l] ?? '') !== (store.settings.fonts?.[l] ?? '')) fontBody[l] = chosen[l] || null
     if (!(await store.attempt(() => api('/settings', { method: 'PATCH', body: { subtitle_scale: scale / 100, fonts: fontBody, export_original: exportOriginal } }), '已儲存設定'))) return
-    prefs.set('newSongFolder', newSongFolder)
-    prefs.set('studioMode', studioMode)
-    prefs.set('studioTrack', studioTrack)
-    prefs.set('studioFollow', studioFollow)
+    saveSettings(browser)
     close()
   }
 
@@ -123,23 +116,7 @@
       </p>
 
       <h3 class="field">這台瀏覽器</h3>
-      <label class="field">新歌預設資料夾<FolderSelect bind:value={newSongFolder} /></label>
-      <div class="field-row">
-        <label class="field"
-          >播放畫面預設字幕
-          <select bind:value={studioMode}>
-            {#each MODES as [mode, label, hint]}<option value={mode} title={hint}>{label}</option>{/each}
-          </select>
-        </label>
-        <label class="field"
-          >預設聲音
-          <select bind:value={studioTrack}>
-            {#each TRACKS as [track, label]}<option value={track}>{label}</option>{/each}
-          </select>
-        </label>
-      </div>
-      <label class="check-field"><input type="checkbox" bind:checked={studioFollow} /> 播放畫面預設「歌詞跟著播放捲動」</label>
-      <p class="hint">只記在這台瀏覽器。放進 inbox 的歌在曲庫最上層；沒有那個版本時（例如還沒做好伴唱帶）用最接近的。</p>
+      <BrowserPrefs bind:draft={browser} />
 
       <h3 class="field">匯出</h3>
       <label class="check-field"><input type="checkbox" bind:checked={exportOriginal} /> 也匯出原曲音訊</label>
