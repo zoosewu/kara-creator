@@ -17,6 +17,22 @@ def test_reading_only_auto_spans():
     assert tasks._reading({"language": "zh", "texts": ["中文"]})["lines"] == [[]]
 
 
+def test_lyric_readings():
+    # 歌詞慣用的讀音：私 → わたし、明日 → あした、何時 → いつ、何 依後面的字唸なに / なん（量詞維持なん）
+    cases = {
+        "私は君が好き": "わたし", "明日へ": "あした", "何時までも": "いつ",
+        "何を言っても": "なに", "何が欲しい": "なに", "何も言わずに": "なに", "何か足りない": "なに", "何気ない日々": "なに",
+        "何で泣いてるの": "なん", "何て綺麗な空": "なん", "何だろう": "なん", "何のために": "なん", "何と言えば": "なん",
+        "何度でも": "なん", "何回も": "なん",
+    }
+    for text, ruby in cases.items():
+        assert reading.auto_furigana(text)[0][2] == ruby, text
+    assert reading.auto_furigana("何時までも")[0] == (0, 2, "いつ")
+    assert reading.auto_furigana("私立の学校")[0] == (0, 2, "しりつ")       # 複合詞不受影響
+    # 對時用的羅馬字也一樣
+    assert [u.roman for u in reading.split("明日の何時か", "ja") if u.roman][:3] == ["ashita", "no", "itsu"]
+
+
 def test_subtitle_ratio():
     assert tasks.subtitle_ratio(1) == subtitles.Style().size_ratio      # 100% 時和預設樣式完全相同
     assert tasks.subtitle_ratio(1.2) == round(subtitles.Style().size_ratio * 1.2, 5)

@@ -22,7 +22,9 @@ import (
 	"github.com/zoosewu/kara-creator/nas/internal/fonts"
 	"github.com/zoosewu/kara-creator/nas/internal/inbox"
 	"github.com/zoosewu/kara-creator/nas/internal/jobs"
+	"github.com/zoosewu/kara-creator/nas/internal/library"
 	"github.com/zoosewu/kara-creator/nas/internal/media"
+	"github.com/zoosewu/kara-creator/nas/internal/migrate"
 	"github.com/zoosewu/kara-creator/nas/internal/pipeline"
 	"github.com/zoosewu/kara-creator/nas/internal/planner"
 	"github.com/zoosewu/kara-creator/nas/internal/readings"
@@ -93,7 +95,16 @@ func New(cfg config.Config) (*App, error) {
 		return nil, err
 	}
 	a.saveFontCache()
-	if a.Readings, err = readings.OpenCache(st.Path(store.CacheDir, "readings.jsonl"), a.Versions.Reading); err != nil {
+	// 讀音規則改版的遷移要用改版前的讀音：OpenCache 會丟掉舊版的資料，所以先讀出來
+	readingsPath := st.Path(store.CacheDir, "readings.jsonl")
+	var oldReadings map[string][]readings.Span
+	pinReadings := a.Versions.Reading > migrate.FromReading && !st.Library().Migrated(migrate.ReadingsV3)
+	if pinReadings {
+		if oldReadings, err = readings.LoadSpans(readingsPath, migrate.FromReading); err != nil {
+			return nil, err
+		}
+	}
+	if a.Readings, err = readings.OpenCache(readingsPath, a.Versions.Reading); err != nil {
 		return nil, err
 	}
 
@@ -115,6 +126,12 @@ func New(cfg config.Config) (*App, error) {
 	a.Inbox = &inbox.Inbox{Store: st, Media: a.Media, Log: func(s string) { log.Print(s) }}
 	a.Jobs = jobs.New(jobs.Config{Runner: &runner{a}, Path: st.Path(store.CacheDir, "jobs.json"),
 		ProcessLimit: a.processLimit, OnIdle: a.onIdle, OnEvent: a.onJobEvent})
+
+	if pinReadings {
+		if err := a.migrateReadings(oldReadings); err != nil {
+			return nil, err
+		}
+	}
 
 	st.OnChange = func(c store.Change) {
 		if c.Kind == "song" {
@@ -420,4 +437,32 @@ func (a *App) onJobEvent(kind string, data any) {
 			}
 		}
 	}
+}
+
+// migrateReadings 讀音規則 v3 的一次性遷移（見 migrate.PinReadings）：舊歌的讀音照舊、狀態不變，做完記在 library.json。
+// 紀錄寫到 NAS 的 log，也放進處理佇列的「資料備份」讓使用者看得到。
+func (a *App) migrateReadings(old map[string][]readings.Span) error {
+	var lines []string
+	logf := func(s string) {
+		log.Print(s)
+		lines = append(lines, s)
+	}
+	logf("讀音規則更新（私 → わたし、明日 → あした、何時 → いつ、何 依後面的字唸なに / なん）：舊歌照舊，釘住原本的讀音")
+	migrate.PinReadings(migrate.Env{Store: a.Store, Font: a.fontFor, Versions: a.Versions, Old: old,
+		Backup: a.Store.Path(store.CacheDir, "migrate-"+migrate.ReadingsV3), Log: logf})
+	if err := a.Store.EditLibrary(func(l *library.Library) error {
+		l.Migrations = append(l.Migrations, migrate.ReadingsV3)
+		return nil
+	}); err != nil {
+		return err
+	}
+	if len(a.Store.SongIDs()) > 0 {
+		a.Jobs.RunSystem("讀音規則更新", func(ctx context.Context, log func(string)) error {
+			for _, s := range lines {
+				log(s)
+			}
+			return nil
+		})
+	}
+	return nil
 }

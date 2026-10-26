@@ -119,3 +119,26 @@ func (c *Cache) rewrite() error {
 	}
 	return os.Rename(tmp, c.path)
 }
+
+// LoadSpans 讀出快取檔裡某個版本的全部讀音（鍵 → 讀音）。給讀音規則改版時的一次性遷移用：
+// OpenCache 會丟掉舊版的資料，所以要在它之前讀。檔案不存在時回傳空的。
+func LoadSpans(path string, version int) (map[string][]Span, error) {
+	out := map[string][]Span{}
+	f, err := os.Open(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return out, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 0, 64*1024), 16*1024*1024)
+	for sc.Scan() {
+		var ln cacheLine
+		if json.Unmarshal(sc.Bytes(), &ln) == nil && ln.V == version {
+			out[ln.K] = ln.Spans
+		}
+	}
+	return out, sc.Err()
+}

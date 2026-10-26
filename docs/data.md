@@ -107,9 +107,15 @@ id 決定資料夾名稱，之後不會改變。還沒下載完的歌可能只�
   "folders": [ { "id": "a1b2c3d4", "name": "日文", "parent": null, "order": 1 } ],
   "songs":   { "dQw4w9WgXcQ": { "folder": "a1b2c3d4", "order": 3 } },
   "settings": { "subtitle_scale": 1.0, "fonts": { "ja": "<字型 id>", "zh": "…" },   // 字型 id = 字型檔 sha256:第幾個字型
-                "export_original": false }                                       // 匯出時也匯出原曲音訊
+                "export_original": false },                                      // 匯出時也匯出原曲音訊
+  "migrations": [ "readings-v3" ]                                                // 做過的一次性資料遷移（不會重做）
 }
 ```
+
+一次性的資料遷移（`internal/migrate`，NAS 啟動時做，做完記在 `migrations`）：
+- `readings-v3`：讀音規則改版（私 → わたし、明日 → あした、何時 → いつ、何 依後面的字唸なに / なん）。舊歌（日文）裡還是自動讀音的
+  私 / 何 / 明日 / 何時 改成手動、讀音照舊（用改版前的讀音快取；沒有就用舊規則一定給的讀音），改之前的歌詞備份在 `cache/migrate-readings-v3/`。
+  原本是最新的對時、確認、檢查、成品紀錄換成新的指紋，所以舊歌不必重新對時、重燒或重新確認；結果寫在 NAS 的 log 與處理佇列的「讀音規則更新」
 
 順序的規則（拖曳插入只做最少的編號調整、留空號不動等）見 library 套件與它的規格測試。
 

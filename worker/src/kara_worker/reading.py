@@ -1,6 +1,6 @@
 """把一句歌詞拆成 KTV 的變色單位，並附上羅馬字讀音給 CTC 對齊使用。
 
-- 日文：用 MeCab（fugashi + unidic-lite）依上下文判斷漢字讀音；純假名的詞再細分到
+- 日文：用 MeCab（fugashi + unidic-lite）依上下文判斷漢字讀音，再套用歌詞慣用的讀音（_ja_words）；純假名的詞再細分到
   每個音拍（ゃゅょ、ー 併入前一拍，っ 併入後一拍）。含漢字的詞整個當一個單位。
 - 中文：每個漢字一個單位，讀音用拼音。
 - 台語、粵語：每個漢字一個單位，讀音來自使用者在歌詞裡標的台羅 / 粵拼（沒標的字暫用國語拼音）。
@@ -115,11 +115,11 @@ def furigana(line: str, language: str | None, rubies=()) -> list[dict]:
 
 def auto_furigana(line: str) -> list[tuple[int, int, str]]:
     spans, pos = [], 0
-    for word in _tagger()(line):
-        pos += len(word.white_space)
+    for word in _ja_words(line):
+        pos += len(word.space)
         surface = word.surface
         start, pos = pos, pos + len(surface)
-        kana = getattr(word.feature, "kana", None)
+        kana = word.kana
         if not kana or kana == "*" or not _HAN_RUN.search(surface):
             continue
         core, reading = surface, _to_hiragana(kana)
@@ -200,18 +200,60 @@ def _morae(kana: str) -> list[str]:
     return out
 
 
+@dataclass
+class _Word:
+    space: str   # 前面的空白
+    surface: str
+    kana: str | None   # 讀音（標假名用）
+    pron: str | None   # 發音（對時用：助詞「は」讀 wa、「を」讀 o）
+
+
+_NAN_NEXT = ("で", "て", "っ", "だ", "の", "と", "じゃ")   # 「何」接這些時唸なん（何で、何て、何だ、何の、何と）
+
+
+def _ja_words(line: str) -> list[_Word]:
+    """MeCab 斷詞，再套用歌詞慣用的讀音（unidic-lite 在這幾個字常選不是歌詞裡唱的那個）：
+    私 → わたし；明日 → あした；何時 → いつ；何（代名詞）接で・て・っ・だ・の・と・じゃ 唸なん，其他唸なに（何度、何回這類量詞維持なん）。
+    標假名（auto_furigana）和對時的羅馬字（split）都用這裡，兩邊的讀音一致。"""
+    toks = list(_tagger()(line))
+    out: list[_Word] = []
+    i = 0
+    while i < len(toks):
+        w = toks[i]
+        f = w.feature
+        kana, pron = getattr(f, "kana", None), getattr(f, "pron", None)
+        nxt = toks[i + 1] if i + 1 < len(toks) and not toks[i + 1].white_space else None
+        surface = w.surface
+        if surface == "何" and nxt is not None and nxt.surface == "時":
+            out.append(_Word(w.white_space, "何時", "イツ", "イツ"))
+            i += 2
+            continue
+        pos1 = getattr(f, "pos1", None)
+        if surface == "何時":
+            kana = pron = "イツ"
+        elif surface == "明日":
+            kana = pron = "アシタ"
+        elif surface == "私" and pos1 == "代名詞":
+            kana = pron = "ワタシ"
+        elif surface == "何" and pos1 == "代名詞":
+            kana = pron = "ナン" if nxt is not None and nxt.surface.startswith(_NAN_NEXT) else "ナニ"
+        out.append(_Word(w.white_space, surface, kana, pron))
+        i += 1
+    return out
+
+
 def _split_ja(line: str) -> list[Unit]:
     units: list[Unit] = []
-    for word in _tagger()(line):
-        if word.white_space:
-            units.append(Unit(word.white_space, ""))
+    for word in _ja_words(line):
+        if word.space:
+            units.append(Unit(word.space, ""))
         surface = word.surface
         morae = _morae(surface) if _KANA_ONLY.fullmatch(surface) else []
         if len(morae) > 1:
             units += [Unit(m, _kana_roman(m)) for m in morae]
             continue
         # 用發音欄位（助詞「は」讀 wa、「を」讀 o），沒有時退回讀音、再退回原字。
-        reading = getattr(word.feature, "pron", None) or getattr(word.feature, "kana", None)
+        reading = (word.pron if word.pron != "*" else None) or word.kana
         if reading and reading != "*" and _KANA_ONLY.fullmatch(reading):
             units.append(Unit(surface, _kana_roman(reading)))
         else:

@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 
 	"github.com/zoosewu/kara-creator/nas/internal/pystr"
@@ -46,6 +47,13 @@ type Library struct {
 	Folders  map[string]*Folder
 	Songs    map[string]*Place
 	Settings Settings
+	// Migrations：做過的一次性資料遷移（例如 readings-v3），記在 library.json 跟著備份，不會重做
+	Migrations []string
+}
+
+// Migrated 回傳這個遷移是不是做過了。
+func (l *Library) Migrated(name string) bool {
+	return slices.Contains(l.Migrations, name)
 }
 
 // New 回傳空的曲庫。
@@ -440,10 +448,11 @@ type placeJSON struct {
 }
 
 type fileJSON struct {
-	Version  int                  `json:"version"`
-	Folders  []folderJSON         `json:"folders"`
-	Songs    map[string]placeJSON `json:"songs"`
-	Settings Settings             `json:"settings"`
+	Version    int                  `json:"version"`
+	Folders    []folderJSON         `json:"folders"`
+	Songs      map[string]placeJSON `json:"songs"`
+	Settings   Settings             `json:"settings"`
+	Migrations []string             `json:"migrations,omitempty"`
 }
 
 // Version 是 library.json 的格式版本。
@@ -465,7 +474,7 @@ func val(s *string) string {
 
 // MarshalJSON 寫成 library.json 的格式（資料夾依 id 排序，輸出穩定）。
 func (l *Library) MarshalJSON() ([]byte, error) {
-	out := fileJSON{Version: Version, Folders: []folderJSON{}, Songs: map[string]placeJSON{}, Settings: l.Settings}
+	out := fileJSON{Version: Version, Folders: []folderJSON{}, Songs: map[string]placeJSON{}, Settings: l.Settings, Migrations: l.Migrations}
 	for _, f := range l.Folders {
 		out.Folders = append(out.Folders, folderJSON{f.ID, f.Name, ptr(f.Parent), f.Order})
 	}
@@ -496,6 +505,7 @@ func (l *Library) UnmarshalJSON(data []byte) error {
 		l.Songs[id] = &Place{val(p.Folder), p.Order}
 	}
 	l.Settings = in.Settings
+	l.Migrations = in.Migrations
 	if l.Settings.SubtitleScale == 0 {
 		l.Settings.SubtitleScale = 1
 	}
@@ -516,9 +526,11 @@ func (l *Library) Clone() *Library {
 		cp := *p
 		c.Songs[id] = &cp
 	}
-	c.Settings.SubtitleScale = l.Settings.SubtitleScale
+	c.Settings = l.Settings // 所有設定（原本只複製字幕大小與字型，漏了匯出原曲音訊）
+	c.Settings.Fonts = map[string]string{}
 	for k, v := range l.Settings.Fonts {
 		c.Settings.Fonts[k] = v
 	}
+	c.Migrations = slices.Clone(l.Migrations)
 	return c
 }

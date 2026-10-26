@@ -145,3 +145,25 @@ func TestJSONRoundTrip(t *testing.T) {
 		t.Fatal("不認得的格式版本應該拒絕")
 	}
 }
+
+func TestCloneAndMigrations(t *testing.T) {
+	l := New()
+	l.Settings.ExportOriginal = true
+	l.Migrations = []string{"readings-v3"}
+	c := l.Clone()
+	if !c.Settings.ExportOriginal || !c.Migrated("readings-v3") {
+		t.Fatalf("複製曲庫要保留所有設定與做過的遷移：%+v", c)
+	}
+	c.Migrations[0] = "x"
+	if !l.Migrated("readings-v3") {
+		t.Fatal("複本要是獨立的")
+	}
+	data, err := json.Marshal(l)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var back Library
+	if err := json.Unmarshal(data, &back); err != nil || !back.Migrated("readings-v3") || !back.Settings.ExportOriginal {
+		t.Fatalf("%v %+v", err, back)
+	}
+}
