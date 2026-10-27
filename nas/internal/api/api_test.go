@@ -467,31 +467,31 @@ func TestEndToEnd(t *testing.T) {
 		return err == nil
 	})
 
-	// 6b. 本來就是卡拉 OK 版：不看歌詞、不製作，原影片就是伴唱帶，可以直接確認、匯出（匯出原影片）
+	// 6b. 本來就是卡拉 OK 版：不對時、不燒錄，伴唱帶就是去人聲的結果（原影片畫面 + 伴奏），可以直接確認、匯出
 	if code := c.do("PATCH", "/api/v1/songs/dQw4w9WgXcQ", map[string]any{"prebuilt": true}, &song); code != 200 {
 		t.Fatal(code)
 	}
 	waitFor(t, "卡拉 OK 版", func() bool {
 		c.do("GET", "/api/v1/songs/dQw4w9WgXcQ", nil, &song)
-		return song.Status.Separate == "skipped" && song.Status.Karaoke == "done"
+		return song.Status.Separate == "done" && song.Status.Lyrics == "done" && song.Status.Karaoke == "done"
 	})
 	if code := c.do("PUT", "/api/v1/songs/dQw4w9WgXcQ/approval", map[string]any{"approved": true}, &song); code != 200 || song.Status.Approval != "approved" {
 		t.Fatalf("%d %+v", code, song.Status)
 	}
 	var batch app.JobResult
 	c.do("POST", "/api/v1/jobs", map[string]any{"songs": []string{"dQw4w9WgXcQ"}, "steps": []string{"karaoke"}, "only_needed": true}, &batch)
-	if len(batch.Created) != 0 || batch.Skipped["本來就是卡拉 OK 版"] != 1 {
+	if len(batch.Created) != 0 || batch.Skipped["已完成"] != 1 {
 		t.Fatalf("批次製作要略過：%+v", batch)
 	}
 	c.do("POST", "/api/v1/export", nil, &exp)
-	sources, _ := filepath.Glob(filepath.Join(lib, "songs", "dQw4w9WgXcQ", "source.*"))
+	sources, _ := filepath.Glob(filepath.Join(lib, "songs", "dQw4w9WgXcQ", "instrumental.*"))
 	if len(sources) != 1 {
 		t.Fatalf("%v", sources)
 	}
 	if a, err := os.ReadFile(sources[0]); err != nil {
 		t.Fatal(err)
 	} else if b, err := os.ReadFile(filepath.Join(lib, "export", filepath.FromSlash(song.Export))); err != nil || string(a) != string(b) {
-		t.Fatalf("匯出原影片：%s %v", song.Export, err)
+		t.Fatalf("匯出去人聲的結果（原影片畫面 + 伴奏）：%s %v", song.Export, err)
 	}
 
 	// 7. SSE 有送事件

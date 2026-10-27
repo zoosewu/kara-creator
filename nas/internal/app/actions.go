@@ -66,7 +66,7 @@ type AddRequest struct {
 	AudioOnly bool   `json:"audio_only,omitempty" doc:"只要音訊"`
 	Lyrics    string `json:"lyrics,omitempty" doc:"一起附上的歌詞（選填）"`
 	Make      bool   `json:"make,omitempty" doc:"一路做到伴唱帶（下載 → 去人聲 → 有歌詞就製作伴唱帶）；false = 僅下載"`
-	Prebuilt  bool   `json:"prebuilt,omitempty" doc:"本來就是卡拉 OK 版：只下載，原影片就是伴唱帶"`
+	Prebuilt  bool   `json:"prebuilt,omitempty" doc:"本來就是卡拉 OK 版：不用歌詞，伴唱帶 = 原影片畫面 + 去人聲後的伴奏"`
 }
 
 // AddSong 排入下載工作。
@@ -87,7 +87,7 @@ func (a *App) AddSong(req AddRequest) (jobs.Summary, error) {
 		}
 	}
 	steps := []string{jobs.StepDownload}
-	if req.Make && !req.Prebuilt {
+	if req.Make {
 		steps = append(steps, jobs.StepSeparate, jobs.StepKaraoke)
 	}
 	return a.Jobs.Submit(jobs.Request{Steps: steps, URL: url,
@@ -555,9 +555,11 @@ func skipReason(v *SongView, req JobRequest, busy map[string]jobs.Summary) strin
 	switch {
 	case busy[v.ID].ID != "":
 		return "處理中"
-	case v.Info.Prebuilt:
+	case v.Info.Prebuilt && contains(req.Steps, jobs.StepCheck):
 		return "本來就是卡拉 OK 版"
-	case contains(req.Steps, jobs.StepKaraoke) && st.Lyrics != planner.Done:
+	case v.Info.Prebuilt && contains(req.Steps, jobs.StepKaraoke) && st.Karaoke == planner.Done && !req.Force:
+		return "已完成"
+	case contains(req.Steps, jobs.StepKaraoke) && st.Lyrics != planner.Done && !v.Info.Prebuilt:
 		return "缺歌詞"
 	case contains(req.Steps, jobs.StepCheck) && !hasTiming:
 		return "還沒有伴唱帶"

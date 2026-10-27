@@ -554,7 +554,7 @@ export interface components {
             lyrics?: string;
             /** @description 一路做到伴唱帶（下載 → 去人聲 → 有歌詞就製作伴唱帶）；false = 僅下載 */
             make?: boolean;
-            /** @description 本來就是卡拉 OK 版：只下載，原影片就是伴唱帶 */
+            /** @description 本來就是卡拉 OK 版：不用歌詞，伴唱帶 = 原影片畫面 + 去人聲後的伴奏 */
             prebuilt?: boolean;
             /** @description 影片網址 */
             url: string;

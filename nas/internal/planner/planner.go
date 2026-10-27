@@ -38,7 +38,7 @@ const (
 	NeedsAlign  = "needs_align"  // 需重新對時：歌詞文字或讀音、人聲（重新去人聲）、語言、對時方法改了
 	Missing     = "missing"      // 檔案不見了（來源、歌詞）
 	NoLyrics    = "no_lyrics"
-	Skipped     = "skipped" // 不需要：本來就是卡拉 OK 版的歌，不去人聲、不用歌詞"
+	Skipped     = "skipped" // 不需要：本來就是卡拉 OK 版的歌不用歌詞"
 
 	Approved = "approved" // 確認過，內容沒變
 	Stale    = "stale"    // 確認之後內容變了，需重新確認
@@ -179,17 +179,17 @@ func Evaluate(in Input) Result {
 		r.Status.Lyrics = Missing
 	}
 
-	// 本來就是卡拉 OK 版：原影片就是伴唱帶，不去人聲、不用歌詞、不製作；確認只綁原影片
+	// 本來就是卡拉 OK 版：字幕已經在影片裡，不用歌詞、不對時、不燒錄；伴唱帶 = 原影片的畫面 + 去人聲後的伴奏
+	// （卡拉 OK 版常有一個聲道帶導唱，所以還是要去人聲；去人聲產生的 instrumental.mp4 就是伴唱帶）。確認綁伴奏
 	if sg.Info.Prebuilt {
-		r.Status.Separate = Skipped
 		if in.Lyrics == nil {
 			r.Status.Lyrics = Skipped
 		}
-		r.Status.Karaoke = Done
-		if !in.SourceOK {
-			r.Status.Karaoke = Pending
+		r.Status.Karaoke = Pending
+		if r.Status.Separate == Done {
+			r.Status.Karaoke = Done
+			r.ApproveFP = fingerprint.Prebuilt(sep.Instrumental.SHA256)
 		}
-		r.ApproveFP = fingerprint.Prebuilt(sg.Source.File.SHA256)
 		approval(&r, sg, texts)
 		return r
 	}

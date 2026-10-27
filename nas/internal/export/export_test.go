@@ -176,13 +176,3 @@ func TestSyncOriginal(t *testing.T) {
 		t.Fatal("伴唱帶還在")
 	}
 }
-
-func TestNamesExt(t *testing.T) {
-	lib := library.New()
-	lib.Songs["a"] = &library.Place{Folder: library.Root, Order: 1}
-	lib.Songs["b"] = &library.Place{Folder: library.Root, Order: 2}
-	names := Names(lib, []Song{{ID: "a", Title: "歌", Artist: "人", Ext: ".mkv"}, {ID: "b", Title: "別的歌"}})
-	if names["a"] != "人 - 歌.mkv" || names["b"] != "別的歌.mp4" {
-		t.Fatalf("本來就是卡拉 OK 版的歌照原檔的副檔名：%v", names)
-	}
-}

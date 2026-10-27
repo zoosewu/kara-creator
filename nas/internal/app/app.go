@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -271,7 +270,7 @@ func (a *App) exportSongs() []export.Song {
 		if err != nil {
 			continue
 		}
-		s := export.Song{ID: id, Title: v.Title, Artist: v.Artist, Ext: a.exportExt(id)}
+		s := export.Song{ID: id, Title: v.Title, Artist: v.Artist}
 		if v.Approval.Status == planner.Approved {
 			s.Video = a.exportVideo(id)
 			if original {
@@ -289,8 +288,8 @@ func (a *App) exportVideo(id string) string {
 	if !ok {
 		return ""
 	}
-	if sg.Info.Prebuilt && sg.Source.File.Name != "" {
-		return a.Store.SongPath(id, sg.Source.File.Name) // 本來就是卡拉 OK 版：匯出原影片
+	if sep := sg.Stages.Separate; sg.Info.Prebuilt && sep != nil && sep.Instrumental.Name != "" {
+		return a.Store.SongPath(id, sep.Instrumental.Name) // 本來就是卡拉 OK 版：伴唱帶就是去人聲的結果
 	}
 	if rec := sg.Stages.Render[song.TargetInstrumental]; rec != nil && rec.Video.Name != "" {
 		return a.Store.SongPath(id, rec.Video.Name)
@@ -298,20 +297,10 @@ func (a *App) exportVideo(id string) string {
 	return ""
 }
 
-// exportExt 是匯出檔的副檔名：伴唱帶是 .mp4；本來就是卡拉 OK 版的歌照原檔（可能是 .mkv、.webm…）。
-func (a *App) exportExt(id string) string {
-	if sg, ok := a.Store.Song(id); ok && sg.Info.Prebuilt {
-		if ext := strings.ToLower(filepath.Ext(sg.Source.File.Name)); ext != "" {
-			return ext
-		}
-	}
-	return ".mp4"
-}
-
 // originalAudio 是原曲音訊（m4a）的路徑：cache/original/<來源 sha256>.m4a（匯出時才產生；來源換了就換一個檔）。
 func (a *App) originalAudio(id string) string {
 	sg, ok := a.Store.Song(id)
-	if !ok || sg.Source.File.SHA256 == "" || sg.Info.Prebuilt { // 卡拉 OK 版：原影片就是伴唱帶，沒有另外的原曲
+	if !ok || sg.Source.File.SHA256 == "" {
 		return ""
 	}
 	return a.Store.Path(store.CacheDir, "original", sg.Source.File.SHA256+".m4a")
@@ -456,6 +445,15 @@ func (a *App) onJobEvent(kind string, data any) {
 // migrateReadings 讀音規則 v3 的一次性遷移（見 migrate.PinReadings）：舊歌的讀音照舊、狀態不變，做完記在 library.json。
 // 紀錄寫到 NAS 的 log，也放進處理佇列的「資料備份」讓使用者看得到。
 func (a *App) migrateReadings(old map[string][]readings.Span) error {
+	markDone := func() error {
+		return a.Store.EditLibrary(func(l *library.Library) error {
+			l.Migrations = append(l.Migrations, migrate.ReadingsV3)
+			return nil
+		})
+	}
+	if len(a.Store.SongIDs()) == 0 { // 新的曲庫：沒有舊歌，只記下做過了
+		return markDone()
+	}
 	var lines []string
 	logf := func(s string) {
 		log.Print(s)
@@ -464,19 +462,14 @@ func (a *App) migrateReadings(old map[string][]readings.Span) error {
 	logf("讀音規則更新（私 → わたし、明日 → あした、何時 → いつ、何 依後面的字唸なに / なん）：舊歌照舊，釘住原本的讀音")
 	migrate.PinReadings(migrate.Env{Store: a.Store, Font: a.fontFor, Versions: a.Versions, Old: old,
 		Backup: a.Store.Path(store.CacheDir, "migrate-"+migrate.ReadingsV3), Log: logf})
-	if err := a.Store.EditLibrary(func(l *library.Library) error {
-		l.Migrations = append(l.Migrations, migrate.ReadingsV3)
-		return nil
-	}); err != nil {
+	if err := markDone(); err != nil {
 		return err
 	}
-	if len(a.Store.SongIDs()) > 0 {
-		a.Jobs.RunSystem("讀音規則更新", func(ctx context.Context, log func(string)) error {
-			for _, s := range lines {
-				log(s)
-			}
-			return nil
-		})
-	}
+	a.Jobs.RunSystem("讀音規則更新", func(ctx context.Context, log func(string)) error {
+		for _, s := range lines {
+			log(s)
+		}
+		return nil
+	})
 	return nil
 }

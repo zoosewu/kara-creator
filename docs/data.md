@@ -162,8 +162,9 @@ H(欄位…)       = sha256( 每個欄位以 "\n" 串接，最後也加 "\n" )�
 | 對時檢查 `qa` | `stage=qa`、`alignment=<對時內容指紋>`、`lyrics=<歌詞指紋>`、`vocals=<人聲 sha256>`、`language`、`model`、`version=<versions.qa>` | 對時改了 → 重新檢查 |
 | 已確認 | `stage=approve`、`lyrics=<歌詞指紋>`、`language`、`method=<versions.align>`、`run=<alignment.json 的對時編號>`；伴唱帶是 needs_align 時一律算失效 | **需要重新對時**才失效：只需重燒的更新（演唱者、翻譯、標題畫面、字型、字幕大小、手動調時間、AI 對時某幾句）都不影響確認 |
 
-本來就是卡拉 OK 版（`song.json` 的 `info.prebuilt`）：不去人聲、不用歌詞、不製作；伴唱帶就是原影片（播放、匯出都用它，匯出檔的副檔名照原檔，不匯出原曲音訊）；
-「已確認」只綁原影片的 sha256（`fingerprint.Prebuilt`），換了來源就要重新確認。
+本來就是卡拉 OK 版（`song.json` 的 `info.prebuilt`）：字幕已經在影片裡，不用歌詞、不對時、不燒錄；還是要去人聲（卡拉 OK 版常有一個聲道帶導唱），
+去人聲產生的 `instrumental.mp4`（原影片畫面 + 伴奏）就是伴唱帶（播放、匯出都用它；原影片當「原曲＋字幕」）。
+「已確認」綁伴奏的 sha256（`fingerprint.Prebuilt`），換了來源、重新去人聲就要重新確認。
 
 標題畫面：歌名來自手動設定、歌詞檔或標題辨識；標題辨識只能用整個影片標題（`source=fallback`）時不顯示標題畫面。
 標題畫面放在第一段超過 6 秒的空檔（和字幕判斷間奏同一個標準）：前奏，或前奏不夠長（開頭直接唱副歌）時開頭 40 秒內的第一段間奏；都沒有就強制放在開頭，和歌詞同時出現，這時標題中心固定在畫面高度 33%（上方翻譯和上行歌詞之間，最大字幕含假名也不重疊）。見 worker 的 `subtitles._title_window`。

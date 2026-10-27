@@ -825,7 +825,7 @@
           {#if !lyricIdx.length}
             <div class="empty-lyrics">
               {#if song.info.prebuilt}
-                這首本來就是卡拉 OK 版，字幕在影片裡，不需要歌詞。
+                這首本來就是卡拉 OK 版，字幕在影片裡，不需要歌詞（伴唱帶是原影片的畫面加上去人聲後的伴奏）。
               {:else}
                 還沒有歌詞。<button type="button" class="view-link attention" onclick={() => ui.openEditor(id, { over: true })}><Icon name="lyrics" />輸入歌詞</button>
               {/if}

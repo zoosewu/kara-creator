@@ -5,7 +5,7 @@
 
   let url = $state('')
   let audioOnly = $state(prefs.audioOnly)
-  let prebuilt = $state(false) // 本來就是卡拉 OK 版：只下載，原影片就是伴唱帶
+  let prebuilt = $state(false) // 本來就是卡拉 OK 版：不用歌詞，去人聲後原影片畫面 + 伴奏就是伴唱帶
   let lyrics = $state('')
   let lyricsOpen = $state(false)
 
@@ -33,13 +33,13 @@
   <form class="new-row" onsubmit={submit}>
     <input type="url" placeholder="貼上影片網址（YouTube 等）" required autocomplete="off" bind:value={url} />
     <label class="check"><input type="checkbox" bind:checked={audioOnly} onchange={() => prefs.set('audioOnly', audioOnly)} /> 只要音訊</label>
-    <label class="check" title="影片裡已經有字幕：不需要歌詞，原影片直接當伴唱帶"><input type="checkbox" bind:checked={prebuilt} /> 本來就是卡拉 OK 版</label>
-    {#if prebuilt}
-      <button type="submit" class="btn primary" data-make="0" title="只下載；原影片就是伴唱帶，下載完就可以確認、匯出">加入曲庫</button>
-    {:else}
-      <button type="submit" class="btn" data-make="0" title="只下載，之後再逐步處理">僅下載</button>
-      <button type="submit" class="btn primary" data-make="1" title="下載、去人聲，有歌詞就做出伴唱帶">製作伴唱帶</button>
-    {/if}
+    <label class="check" title="影片裡已經有字幕：不需要歌詞，去人聲後原影片的畫面加上伴奏就是伴唱帶"
+      ><input type="checkbox" bind:checked={prebuilt} /> 本來就是卡拉 OK 版</label
+    >
+    <button type="submit" class="btn" data-make="0" title="只下載，之後再逐步處理">僅下載</button>
+    <button type="submit" class="btn primary" data-make="1" title={prebuilt ? '下載、去人聲：原影片的畫面加上伴奏就是伴唱帶' : '下載、去人聲，有歌詞就做出伴唱帶'}
+      >製作伴唱帶</button
+    >
   </form>
   <div class="new-foot">
     <details bind:open={lyricsOpen}>

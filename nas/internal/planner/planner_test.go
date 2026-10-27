@@ -255,29 +255,28 @@ func TestRestored(t *testing.T) {
 }
 
 func TestPrebuilt(t *testing.T) {
-	// 本來就是卡拉 OK 版：不用歌詞、不去人聲、原影片就是伴唱帶，可以直接確認
+	// 本來就是卡拉 OK 版：不用歌詞，但還是要去人聲；伴唱帶 = 去人聲的結果，做完就可以確認
 	in := newInput()
 	in.Song.Info.Prebuilt = true
-	r := Evaluate(in)
-	if r.Status != (Status{Download: Done, Separate: Skipped, Lyrics: Skipped, Karaoke: Done}) || r.ApproveFP == "" {
-		t.Fatalf("%+v %q", r.Status, r.ApproveFP)
+	if r := Evaluate(in); r.Status != (Status{Download: Done, Separate: Pending, Lyrics: Skipped, Karaoke: Pending}) || r.ApproveFP != "" {
+		t.Fatalf("還沒去人聲：%+v", r.Status)
+	}
+	r := makeAll(t, &in) // 只會做去人聲（沒有歌詞）
+	if r.Status != (Status{Download: Done, Separate: Done, Lyrics: Skipped, Karaoke: Done}) || r.ApproveFP == "" {
+		t.Fatalf("去人聲之後：%+v %q", r.Status, r.ApproveFP)
 	}
 	in.Song.Info.Approved = &song.Approval{Fingerprint: r.ApproveFP}
 	if r := Evaluate(in); r.Status.Approval != Approved {
 		t.Fatalf("確認：%+v", r.Status)
 	}
-	// 有歌詞也不用（歌詞算完成，伴唱帶照樣是原影片）
+	// 有歌詞也不用（不對時、不燒錄）
 	in.Lyrics = doc("一句\n")
 	if r := Evaluate(in); r.Status.Lyrics != Done || r.Status.Karaoke != Done || r.Status.Approval != Approved {
 		t.Fatalf("%+v", r.Status)
 	}
-	// 換了來源：確認失效；來源不見了：伴唱帶也沒有
-	in.Song.Source.File.SHA256 = "other"
+	// 重新去人聲（伴奏換了）：要重新確認
+	in.Song.Stages.Separate.Instrumental.SHA256 = "other"
 	if r := Evaluate(in); r.Status.Approval != Stale {
-		t.Fatalf("換了來源要重新確認：%+v", r.Status)
-	}
-	in.SourceOK = false
-	if r := Evaluate(in); r.Status.Karaoke != Pending {
-		t.Fatalf("%+v", r.Status)
+		t.Fatalf("伴奏換了要重新確認：%+v", r.Status)
 	}
 }

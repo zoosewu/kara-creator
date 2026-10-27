@@ -147,9 +147,9 @@ func QA(alignment, lyricsFP, vocals, language, model string, version int) string
 		Field{"language", language}, Field{"model", model}, Field{"version", version})
 }
 
-// Prebuilt 是本來就是卡拉 OK 版的歌「已確認」的指紋：只綁原影片（換了來源就要重新確認）。
-func Prebuilt(source string) string {
-	return H(Field{"stage", "approve"}, Field{"prebuilt", source})
+// Prebuilt 是本來就是卡拉 OK 版的歌「已確認」的指紋：綁去人聲後的伴奏（換了來源、重新去人聲就要重新確認）。
+func Prebuilt(instrumental string) string {
+	return H(Field{"stage", "approve"}, Field{"prebuilt", instrumental})
 }
 
 // Approve 是「已確認」的指紋：歌詞指紋、語言、對時方法、這次整首對時的編號。

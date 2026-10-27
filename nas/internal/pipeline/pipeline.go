@@ -163,18 +163,14 @@ func copyFile(src, dst string) error {
 // ---- 去人聲 --------------------------------------------------------------------
 
 // prebuiltNote：本來就是卡拉 OK 版的歌不處理。
-const prebuiltNote = "這首本來就是卡拉 OK 版：原影片就是伴唱帶，略過"
+const prebuiltNote = "這首本來就是卡拉 OK 版：字幕在影片裡，伴唱帶就是去人聲的結果，不用對時、燒錄"
 
 // Separate 去人聲（人聲 / 伴奏分離）。已經是最新的就略過（force 時重做）。
 func (p *Pipeline) Separate(ctx context.Context, id string, force bool, run Run) error {
 	run.stage("去人聲")
-	cur, r, err := p.evaluate(id)
+	_, r, err := p.evaluate(id)
 	if err != nil {
 		return err
-	}
-	if cur.Song.Info.Prebuilt {
-		run.log(prebuiltNote)
-		return nil
 	}
 	if r.Status.Download != planner.Done {
 		return userError("找不到來源檔，請重新下載或重新放入")
@@ -312,7 +308,10 @@ func (p *Pipeline) Karaoke(ctx context.Context, id string, opt KaraokeOptions, r
 	if err != nil {
 		return err
 	}
-	if in.Song.Info.Prebuilt {
+	if in.Song.Info.Prebuilt { // 伴唱帶就是去人聲的結果（原影片畫面 + 伴奏）：只要去人聲
+		if r.Status.Separate != planner.Done {
+			return p.Separate(ctx, id, false, run)
+		}
 		run.log(prebuiltNote)
 		return nil
 	}

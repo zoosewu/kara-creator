@@ -410,3 +410,24 @@ func TestPartialRealign(t *testing.T) {
 		t.Fatal(log)
 	}
 }
+
+// 本來就是卡拉 OK 版：製作伴唱帶只做去人聲（不對時、不燒錄），做完伴唱帶就完成；之後再按也不做任何事。
+func TestPrebuiltKaraoke(t *testing.T) {
+	e := newEnv(t)
+	_ = e.st.EditSong("abc", func(s *song.Song) error { s.Info.Prebuilt = true; return nil })
+	if err := e.p.Karaoke(context.Background(), "abc", KaraokeOptions{}, e.run()); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.ai.take(); got != "separate" {
+		t.Fatalf("只做去人聲：%q", got)
+	}
+	if r := e.status(); r.Status.Karaoke != planner.Done || r.Status.Lyrics != planner.Skipped {
+		t.Fatalf("%+v", r.Status)
+	}
+	if err := e.p.Karaoke(context.Background(), "abc", KaraokeOptions{}, e.run()); err != nil || e.ai.take() != "" {
+		t.Fatalf("做完之後不再做：%v", err)
+	}
+	if err := e.p.Check(context.Background(), "abc", true, e.run()); err != nil || e.ai.take() != "" {
+		t.Fatalf("不檢查對時：%v", err)
+	}
+}

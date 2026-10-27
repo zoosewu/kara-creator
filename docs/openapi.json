@@ -30,7 +30,7 @@
             "type": "boolean"
           },
           "prebuilt": {
-            "description": "本來就是卡拉 OK 版：只下載，原影片就是伴唱帶",
+            "description": "本來就是卡拉 OK 版：不用歌詞，伴唱帶 = 原影片畫面 + 去人聲後的伴奏",
             "type": "boolean"
           },
           "url": {
