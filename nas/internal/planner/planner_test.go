@@ -253,3 +253,31 @@ func TestRestored(t *testing.T) {
 		t.Fatal("方法改了不能沿用")
 	}
 }
+
+func TestPrebuilt(t *testing.T) {
+	// 本來就是卡拉 OK 版：不用歌詞、不去人聲、原影片就是伴唱帶，可以直接確認
+	in := newInput()
+	in.Song.Info.Prebuilt = true
+	r := Evaluate(in)
+	if r.Status != (Status{Download: Done, Separate: Skipped, Lyrics: Skipped, Karaoke: Done}) || r.ApproveFP == "" {
+		t.Fatalf("%+v %q", r.Status, r.ApproveFP)
+	}
+	in.Song.Info.Approved = &song.Approval{Fingerprint: r.ApproveFP}
+	if r := Evaluate(in); r.Status.Approval != Approved {
+		t.Fatalf("確認：%+v", r.Status)
+	}
+	// 有歌詞也不用（歌詞算完成，伴唱帶照樣是原影片）
+	in.Lyrics = doc("一句\n")
+	if r := Evaluate(in); r.Status.Lyrics != Done || r.Status.Karaoke != Done || r.Status.Approval != Approved {
+		t.Fatalf("%+v", r.Status)
+	}
+	// 換了來源：確認失效；來源不見了：伴唱帶也沒有
+	in.Song.Source.File.SHA256 = "other"
+	if r := Evaluate(in); r.Status.Approval != Stale {
+		t.Fatalf("換了來源要重新確認：%+v", r.Status)
+	}
+	in.SourceOK = false
+	if r := Evaluate(in); r.Status.Karaoke != Pending {
+		t.Fatalf("%+v", r.Status)
+	}
+}

@@ -67,6 +67,7 @@ type Options struct {
 	AudioOnly bool     `json:"audio_only,omitempty"` // download：只要音訊
 	Folder    string   `json:"folder,omitempty"`     // download：新歌放進哪個資料夾
 	Lyrics    string   `json:"lyrics,omitempty"`     // download：一起送來的歌詞
+	Prebuilt  bool     `json:"prebuilt,omitempty"`   // download：本來就是卡拉 OK 版
 }
 
 // Job 是一件工作。

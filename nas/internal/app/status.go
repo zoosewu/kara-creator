@@ -201,7 +201,7 @@ func (a *App) exportedAll(id, rel string) bool {
 		return false
 	}
 	original := export.OriginalName(rel)
-	if !a.Store.Settings().ExportOriginal {
+	if sg, ok := a.Store.Song(id); !a.Store.Settings().ExportOriginal || ok && sg.Info.Prebuilt {
 		return !a.Exporter.Has(original)
 	}
 	src := a.originalAudio(id)
@@ -268,7 +268,10 @@ func (a *App) compute(id string) (*SongView, error) {
 		url := fmt.Sprintf("/media/%s/%s?v=%d", id, file, st.ModTime().UnixMilli())
 		v.Media = append(v.Media, MediaView{Kind: kind, Label: l[0], Hint: l[1], URL: url})
 	}
-	if rec := sg.Stages.Render[song.TargetInstrumental]; rec != nil {
+	if sg.Info.Prebuilt {
+		add("karaoke", sg.Source.File.Name) // 本來就是卡拉 OK 版：原影片就是伴唱帶
+	}
+	if rec := sg.Stages.Render[song.TargetInstrumental]; rec != nil && !sg.Info.Prebuilt {
 		add("karaoke", rec.Video.Name)
 	}
 	if rec := sg.Stages.Render[song.TargetOriginal]; rec != nil {
@@ -319,7 +322,7 @@ func (a *App) refreshNames() []string {
 	var exp []export.Song
 	for _, id := range a.Store.SongIDs() {
 		if v, err := a.Song(id); err == nil {
-			exp = append(exp, export.Song{ID: id, Title: v.Title, Artist: v.Artist})
+			exp = append(exp, export.Song{ID: id, Title: v.Title, Artist: v.Artist, Ext: a.exportExt(id)})
 		}
 	}
 	names := export.Names(a.Store.Library(), exp)

@@ -90,14 +90,16 @@ type FileRef struct {
 
 // Info 是使用者設定的歌曲資訊。
 type Info struct {
-	Title       string    `json:"title"`    // 空字串 = 自動（歌詞檔的 # title > 標題辨識）
-	Artist      string    `json:"artist"`   // 同上
-	Language    string    `json:"language"` // 空字串 = 依歌詞文字判斷
-	Note        string    `json:"note"`     // 標題畫面第三行
-	Link        string    `json:"link"`     // 手動放入的影片補上的原始連結
-	Translation bool      `json:"translation"`
-	Targets     []string  `json:"targets"`
-	Approved    *Approval `json:"approved"` // 目前的確認；沒確認過或取消確認時為 null
+	Title       string   `json:"title"`    // 空字串 = 自動（歌詞檔的 # title > 標題辨識）
+	Artist      string   `json:"artist"`   // 同上
+	Language    string   `json:"language"` // 空字串 = 依歌詞文字判斷
+	Note        string   `json:"note"`     // 標題畫面第三行
+	Link        string   `json:"link"`     // 手動放入的影片補上的原始連結
+	Translation bool     `json:"translation"`
+	Targets     []string `json:"targets"`
+	// Prebuilt：來源本來就是卡拉 OK 版（字幕已經在影片裡）：不用歌詞、不去人聲、不製作，原影片就是伴唱帶
+	Prebuilt bool      `json:"prebuilt,omitempty"`
+	Approved *Approval `json:"approved"` // 目前的確認；沒確認過或取消確認時為 null
 	// History 是曾經確認過的紀錄（新的在後）。需要重新對時之後確認會失效，但紀錄留著，
 	// 用來告訴使用者「上次確認之後歌詞改了哪幾句」，小改動不必整首重看。
 	History []Approval `json:"approval_history,omitempty"`
@@ -163,6 +165,7 @@ type InfoUpdate struct {
 	Link        *string   `json:"link,omitempty"`
 	Translation *bool     `json:"translation,omitempty"`
 	Targets     *[]string `json:"targets,omitempty"`
+	Prebuilt    *bool     `json:"prebuilt,omitempty" doc:"本來就是卡拉 OK 版：不用歌詞、不製作，原影片就是伴唱帶"`
 }
 
 // ApplyInfo 驗證並套用歌曲資訊。出錯時不做任何修改。
@@ -192,6 +195,9 @@ func (s *Song) ApplyInfo(u InfoUpdate) error {
 	}
 	if u.Translation != nil {
 		next.Translation = *u.Translation
+	}
+	if u.Prebuilt != nil {
+		next.Prebuilt = *u.Prebuilt
 	}
 	if u.Targets != nil {
 		var targets []string

@@ -554,6 +554,8 @@ export interface components {
             lyrics?: string;
             /** @description 一路做到伴唱帶（下載 → 去人聲 → 有歌詞就製作伴唱帶）；false = 僅下載 */
             make?: boolean;
+            /** @description 本來就是卡拉 OK 版：只下載，原影片就是伴唱帶 */
+            prebuilt?: boolean;
             /** @description 影片網址 */
             url: string;
         };
@@ -802,6 +804,7 @@ export interface components {
             language: string;
             link: string;
             note: string;
+            prebuilt?: boolean;
             targets: string[];
             title: string;
             translation: boolean;
@@ -817,6 +820,8 @@ export interface components {
             language?: string;
             link?: string;
             note?: string;
+            /** @description 本來就是卡拉 OK 版：不用歌詞、不製作，原影片就是伴唱帶 */
+            prebuilt?: boolean;
             targets?: string[];
             title?: string;
             translation?: boolean;

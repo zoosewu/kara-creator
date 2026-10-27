@@ -30,6 +30,7 @@
   let busy = $derived(Boolean(job))
   let running = $derived(job?.status === 'running' ? STAGE_OF[job.stage] : null)
   let hasLyrics = $derived(song.status.lyrics === 'done')
+  let prebuilt = $derived(song.info.prebuilt ?? false) // 本來就是卡拉 OK 版：不用歌詞、不處理
   let karaoke = $derived(song.status.karaoke)
   let approval = $derived(song.approval)
 
@@ -39,6 +40,8 @@
     switch (value) {
       case 'done':
         return { cls: 'done', text: label, tip: '已完成' }
+      case 'skipped':
+        return { cls: 'done', text: label, tip: '不需要（本來就是卡拉 OK 版）' }
       case 'outdated':
         return { cls: 'needs_align', text: `${label}需更新`, tip: '需要重新去人聲' }
       case 'needs_render':
@@ -65,7 +68,11 @@
   /** 提示裡一個階段的狀態（「伴唱帶需重燒」→「需重燒」，避免重複階段名稱）。 */
   function stageStep(k: string, label: string): Step {
     const v = stageView(k, song.status[k as keyof SongView['status']] as string)
-    if (v.cls === 'done') return { label, cls: 'done', state: '已完成' }
+    if (v.cls === 'done') {
+      const value = song.status[k as keyof SongView['status']]
+      const state = value === 'skipped' ? '不需要' : prebuilt && k === 'karaoke' ? '使用原影片' : '已完成'
+      return { label, cls: 'done', state }
+    }
     const rest = v.text.startsWith(label) ? v.text.slice(label.length) : v.text
     return rest && rest !== '中' ? { label, cls: v.cls, state: rest, detail: v.tip } : { label, cls: v.cls, state: v.tip }
   }
@@ -176,14 +183,14 @@
     const phone = matchMedia('(max-width: 640px)').matches
     menu.show(anchor, busy ? '處理中，請等目前的工作結束' : '更多', [
       ...(phone ? [{ label: '複製檔案位置', desc: song.path, action: reveal }] : []),
-      { label: '重新去人聲', desc: '之後需重新對時', disabled: busy, action: () => run(['separate'], { force: true }) },
-      { label: '重新對時', desc: '重新抓每個字的時間；已確認會失效', disabled: busy || !hasLyrics, action: () => run(['karaoke'], { realign: true }) },
-      { label: '檢查對時', desc: '標出可能不準的句子', disabled: busy || !hasTiming, action: () => run(['check'], { force: true }) },
+      { label: '重新去人聲', desc: '之後需重新對時', disabled: busy || prebuilt, action: () => run(['separate'], { force: true }) },
+      { label: '重新對時', desc: '重新抓每個字的時間；已確認會失效', disabled: busy || !hasLyrics || prebuilt, action: () => run(['karaoke'], { realign: true }) },
+      { label: '檢查對時', desc: '標出可能不準的句子', disabled: busy || !hasTiming || prebuilt, action: () => run(['check'], { force: true }) },
       {
         label: '全部重做',
         desc: '全部重來，會覆蓋手動改過的字幕檔',
         danger: true,
-        disabled: busy,
+        disabled: busy || prebuilt,
         action: () => {
           if (confirm(`全部重做「${song.title}」？\n手動改過的字幕檔會被覆蓋，已確認會失效。`)) run(['separate', 'karaoke'], { force: true })
         },
@@ -294,7 +301,7 @@
         {/if}
       </div>
       <div class="actions">
-        {#if song.status.separate !== 'done'}
+        {#if !prebuilt && song.status.separate !== 'done'}
           <button type="button" class="run-btn" disabled={busy} title="分開人聲與伴奏" onclick={() => run(['separate'])}
             ><Icon name="play" />去人聲</button
           >
@@ -308,9 +315,9 @@
             onclick={() => run(['karaoke'])}><Icon name="play" />{karaokeLabel}</button
           >
         {/if}
-        {#if song.status.separate !== 'done' || karaoke !== 'done'}<span class="divider"></span>{/if}
-        <button type="button" class="view-link" class:attention={!hasLyrics} onclick={() => ui.openEditor(song.id)}
-          ><Icon name="lyrics" />{hasLyrics ? '歌詞' : '輸入歌詞'}</button
+        {#if !prebuilt && (song.status.separate !== 'done' || karaoke !== 'done')}<span class="divider"></span>{/if}
+        <button type="button" class="view-link" class:attention={!hasLyrics && !prebuilt} onclick={() => ui.openEditor(song.id)}
+          ><Icon name="lyrics" />{hasLyrics || prebuilt ? '歌詞' : '輸入歌詞'}</button
         >
         <button type="button" class="view-link" onclick={() => (ui.song = song.id)}><Icon name="tag" />資訊</button>
         <button type="button" class="view-link hide-phone" title="複製這首歌在 NAS 上的資料夾路徑：{song.path}" onclick={reveal}

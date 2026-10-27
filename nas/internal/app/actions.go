@@ -66,6 +66,7 @@ type AddRequest struct {
 	AudioOnly bool   `json:"audio_only,omitempty" doc:"只要音訊"`
 	Lyrics    string `json:"lyrics,omitempty" doc:"一起附上的歌詞（選填）"`
 	Make      bool   `json:"make,omitempty" doc:"一路做到伴唱帶（下載 → 去人聲 → 有歌詞就製作伴唱帶）；false = 僅下載"`
+	Prebuilt  bool   `json:"prebuilt,omitempty" doc:"本來就是卡拉 OK 版：只下載，原影片就是伴唱帶"`
 }
 
 // AddSong 排入下載工作。
@@ -86,11 +87,11 @@ func (a *App) AddSong(req AddRequest) (jobs.Summary, error) {
 		}
 	}
 	steps := []string{jobs.StepDownload}
-	if req.Make {
+	if req.Make && !req.Prebuilt {
 		steps = append(steps, jobs.StepSeparate, jobs.StepKaraoke)
 	}
 	return a.Jobs.Submit(jobs.Request{Steps: steps, URL: url,
-		Options: jobs.Options{AudioOnly: req.AudioOnly, Folder: req.Folder, Lyrics: req.Lyrics}})
+		Options: jobs.Options{AudioOnly: req.AudioOnly, Folder: req.Folder, Lyrics: req.Lyrics, Prebuilt: req.Prebuilt}})
 }
 
 // UpdateInfo 修改歌曲資訊（PATCH：只改有給的欄位）。
@@ -122,7 +123,10 @@ func (a *App) SetApproval(id string, approved bool) (*SongView, error) {
 		if r.Status.Karaoke != planner.Done {
 			return nil, conflict("伴唱帶還沒做好或需要更新，請先製作完成再確認")
 		}
-		rec = song.Approval{Fingerprint: r.ApproveFP, At: a.Now().Format(time.RFC3339), Texts: in.Lyrics.Texts()}
+		rec = song.Approval{Fingerprint: r.ApproveFP, At: a.Now().Format(time.RFC3339)}
+		if in.Lyrics != nil { // 本來就是卡拉 OK 版的歌可以沒有歌詞
+			rec.Texts = in.Lyrics.Texts()
+		}
 	}
 	err := a.Store.EditSong(id, func(s *song.Song) error {
 		if !approved {
@@ -551,6 +555,8 @@ func skipReason(v *SongView, req JobRequest, busy map[string]jobs.Summary) strin
 	switch {
 	case busy[v.ID].ID != "":
 		return "處理中"
+	case v.Info.Prebuilt:
+		return "本來就是卡拉 OK 版"
 	case contains(req.Steps, jobs.StepKaraoke) && st.Lyrics != planner.Done:
 		return "缺歌詞"
 	case contains(req.Steps, jobs.StepCheck) && !hasTiming:

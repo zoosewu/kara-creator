@@ -51,6 +51,7 @@ type Request struct {
 	AudioOnly bool
 	Folder    string // 新歌放進曲庫的哪個資料夾
 	Lyrics    string // 一起送來的歌詞（選填）
+	Prebuilt  bool   // 本來就是卡拉 OK 版（新歌才設定）
 	Log       func(line string)
 	Progress  func(p float64)
 }
@@ -223,7 +224,9 @@ func (d *Downloader) Download(ctx context.Context, req Request) (Result, error) 
 		if folder == "" {
 			folder = library.Root
 		}
-		err = d.Store.AddSong(song.New(id, src), folder)
+		sg := song.New(id, src)
+		sg.Info.Prebuilt = req.Prebuilt
+		err = d.Store.AddSong(sg, folder)
 	}
 	if err != nil {
 		return Result{}, err

@@ -26,6 +26,7 @@
   let artist = $state(song.info.artist)
   let note = $state(song.info.note)
   let translation = $state(song.info.translation)
+  let prebuilt = $state(song.info.prebuilt ?? false)
   let language = $state(song.info.language)
   let link = $state(song.source.kind === 'url' ? (song.source.url ?? '') : song.info.link)
   let titleInput = $state<HTMLInputElement>()
@@ -52,7 +53,7 @@
 
   async function submit(e: SubmitEvent) {
     e.preventDefault()
-    const body: Record<string, unknown> = { title: title.trim(), artist: artist.trim(), language, note: note.trim(), translation }
+    const body: Record<string, unknown> = { title: title.trim(), artist: artist.trim(), language, note: note.trim(), translation, prebuilt }
     if (!downloaded) body.link = link.trim()
     const ok = await store.run(async () => {
       await api(`/songs/${enc(id)}`, { method: 'PATCH', body })
@@ -76,26 +77,35 @@
       <label class="field">歌名<input bind:this={titleInput} bind:value={title} autocomplete="off" placeholder={fbTitle} /></label>
       <label class="field">演唱者<input bind:value={artist} autocomplete="off" placeholder={fbArtist || '（未填）'} /></label>
       <p class="hint">留空則自動使用「{fbTitle}{fbArtist ? ` / ${fbArtist}` : ''}」（{from}）。</p>
-      <label class="field">備註<input bind:value={note} autocomplete="off" placeholder="例如：作詞：○○／作曲：○○" /></label>
-      <p class="hint">顯示在歌曲開頭的標題畫面（歌名、演唱者下面）。</p>
-      <label class="check-field"><input type="checkbox" bind:checked={translation} /> 燒上中文翻譯</label>
+      <label class="check-field"><input type="checkbox" bind:checked={prebuilt} /> 本來就是卡拉 OK 版（影片裡已經有字幕）</label>
       <p class="hint">
-        {song.translation_lines
-          ? `有 ${song.translation_lines} 句翻譯，顯示在畫面上方；切換只需重燒。`
-          : '還沒有翻譯：在歌詞編輯器每句下面填。'}
+        {prebuilt
+          ? '不需要歌詞，也不去人聲、不製作：原影片就是伴唱帶，可以直接確認、匯出。'
+          : '勾了就不需要歌詞，原影片直接當伴唱帶。'}
       </p>
-      <label class="field"
-        >語言
-        <select bind:value={language}>
-          <option value="">依歌詞文字</option>
-          <option value="zh">國語</option>
-          <option value="nan">台語</option>
-          <option value="yue">粵語</option>
-          <option value="ja">日文</option>
-          <option value="en">英文</option>
-        </select>
-      </label>
-      <p class="hint">{LANGUAGE_HINTS[language] ?? ''}{languageChanged ? ' 改了語言要重新對時，已確認會失效。' : ''}</p>
+      {#if !prebuilt}
+        <!-- 只在燒字幕時有作用：卡拉 OK 版的歌用不到（值保留，取消勾選就回來） -->
+        <label class="field">備註<input bind:value={note} autocomplete="off" placeholder="例如：作詞：○○／作曲：○○" /></label>
+        <p class="hint">顯示在歌曲開頭的標題畫面（歌名、演唱者下面）。</p>
+        <label class="check-field"><input type="checkbox" bind:checked={translation} /> 燒上中文翻譯</label>
+        <p class="hint">
+          {song.translation_lines
+            ? `有 ${song.translation_lines} 句翻譯，顯示在畫面上方；切換只需重燒。`
+            : '還沒有翻譯：在歌詞編輯器每句下面填。'}
+        </p>
+        <label class="field"
+          >語言
+          <select bind:value={language}>
+            <option value="">依歌詞文字</option>
+            <option value="zh">國語</option>
+            <option value="nan">台語</option>
+            <option value="yue">粵語</option>
+            <option value="ja">日文</option>
+            <option value="en">英文</option>
+          </select>
+        </label>
+        <p class="hint">{LANGUAGE_HINTS[language] ?? ''}{languageChanged ? ' 改了語言要重新對時，已確認會失效。' : ''}</p>
+      {/if}
       <label class="field">資料夾<FolderSelect bind:value={folder} /></label>
       <label class="field"
         >影片連結

@@ -162,12 +162,19 @@ func copyFile(src, dst string) error {
 
 // ---- 去人聲 --------------------------------------------------------------------
 
+// prebuiltNote：本來就是卡拉 OK 版的歌不處理。
+const prebuiltNote = "這首本來就是卡拉 OK 版：原影片就是伴唱帶，略過"
+
 // Separate 去人聲（人聲 / 伴奏分離）。已經是最新的就略過（force 時重做）。
 func (p *Pipeline) Separate(ctx context.Context, id string, force bool, run Run) error {
 	run.stage("去人聲")
-	_, r, err := p.evaluate(id)
+	cur, r, err := p.evaluate(id)
 	if err != nil {
 		return err
+	}
+	if cur.Song.Info.Prebuilt {
+		run.log(prebuiltNote)
+		return nil
 	}
 	if r.Status.Download != planner.Done {
 		return userError("找不到來源檔，請重新下載或重新放入")
@@ -304,6 +311,10 @@ func (p *Pipeline) Karaoke(ctx context.Context, id string, opt KaraokeOptions, r
 	in, r, err := p.evaluate(id)
 	if err != nil {
 		return err
+	}
+	if in.Song.Info.Prebuilt {
+		run.log(prebuiltNote)
+		return nil
 	}
 	if in.Lyrics == nil {
 		run.log("缺歌詞，暫不製作伴唱帶。請先輸入歌詞")
@@ -776,6 +787,10 @@ func (p *Pipeline) Check(ctx context.Context, id string, force bool, run Run) er
 	if err != nil {
 		return err
 	}
+	if in.Song.Info.Prebuilt {
+		run.log(prebuiltNote)
+		return nil
+	}
 	if in.Alignment == nil || in.Lyrics == nil || in.Song.Stages.Separate == nil {
 		return userError("還沒有對時結果，請先製作伴唱帶")
 	}
@@ -808,6 +823,9 @@ func (p *Pipeline) Retime(ctx context.Context, id string, o RetimeOptions, run R
 	in, r, err := p.evaluate(id)
 	if err != nil {
 		return err
+	}
+	if in.Song.Info.Prebuilt {
+		return userError("這首本來就是卡拉 OK 版，沒有對時")
 	}
 	if in.Alignment == nil || in.Lyrics == nil || in.Song.Stages.Separate == nil {
 		return userError("還沒有對時結果，請先製作伴唱帶")

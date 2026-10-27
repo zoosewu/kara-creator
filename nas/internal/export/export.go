@@ -67,6 +67,7 @@ type Song struct {
 	Artist   string
 	Video    string // 伴唱帶成品的路徑；還沒做好時為空
 	Original string // 原曲音訊（m4a）的路徑；不匯出時為空
+	Ext      string // 匯出檔的副檔名（空的 = .mp4）；本來就是卡拉 OK 版的歌照原檔
 }
 
 // OriginalName 是原曲音訊的匯出路徑：伴唱帶的檔名去掉副檔名、加上「_original.m4a」。
@@ -127,7 +128,11 @@ func Names(lib *library.Library, songs []Song) map[string]string {
 	for _, e := range entries {
 		slot := [2]string{e.folder, pystr.Casefold(FileName(e.s.Title, e.s.Artist, 1))}
 		copies[slot]++
-		names[e.s.ID] = path.Join(e.folder, FileName(e.s.Title, e.s.Artist, copies[slot]))
+		name := FileName(e.s.Title, e.s.Artist, copies[slot])
+		if e.s.Ext != "" && e.s.Ext != ".mp4" {
+			name = strings.TrimSuffix(name, ".mp4") + e.s.Ext
+		}
+		names[e.s.ID] = path.Join(e.folder, name)
 	}
 	return names
 }

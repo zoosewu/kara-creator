@@ -38,6 +38,7 @@ const (
 	NeedsAlign  = "needs_align"  // 需重新對時：歌詞文字或讀音、人聲（重新去人聲）、語言、對時方法改了
 	Missing     = "missing"      // 檔案不見了（來源、歌詞）
 	NoLyrics    = "no_lyrics"
+	Skipped     = "skipped" // 不需要：本來就是卡拉 OK 版的歌，不去人聲、不用歌詞"
 
 	Approved = "approved" // 確認過，內容沒變
 	Stale    = "stale"    // 確認之後內容變了，需重新確認
@@ -178,6 +179,21 @@ func Evaluate(in Input) Result {
 		r.Status.Lyrics = Missing
 	}
 
+	// 本來就是卡拉 OK 版：原影片就是伴唱帶，不去人聲、不用歌詞、不製作；確認只綁原影片
+	if sg.Info.Prebuilt {
+		r.Status.Separate = Skipped
+		if in.Lyrics == nil {
+			r.Status.Lyrics = Skipped
+		}
+		r.Status.Karaoke = Done
+		if !in.SourceOK {
+			r.Status.Karaoke = Pending
+		}
+		r.ApproveFP = fingerprint.Prebuilt(sg.Source.File.SHA256)
+		approval(&r, sg, texts)
+		return r
+	}
+
 	// 對時
 	r.LyricsFP = fingerprint.Lyrics(texts, rubies)
 	if r.Status.Separate == Done {
@@ -272,13 +288,19 @@ func Evaluate(in Input) Result {
 		counts := in.QACounts
 		r.Status.QA = &counts
 	}
+	approval(&r, sg, texts)
+	return r
+}
+
+// approval 判斷「已確認」是不是還有效；失效時找出上次確認之後改了哪幾句。
+func approval(r *Result, sg *song.Song, texts []string) {
 	if n := len(sg.Info.History); n > 0 {
 		r.LastApproval = &sg.Info.History[n-1]
 	}
 	if a := sg.Info.Approved; a != nil {
 		r.LastApproval = a
 		r.Status.Approval = Stale
-		if r.ApproveFP != "" && a.Fingerprint == r.ApproveFP && karaoke != NeedsAlign {
+		if r.ApproveFP != "" && a.Fingerprint == r.ApproveFP && r.Status.Karaoke != NeedsAlign {
 			r.Status.Approval = Approved
 		}
 	}
@@ -292,7 +314,6 @@ func Evaluate(in Input) Result {
 			}
 		}
 	}
-	return r
 }
 
 // FontID 是成品用的字型 id（字型檔 sha256:第幾個字型；.ttc 一個檔案裡有好幾個字型）。

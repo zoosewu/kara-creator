@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -270,7 +271,7 @@ func (a *App) exportSongs() []export.Song {
 		if err != nil {
 			continue
 		}
-		s := export.Song{ID: id, Title: v.Title, Artist: v.Artist}
+		s := export.Song{ID: id, Title: v.Title, Artist: v.Artist, Ext: a.exportExt(id)}
 		if v.Approval.Status == planner.Approved {
 			s.Video = a.exportVideo(id)
 			if original {
@@ -288,16 +289,29 @@ func (a *App) exportVideo(id string) string {
 	if !ok {
 		return ""
 	}
+	if sg.Info.Prebuilt && sg.Source.File.Name != "" {
+		return a.Store.SongPath(id, sg.Source.File.Name) // 本來就是卡拉 OK 版：匯出原影片
+	}
 	if rec := sg.Stages.Render[song.TargetInstrumental]; rec != nil && rec.Video.Name != "" {
 		return a.Store.SongPath(id, rec.Video.Name)
 	}
 	return ""
 }
 
+// exportExt 是匯出檔的副檔名：伴唱帶是 .mp4；本來就是卡拉 OK 版的歌照原檔（可能是 .mkv、.webm…）。
+func (a *App) exportExt(id string) string {
+	if sg, ok := a.Store.Song(id); ok && sg.Info.Prebuilt {
+		if ext := strings.ToLower(filepath.Ext(sg.Source.File.Name)); ext != "" {
+			return ext
+		}
+	}
+	return ".mp4"
+}
+
 // originalAudio 是原曲音訊（m4a）的路徑：cache/original/<來源 sha256>.m4a（匯出時才產生；來源換了就換一個檔）。
 func (a *App) originalAudio(id string) string {
 	sg, ok := a.Store.Song(id)
-	if !ok || sg.Source.File.SHA256 == "" {
+	if !ok || sg.Source.File.SHA256 == "" || sg.Info.Prebuilt { // 卡拉 OK 版：原影片就是伴唱帶，沒有另外的原曲
 		return ""
 	}
 	return a.Store.Path(store.CacheDir, "original", sg.Source.File.SHA256+".m4a")
