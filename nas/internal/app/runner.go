@@ -12,7 +12,7 @@ import (
 type runner struct{ a *App }
 
 func (r *runner) Download(ctx context.Context, job jobs.Job, env jobs.Env) (string, string, error) {
-	res, err := r.a.Down.Download(ctx, download.Request{URL: job.URL, AudioOnly: job.Options.AudioOnly, Folder: job.Options.Folder,
+	res, err := r.a.Down.Download(ctx, download.Request{URL: job.URL, Folder: job.Options.Folder,
 		Lyrics: job.Options.Lyrics, Prebuilt: job.Options.Prebuilt, Log: env.Log, Progress: env.Progress})
 	if err != nil {
 		return "", "", err

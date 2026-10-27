@@ -13,10 +13,6 @@
             "readOnly": true,
             "type": "string"
           },
-          "audio_only": {
-            "description": "只要音訊",
-            "type": "boolean"
-          },
           "folder": {
             "description": "放進哪個資料夾（空字串 = 最上層）",
             "type": "string"

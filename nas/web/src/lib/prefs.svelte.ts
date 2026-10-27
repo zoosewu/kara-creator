@@ -10,7 +10,6 @@ const KEYS = {
   studioRate: 'studioRate', // 播放畫面的預設速度（設定；播放畫面裡調整只影響那一次）
   volume: 'volume', // 以下記住上次的狀態
   muted: 'muted',
-  audioOnly: 'audioOnly',
   editorMode: 'editorMode',
 } as const
 
@@ -22,7 +21,6 @@ class Prefs {
   studioRate = $state<number>(load(KEYS.studioRate, 1))
   volume = $state<number>(load(KEYS.volume, 1))
   muted = $state<boolean>(load(KEYS.muted, false))
-  audioOnly = $state<boolean>(load(KEYS.audioOnly, false))
   editorMode = $state<'visual' | 'annotated' | 'plain'>(load(KEYS.editorMode, 'visual'))
 
   set<K extends keyof typeof KEYS>(key: K, value: Prefs[K]) {

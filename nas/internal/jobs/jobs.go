@@ -58,16 +58,15 @@ const (
 
 // Options 是工作的選項。
 type Options struct {
-	Force     bool     `json:"force,omitempty"`      // 全部重做（含覆蓋手改的字幕）
-	Realign   bool     `json:"realign,omitempty"`    // 重新對時
-	Line      int      `json:"line,omitempty"`       // retime：第幾句（從 0 起算）
-	Mode      string   `json:"mode,omitempty"`       // retime：from | line
-	Anchor    *float64 `json:"anchor,omitempty"`     // retime：這句的開頭（畫面上還沒儲存的時間）；沒給就用存檔的
-	Next      *float64 `json:"next,omitempty"`       // retime line：下一句的開頭；沒給就用存檔的
-	AudioOnly bool     `json:"audio_only,omitempty"` // download：只要音訊
-	Folder    string   `json:"folder,omitempty"`     // download：新歌放進哪個資料夾
-	Lyrics    string   `json:"lyrics,omitempty"`     // download：一起送來的歌詞
-	Prebuilt  bool     `json:"prebuilt,omitempty"`   // download：本來就是卡拉 OK 版
+	Force    bool     `json:"force,omitempty"`    // 全部重做（含覆蓋手改的字幕）
+	Realign  bool     `json:"realign,omitempty"`  // 重新對時
+	Line     int      `json:"line,omitempty"`     // retime：第幾句（從 0 起算）
+	Mode     string   `json:"mode,omitempty"`     // retime：from | line
+	Anchor   *float64 `json:"anchor,omitempty"`   // retime：這句的開頭（畫面上還沒儲存的時間）；沒給就用存檔的
+	Next     *float64 `json:"next,omitempty"`     // retime line：下一句的開頭；沒給就用存檔的
+	Folder   string   `json:"folder,omitempty"`   // download：新歌放進哪個資料夾
+	Lyrics   string   `json:"lyrics,omitempty"`   // download：一起送來的歌詞
+	Prebuilt bool     `json:"prebuilt,omitempty"` // download：本來就是卡拉 OK 版
 }
 
 // Job 是一件工作。

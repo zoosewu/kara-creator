@@ -148,7 +148,7 @@ func Run(ctx context.Context, st *store.Store, d *download.Downloader, opt Optio
 				rep.Failed = append(rep.Failed, Problem{Entry: e, URL: url, Error: "沒有下載工具"})
 				continue
 			}
-			res, err := d.Download(ctx, download.Request{URL: url, AudioOnly: e.Source.Mode == "audio", Log: opt.Log})
+			res, err := d.Download(ctx, download.Request{URL: url, Log: opt.Log})
 			if err != nil {
 				logf("[x] 下載失敗：%s（%v）", url, err)
 				rep.Failed = append(rep.Failed, Problem{Entry: e, URL: url, Error: err.Error()})

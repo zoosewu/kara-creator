@@ -61,12 +61,11 @@ func libraryError(err error) error {
 
 // AddRequest 是新增歌曲（貼網址）。
 type AddRequest struct {
-	URL       string `json:"url" minLength:"1" doc:"影片網址"`
-	Folder    string `json:"folder,omitempty" doc:"放進哪個資料夾（空字串 = 最上層）"`
-	AudioOnly bool   `json:"audio_only,omitempty" doc:"只要音訊"`
-	Lyrics    string `json:"lyrics,omitempty" doc:"一起附上的歌詞（選填）"`
-	Make      bool   `json:"make,omitempty" doc:"一路做到伴唱帶（下載 → 去人聲 → 有歌詞就製作伴唱帶）；false = 僅下載"`
-	Prebuilt  bool   `json:"prebuilt,omitempty" doc:"本來就是卡拉 OK 版：不用歌詞，伴唱帶 = 原影片畫面 + 去人聲後的伴奏"`
+	URL      string `json:"url" minLength:"1" doc:"影片網址"`
+	Folder   string `json:"folder,omitempty" doc:"放進哪個資料夾（空字串 = 最上層）"`
+	Lyrics   string `json:"lyrics,omitempty" doc:"一起附上的歌詞（選填）"`
+	Make     bool   `json:"make,omitempty" doc:"一路做到伴唱帶（下載 → 去人聲 → 有歌詞就製作伴唱帶）；false = 僅下載"`
+	Prebuilt bool   `json:"prebuilt,omitempty" doc:"本來就是卡拉 OK 版：不用歌詞，伴唱帶 = 原影片畫面 + 去人聲後的伴奏"`
 }
 
 // AddSong 排入下載工作。
@@ -91,7 +90,7 @@ func (a *App) AddSong(req AddRequest) (jobs.Summary, error) {
 		steps = append(steps, jobs.StepSeparate, jobs.StepKaraoke)
 	}
 	return a.Jobs.Submit(jobs.Request{Steps: steps, URL: url,
-		Options: jobs.Options{AudioOnly: req.AudioOnly, Folder: req.Folder, Lyrics: req.Lyrics, Prebuilt: req.Prebuilt}})
+		Options: jobs.Options{Folder: req.Folder, Lyrics: req.Lyrics, Prebuilt: req.Prebuilt}})
 }
 
 // UpdateInfo 修改歌曲資訊（PATCH：只改有給的欄位）。

@@ -26,10 +26,9 @@ import (
 	"github.com/zoosewu/kara-creator/nas/internal/store"
 )
 
-// 格式：優先 H.264 + AAC，相容性最好；只要音訊時直接取原始串流，不轉檔。
+// 格式：優先 H.264 + AAC，相容性最好。
 const (
 	VideoFormat = "bv*[vcodec^=avc1]+ba[ext=m4a]/bv*[ext=mp4]+ba[ext=m4a]/bv*+ba/b"
-	AudioFormat = "ba[ext=m4a]/ba/b"
 	// MetaVersion 是 song.json 裡歌曲資訊欄位的版本。
 	MetaVersion = 1
 )
@@ -47,13 +46,12 @@ type Downloader struct {
 
 // Request 是一次下載。
 type Request struct {
-	URL       string
-	AudioOnly bool
-	Folder    string // 新歌放進曲庫的哪個資料夾
-	Lyrics    string // 一起送來的歌詞（選填）
-	Prebuilt  bool   // 本來就是卡拉 OK 版（新歌才設定）
-	Log       func(line string)
-	Progress  func(p float64)
+	URL      string
+	Folder   string // 新歌放進曲庫的哪個資料夾
+	Lyrics   string // 一起送來的歌詞（選填）
+	Prebuilt bool   // 本來就是卡拉 OK 版（新歌才設定）
+	Log      func(line string)
+	Progress func(p float64)
 }
 
 // Result 是下載結果。
@@ -158,14 +156,9 @@ func (d *Downloader) Download(ctx context.Context, req Request) (Result, error) 
 	if err := os.WriteFile(infoPath, raw, 0o644); err != nil {
 		return Result{}, err
 	}
-	format := VideoFormat
-	extra := []string{"--merge-output-format", "mp4"}
-	if req.AudioOnly {
-		format, extra = AudioFormat, nil
-	}
-	args := d.args(append(extra, "-f", format, "--newline", "--continue",
+	args := d.args("--merge-output-format", "mp4", "-f", VideoFormat, "--newline", "--continue",
 		"--progress-template", "download:KARA-PROGRESS %(progress.downloaded_bytes)s %(progress.total_bytes)s %(progress.total_bytes_estimate)s",
-		"-o", filepath.Join(tmp, "source.%(ext)s"), "--load-info-json", infoPath)...)
+		"-o", filepath.Join(tmp, "source.%(ext)s"), "--load-info-json", infoPath)
 	err = d.stream(ctx, args, logf, req.Progress)
 	if err != nil && ctx.Err() == nil && strings.Contains(err.Error(), "HTTP Error 403") {
 		// YouTube 有時會拒絕剛才取得的影片網址（403，常常是暫時的）：重新取得一次資訊與網址再試
@@ -211,7 +204,7 @@ func (d *Downloader) Download(ctx context.Context, req Request) (Result, error) 
 		Title: in.Title, Uploader: in.Uploader, Channel: in.Channel, Track: in.Track, Artists: artists,
 		Duration: first(probe.Duration, in.Duration), Mode: "video", File: ref, AddedAt: d.now().Format(time.RFC3339),
 		MetaVersion: MetaVersion}
-	if req.AudioOnly || !probe.HasVideo {
+	if !probe.HasVideo { // 網址本身只有聲音
 		src.Mode = "audio"
 	}
 	if probe.HasVideo {

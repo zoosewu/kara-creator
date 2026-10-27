@@ -275,3 +275,9 @@ Playwright 把每個畫面、對話框、選單在手機 / 平板直式 / 平板
 - 輸出裡的 ffmpeg `Broken pipe` 是原本就有的（新舊程式跑同一件任務，各 5 行一樣）
 - ruff 的 `zip()` 一律明確寫 `strict=False`（和原本行為相同；要不要改成 `strict=True` 需要逐一確認資料長度，不在這次範圍）
 - 映像與 compose 的名稱（`kara-creator-ai`、`compose.ai.yml`）維持不變：使用者已經部署了，改名會讓舊名稱默默停止更新
+
+## 移除「只要音訊」
+
+- [x] 移除新增歌曲的「只要音訊」勾選、prefs 欄位、API `audio_only`、jobs.Options / download.Request 的 AudioOnly
+- [x] 從備份重建一律下載影片；網址或 inbox 本身只有聲音的來源照舊處理（黑底畫面）
+- [x] gofmt / vet / go test / npm check 通過，重新產生 openapi.json 與 api-types.ts

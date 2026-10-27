@@ -546,8 +546,6 @@ export interface components {
              * @example https://example.com/api/v1/schemas/AddRequest.json
              */
             readonly $schema?: string;
-            /** @description 只要音訊 */
-            audio_only?: boolean;
             /** @description 放進哪個資料夾（空字串 = 最上層） */
             folder?: string;
             /** @description 一起附上的歌詞（選填） */

@@ -48,7 +48,7 @@ kara-nas restore [--overwrite] [--replace 歌曲id=網址]   # 從資料備份�
   0. 新增時附上的歌詞先存進 `songs/<id>/lyrics.txt`：YouTube 的網址按下去的當下就存（網址裡就有 id），其他網站在取得資訊之後、下載影片之前存。
      下載失敗也不會遺失，之後同一個網址下載成功就直接有歌詞（曲庫裡已經有這首歌時不蓋掉現有的歌詞）
   1. `yt-dlp -J --no-playlist <網址>` 取得資訊 → 算出歌曲 id → 已經有這首就略過
-  2. 下載到 `songs/<id>/.downloading/`：格式（`VideoFormat` 優先 H.264 + AAC，合併成 mp4；只要音訊時用 `AudioFormat`，不轉檔）；
+  2. 下載到 `songs/<id>/.downloading/`：格式（`VideoFormat` 優先 H.264 + AAC，合併成 mp4）；
      用 `--newline --progress-template` 解析進度；取消時終止子程序（`.part` 留著下次續傳）；
      YouTube 回 403 時重新取得一次資訊與網址再試（常常是暫時的）
   3. 完成後搬成 `source.<ext>`，寫 song.json（含 sha256、ffprobe 的寬高）
@@ -112,7 +112,7 @@ kara-nas restore [--overwrite] [--replace 歌曲id=網址]   # 從資料備份�
 | --- | --- |
 | `GET /library` | 前端初次載入：資料夾、所有歌的摘要（含各階段狀態、疑慮數、目前的工作）、設定、worker 清單、工作清單 |
 | `GET /songs` · `GET /songs/{id}` | 歌曲摘要 / 詳細（含 export 檔名、可播放的媒體清單） |
-| `POST /songs` | 新增：`{url, folder, audio_only, lyrics, make}` → 下載工作（`make=true` 一路做到伴唱帶） |
+| `POST /songs` | 新增：`{url, folder, lyrics, make, prebuilt}` → 下載工作（`make=true` 一路做到伴唱帶） |
 | `PATCH /songs/{id}` | 修改 info（歌名、演唱者、語言、備註、連結、翻譯、targets） |
 | `PUT /songs/{id}/approval` | 已確認 / 取消確認 |
 | `GET /songs/{id}/lyrics?view=doc\|file\|annotated\|plain` · `PUT /songs/{id}/lyrics` | 歌詞的四種檢視；需要自動讀音的句子還沒算好時，回應標示 `pending_readings` |
