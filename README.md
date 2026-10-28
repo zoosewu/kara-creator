@@ -68,8 +68,10 @@ docker compose -f compose.ai.yml up -d
 git clone https://github.com/zoosewu/kara-creator.git
 cd kara-creator\worker
 .\setup.ps1                   # 下載 ffmpeg、建立 Python 環境（PyTorch CUDA 版）、安裝 kara-worker
-.\worker.ps1 --nas http://mac-mini.local:8765 --name pc-4070 --token 自己訂的密碼
+.\worker.ps1                  # 會問 NAS 的網址、這台的名稱、token；也可以直接給 --nas、--name、--token
 ```
+
+問到的值連上 NAS 後記在 `worker\.worker.json`（不進 git），下次括號裡會顯示上次的值，直接按 Enter 就沿用。
 
 更新：`git pull` 後再執行一次 `setup.ps1`，然後啟動 `worker.ps1`。其他參數見 `.\worker.ps1 --help`（例如 `--channels`、`--device cpu`）。
 

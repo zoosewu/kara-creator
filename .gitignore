@@ -8,6 +8,8 @@ __pycache__/
 
 # worker 在 Windows 上直接執行時，setup.ps1 下載的 ffmpeg
 /worker/tools/
+# worker 記住的 NAS 網址、名稱、token（有密碼）
+/worker/.worker.json
 
 # 歌詞、影片與資料備份都有版權：只放在使用者的曲庫與私人的資料 repo，絕對不進這個 repo
 /data/

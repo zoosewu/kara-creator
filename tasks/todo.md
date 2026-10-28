@@ -281,3 +281,11 @@ Playwright 把每個畫面、對話框、選單在手機 / 平板直式 / 平板
 - [x] 移除新增歌曲的「只要音訊」勾選、prefs 欄位、API `audio_only`、jobs.Options / download.Request 的 AudioOnly
 - [x] 從備份重建一律下載影片；網址或 inbox 本身只有聲音的來源照舊處理（黑底畫面）
 - [x] gofmt / vet / go test / npm check 通過，重新產生 openapi.json 與 api-types.ts
+
+## AI worker：沒給的設定用問的，並記住上次的值
+
+- [x] 在終端機執行時，沒給 --nas / --name / --token（也沒有環境變數）就問；token 不顯示在畫面上
+- [x] 連上 NAS 後記在 worker.json（worker.ps1：worker\\.worker.json，已加進 .gitignore；其他：使用者設定資料夾），權限 600
+- [x] 下次括號裡顯示上次的值（token 只顯示最後兩碼），留白沿用；token 輸入 - 改成不用
+- [x] container（沒有終端機）照舊：不問、不記
+- [x] pytest / ruff 通過；在 kara-ai-dev 用 pty 實際跑過第一次輸入、第二次留白沿用、清掉 token、沒有終端機四種情況
