@@ -22,7 +22,7 @@ container 用環境變數：`KARA_NAS`、`KARA_WORKER_NAME`、`KARA_WORKER_TOKEN
 `versions.json`（repo 根目錄，兩邊共用）：
 
 ```json
-{ "protocol": 1, "separate": 1, "align": 7, "qa": 4, "reading": 3, "render": 6 }
+{ "protocol": 1, "separate": 1, "align": 7, "qa": 4, "reading": 3, "render": 7 }
 ```
 
 - `align`：對時方法（`align.py`）改了就加一（**會讓所有歌整首重新對時、手動調整被取代，先問使用者**）
@@ -113,7 +113,7 @@ MeCab tagger 不是執行緒安全的：interactive 迴圈用自己的 tagger �
 | `align_line` | `audio`：speech.wav | `text`、`rubies`、`t0`、`t1`（下一句開頭，可為 null）、`language` | `{line}` | — |
 | `qa` | `audio`：speech.wav | `lines`、`texts`、`rubies`、`language`、`model` | `{doc: {lines}}`：每句的檢查結果（`index`、`status`、`reasons`、`offset`…） | — |
 | `reading` | — | `language`、`texts` | `{lines: [[{start, end, ruby}…]…]}`：每句的**自動**讀音，位置以 code point 計；去掉送假名，漢字中間夾著假名時拆開標（取り戻す → 取{と}り戻{もど}す）；歌詞慣用讀音：私 → わたし、明日 → あした、何時 → いつ、何 接で・て・っ・だ・の・と・じゃ 唸なん，其他唸なに | — |
-| `render` | `media`：伴奏影片（或原曲，看 target）；`ass`：手動改過的 ASS（選填） | 見下 | `{width, height, ass_sha256}` | `karaoke.ass`（沒有手動 ASS 時）、`video.mp4` |
+| `render` | `media`：伴奏影片（或原曲，看 target）；`ass`：手動改過的 ASS（選填） | 見下 | `{width, height, ass_sha256}`（燒出來的畫面大小，一律 16:9） | `karaoke.ass`（沒有手動 ASS 時）、`video.mp4` |
 
 `render` 的 params：
 

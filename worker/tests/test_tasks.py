@@ -148,6 +148,19 @@ def test_title_wrap():
     assert subtitles._title_field("自己編的歌", 130, max_w, m) == "自己編的歌"
 
 
+def test_canvas_is_16_9():
+    # 窄的左右補、寬的上下補，不放大；超過 4K 才縮小；寬高一定是偶數
+    assert tasks.canvas(None) == (1920, 1080)
+    assert tasks.canvas(tasks.Video(1920, 1080, None)) == (1920, 1080)
+    assert tasks.canvas(tasks.Video(854, 480, None)) == (854, 480)
+    assert tasks.canvas(tasks.Video(1080, 1080, None)) == (1920, 1080)
+    assert tasks.canvas(tasks.Video(720, 720, None)) == (1280, 720)
+    assert tasks.canvas(tasks.Video(640, 480, None)) == (854, 480)
+    assert tasks.canvas(tasks.Video(1080, 1920, None)) == (3414, 1920)
+    assert tasks.canvas(tasks.Video(2560, 1080, None)) == (2560, 1440)
+    assert tasks.canvas(tasks.Video(2160, 3840, None)) == (3840, 2160)
+
+
 def test_bitrate_cap():
     # 上限是來源影像的 1.5 倍，至少 1.5 Mbps；純音訊或讀不到位元率時用最低值
     assert tasks.bitrate_cap(tasks.Video(1920, 1080, 1_800_000)) == 2_700_000

@@ -289,3 +289,9 @@ Playwright 把每個畫面、對話框、選單在手機 / 平板直式 / 平板
 - [x] 下次括號裡顯示上次的值（token 只顯示最後兩碼），留白沿用；token 輸入 - 改成不用
 - [x] container（沒有終端機）照舊：不問、不記
 - [x] pytest / ruff 通過；在 kara-ai-dev 用 pty 實際跑過第一次輸入、第二次留白沿用、清掉 token、沒有終端機四種情況
+
+## 燒錄畫面一律 16:9
+
+- [x] worker `tasks.canvas`：比較窄的（正方形、直式）左右補黑邊，比較寬的上下補；不放大原畫面，超過 4K 才縮小；字幕依 16:9 畫布排版
+- [x] versions.json render 6 → 7（所有伴唱帶變成只需重燒）
+- [x] pytest / ruff / go vet / go test 通過；在 kara-ai-dev 用 NVENC 實際燒正方形、直式、超寬、16:9 四種測試影片並看過畫面

@@ -134,6 +134,25 @@ def _probe_video(path: Path) -> Video | None:
     return None
 
 
+# 燒出來的畫面一律 16:9：比較窄（正方形、直式）的影片左右補黑邊，比較寬的上下補，字幕才排得開。
+# 不放大原畫面；只有補邊後超過 4K（NVENC 的 H.264 寬度上限是 4096）才整個縮小。
+MAX_CANVAS = (3840, 2160)
+
+
+def canvas(video: Video | None) -> tuple[int, int]:
+    """燒錄畫面的大小（寬, 高）：16:9、偶數。純音訊用 1920x1080 的黑底。"""
+    if not video:
+        return 1920, 1080
+    w, h = video.width, video.height
+    if w * 9 < h * 16:
+        w = h * 16 / 9
+    else:
+        h = w * 9 / 16
+    k = min(1.0, MAX_CANVAS[0] / w)
+    w, h = round(w * k), round(h * k)
+    return w + w % 2, h + h % 2
+
+
 def _attach_furigana(lines: list[dict], lyr: Lyrics) -> None:
     """替每句加上假名位置（自動讀音 + 手動讀音）。
     只處理「逐字串起來剛好等於歌詞原文」的句子，對不上的不加假名，避免標錯字。"""
@@ -165,7 +184,7 @@ def build_ass(params: dict, size: tuple[int, int], font_file: Path) -> str:
 def _render(params: dict, ctx: Context) -> dict:
     media = ctx.inputs["media"]
     video = _probe_video(media)
-    width, height = (video.width, video.height) if video else (1920, 1080)
+    width, height = canvas(video)
     font_file = ctx.font(params["font"])
     ass_path = ctx.out_dir / "karaoke.ass"
     if "ass" in ctx.inputs:
@@ -214,13 +233,18 @@ def _burn(src: Path, ass_path: Path, dest: Path, size: tuple[int, int], video: V
     shutil.copyfile(font_file, fonts / font_file.name)
     # subtitles 濾鏡對路徑中的冒號、括號等字元很敏感：用工作資料夾裡的 ASCII 相對路徑
     shutil.copyfile(ass_path, work / "sub.ass")
+    w, h = size
+    fit = ""
     if video:
         inputs, maps = ["-i", str(src)], ["-map", "0:v:0", "-map", "0:a:0"]
+        if (video.width, video.height) != size:   # 原畫面置中、不放大，四周補黑邊成 16:9
+            fit = (f"scale={w}:{h}:force_original_aspect_ratio=decrease:force_divisible_by=2,"
+                   f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,")
     else:
-        w, h = size   # 純音訊來源：用黑底當畫面
+        # 純音訊來源：用黑底當畫面
         inputs = ["-f", "lavfi", "-i", f"color=c=black:s={w}x{h}:r=30", "-i", str(src)]
         maps = ["-map", "0:v:0", "-map", "1:a:0", "-shortest"]
-    base = [FFMPEG, "-y", "-v", "error", *inputs, *maps, "-vf", "subtitles=sub.ass:fontsdir=fonts"]
+    base = [FFMPEG, "-y", "-v", "error", *inputs, *maps, "-vf", f"{fit}subtitles=sub.ass:fontsdir=fonts"]
     tail = ["-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", AUDIO_BITRATE, "-movflags", "+faststart", "out.mp4"]
     cap = bitrate_cap(video)
     err = ""
