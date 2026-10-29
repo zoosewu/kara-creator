@@ -304,3 +304,9 @@ Playwright 把每個畫面、對話框、選單在手機 / 平板直式 / 平板
 - [x] 匯出原曲音訊套用伴唱帶的 gain_db（cache/original/<sha>_<增益>dB.m4a，增益變了就重新產生）；舊紀錄、本來就是卡拉 OK 版不調整
 - [x] versions.json render 7 → 8
 - [x] pytest / ruff / gofmt / go vet / go test 通過；kara-ai-dev 實際燒錄：-33.2 與 -18.0 LUFS 的伴奏都到 -16.2、-16.3 LUFS；NAS 匯出的原曲音訊和 worker 的原曲版響度一致
+
+## 主畫面與播放畫面顯示備註
+
+- [x] 主畫面：演唱者和歌名一樣粗、一樣顏色；副標題最前面放備註
+- [x] 播放畫面：標題改成「歌名 演唱者」，副標題放備註（沒有備註就不顯示）；手機的「更多」選單同樣
+- [x] npm check 通過；Playwright 截圖確認桌面與手機的主畫面、播放畫面

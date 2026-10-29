@@ -137,6 +137,7 @@
 
   let meta = $derived(
     [
+      song.info.note, // 副標題：備註在最前面
       song.title !== song.source.title ? song.source.title : '',
       fmtDuration(song.source.duration),
       song.source.mode === 'audio' ? '音訊' : '影片',

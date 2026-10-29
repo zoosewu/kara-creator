@@ -280,7 +280,7 @@ body.is-dragging .lib-root { border-color: var(--accent); border-style: dashed; 
 .song-main { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }  /* 欄寬不被長標題撐開 */
 .song-top { display: flex; gap: 12px; align-items: flex-start; }
 .song-title { font-weight: 600; }
-.song-title .artist { font-weight: 400; color: var(--muted); margin-left: 8px; }
+.song-title .artist { margin-left: 8px; }   /* 演唱者和歌名一樣粗、一樣顏色 */
 
 /* 標題旁的筆：點了在原位編輯 */
 .title-line { display: flex; align-items: center; gap: 4px; min-width: 0; }

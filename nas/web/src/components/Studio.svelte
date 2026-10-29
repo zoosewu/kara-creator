@@ -753,8 +753,8 @@
   <div class="studio" role="dialog" aria-modal="true" aria-labelledby="studio-heading">
     <header class="sheet-head desk-only">
       <div class="grow">
-        <h2 id="studio-heading">播放</h2>
-        <div class="muted ellipsis">{song.artist ? `${song.artist} - ${song.title}` : song.title}</div>
+        <h2 id="studio-heading" class="song-title ellipsis">{song.title}{#if song.artist}<span class="artist">{song.artist}</span>{/if}</h2>
+        {#if song.info.note}<div class="muted ellipsis" title={song.info.note}>{song.info.note}</div>{/if}
       </div>
       {@render actions()}
       <button type="button" class="icon-btn" title="關閉（Esc）" aria-label="關閉" onclick={close}><Icon name="close" size={18} /></button>
@@ -964,7 +964,8 @@
         <div class="phone-sheet" role="dialog" aria-label="播放選項">
           <div class="phone-sheet-head">
             <div class="grow">
-              <b>{song.title}</b>{#if song.artist}<span class="muted">　{song.artist}</span>{/if}
+              <div class="song-title">{song.title}{#if song.artist}<span class="artist">{song.artist}</span>{/if}</div>
+              {#if song.info.note}<div class="song-meta">{song.info.note}</div>{/if}
             </div>
             <button type="button" class="icon-btn" aria-label="收起" onclick={() => (sheetOpen = false)}><Icon name="close" size={18} /></button>
           </div>
