@@ -613,6 +613,13 @@ func (p *Pipeline) render(ctx context.Context, id, target string, in planner.Inp
 		return err
 	}
 	inputs[wp.InputMedia] = mediaIn
+	if target != song.TargetInstrumental { // 原曲版的音量照伴奏調
+		inst, err := inputOf(p.d.Store.SongPath(id, sg.Stages.Separate.Instrumental.Name))
+		if err != nil {
+			return err
+		}
+		inputs[wp.InputInstrumental] = inst
+	}
 	outputs := []string{wp.FileVideo}
 	if manual {
 		run.log("  . 偵測到 %s 被手動修改，保留修改內容", song.FileASS)
@@ -673,7 +680,7 @@ func (p *Pipeline) render(ctx context.Context, id, target string, in planner.Inp
 			s.Stages.Render = map[string]*song.RenderStage{}
 		}
 		s.Stages.Render[target] = &song.RenderStage{Stage: song.Stage{Key: key, Worker: res.Worker, DoneAt: p.now()},
-			Content: r.RenderPlain[target], ASS: song.ASSRef{FileRef: ass, Manual: manual}, Video: video}
+			Content: r.RenderPlain[target], ASS: song.ASSRef{FileRef: ass, Manual: manual}, Video: video, Gain: &out.GainDB}
 		// 同一份 ASS 給所有成品用：其他成品的紀錄也更新成這份（內容沒變時它們本來就相同）
 		for t, rec := range s.Stages.Render {
 			if t != target && rec.Content == r.RenderPlain[t] && !manual {

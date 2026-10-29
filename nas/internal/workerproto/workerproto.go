@@ -267,7 +267,8 @@ type Encode struct {
 	Prefer []string `json:"prefer"` // 例如 ["h264_nvenc", "libx264"]
 }
 
-// RenderParams：inputs.media 是伴奏影片（或原曲），inputs.ass（選填）是使用者手動改過的 ASS。
+// RenderParams：inputs.media 是伴奏影片（或原曲），inputs.ass（選填）是使用者手動改過的 ASS，
+// inputs.instrumental（原曲版才有）是量音量的基準：原曲版套用伴奏算出的增益。
 // 上傳 karaoke.ass（沒有手動 ASS 時）與 video.mp4。
 type RenderParams struct {
 	Target       string    `json:"target"` // instrumental | original
@@ -285,19 +286,22 @@ type RenderParams struct {
 
 // RenderResult 是 render 的結果。
 type RenderResult struct {
-	Width     int    `json:"width"`
-	Height    int    `json:"height"`
-	AssSHA256 string `json:"ass_sha256"`
+	Width     int      `json:"width"`
+	Height    int      `json:"height"`
+	AssSHA256 string   `json:"ass_sha256"`
+	GainDB    float64  `json:"gain_db"`  // 套用的增益：讓伴奏到目標響度
+	Loudness  *float64 `json:"loudness"` // 伴奏原本的整合響度（LUFS）；無聲時為 null
 }
 
 // 上傳檔名。
 const (
-	FileVocals   = "vocals.wav"
-	FileNoVocals = "no_vocals.wav"
-	FileASS      = "karaoke.ass"
-	FileVideo    = "video.mp4"
-	InputAudio   = "audio"
-	InputMedia   = "media"
-	InputASS     = "ass"
-	BearerPrefix = "Bearer "
+	FileVocals        = "vocals.wav"
+	FileNoVocals      = "no_vocals.wav"
+	FileASS           = "karaoke.ass"
+	FileVideo         = "video.mp4"
+	InputAudio        = "audio"
+	InputMedia        = "media"
+	InputASS          = "ass"
+	InputInstrumental = "instrumental"
+	BearerPrefix      = "Bearer "
 )

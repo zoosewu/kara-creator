@@ -153,6 +153,49 @@ def canvas(video: Video | None) -> tuple[int, int]:
     return w + w % 2, h + h % 2
 
 
+# 音量：每首的伴奏都調到同樣的響度（EBU R128 整合響度），換歌時伴奏一樣大聲。
+# 整首套用同一個增益（不壓縮動態）；調大後超過上限的瞬間才用限幅器壓住，避免破音。
+# 原曲版（target original）套用同一首伴奏算出的增益，伴奏的音量和伴唱帶一致。
+TARGET_LUFS = -16.0
+PEAK_LIMIT_DB = -1.0
+MAX_GAIN_DB = 20.0   # 幾乎無聲的音軌不要無限放大
+
+
+@dataclass
+class Loudness:
+    lufs: float | None   # 整合響度；無聲時為 None
+    peak_db: float       # 最高的 true peak（dBTP）
+
+
+def measure_loudness(path: Path, should_stop: Callable[[], bool] | None = None) -> Loudness:
+    """量第一條音軌的響度（ffmpeg loudnorm 的分析結果）。"""
+    code, err = run_cancellable([FFMPEG, "-hide_banner", "-nostats", "-i", str(path), "-map", "0:a:0",
+                                 "-af", f"loudnorm=I={TARGET_LUFS}:TP={PEAK_LIMIT_DB}:print_format=json", "-f", "null", "-"],
+                                should_stop)
+    start = err.rfind("{")
+    if code != 0 or start < 0:
+        raise TaskError(f"量不到音量：{err.strip()[-300:]}")
+    info = json.loads(err[start:err.index("}", start) + 1])
+    lufs = float(info["input_i"])
+    return Loudness(None if lufs == float("-inf") or lufs < -70 else lufs, float(info["input_tp"]))
+
+
+def gain_for(loud: Loudness) -> float:
+    """讓響度到 TARGET_LUFS 要調幾 dB（取到 0.1）。"""
+    if loud.lufs is None:
+        return 0.0
+    return round(max(-MAX_GAIN_DB, min(MAX_GAIN_DB, TARGET_LUFS - loud.lufs)), 1)
+
+
+def audio_filter(gain_db: float, peak_db: float | None) -> str:
+    """套用增益的濾鏡；調完會超過上限時才加限幅器（peak_db 未知時調大就加）。
+    level=0：不要自動再調整音量；latency=1：補回限幅器的延遲，聲音和畫面才對得上。"""
+    f = f"volume={gain_db}dB"
+    if gain_db > 0 and (peak_db is None or peak_db + gain_db > PEAK_LIMIT_DB):
+        f += f",alimiter=limit={10 ** (PEAK_LIMIT_DB / 20):.4f}:level=0:latency=1"
+    return f
+
+
 def _attach_furigana(lines: list[dict], lyr: Lyrics) -> None:
     """替每句加上假名位置（自動讀音 + 手動讀音）。
     只處理「逐字串起來剛好等於歌詞原文」的句子，對不上的不加假名，避免標錯字。"""
@@ -197,9 +240,17 @@ def _render(params: dict, ctx: Context) -> dict:
         ctx.files.append("karaoke.ass")
     if ctx.should_stop():
         raise Cancelled()
-    _burn(media, ass_path, ctx.out_dir / "video.mp4", (width, height), video, font_file, params, ctx)
+    ctx.log("  . 量伴奏的音量")
+    # 伴唱帶的 media 就是伴奏；原曲版另外給伴奏（instrumental）當基準
+    ref = ctx.inputs.get("instrumental", media)
+    loud = measure_loudness(ref, ctx.should_stop)
+    gain = gain_for(loud)
+    ctx.log(f"  . 響度 {'無聲' if loud.lufs is None else f'{loud.lufs:.1f} LUFS'}，調整 {gain:+.1f} dB → {TARGET_LUFS:g} LUFS")
+    _burn(media, ass_path, ctx.out_dir / "video.mp4", (width, height), video, font_file, params, ctx,
+          audio_filter(gain, loud.peak_db if ref == media else None))   # 原曲有人聲，最高點和伴奏不同
     ctx.files.append("video.mp4")
-    return {"width": width, "height": height, "ass_sha256": hashlib.sha256(ass_path.read_bytes()).hexdigest()}
+    return {"width": width, "height": height, "ass_sha256": hashlib.sha256(ass_path.read_bytes()).hexdigest(),
+            "gain_db": gain, "loudness": loud.lufs}
 
 
 # 品質目標 + 位元率上限：燒字幕一定要重新編碼，只用固定品質的話，編碼器會連來源的壓縮雜訊一起保留，
@@ -225,7 +276,7 @@ def encoder_args(name: str, cap: int) -> list[str] | None:
 
 
 def _burn(src: Path, ass_path: Path, dest: Path, size: tuple[int, int], video: Video | None, font_file: Path,
-          params: dict, ctx: Context) -> None:
+          params: dict, ctx: Context, af: str) -> None:
     """燒錄字幕。字型只用 NAS 給的那個檔（fontsdir 只放它），多台 worker 燒出來才一致。"""
     work = ctx.out_dir / "burn"
     fonts = work / "fonts"
@@ -245,7 +296,7 @@ def _burn(src: Path, ass_path: Path, dest: Path, size: tuple[int, int], video: V
         inputs = ["-f", "lavfi", "-i", f"color=c=black:s={w}x{h}:r=30", "-i", str(src)]
         maps = ["-map", "0:v:0", "-map", "1:a:0", "-shortest"]
     base = [FFMPEG, "-y", "-v", "error", *inputs, *maps, "-vf", f"{fit}subtitles=sub.ass:fontsdir=fonts"]
-    tail = ["-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", AUDIO_BITRATE, "-movflags", "+faststart", "out.mp4"]
+    tail = ["-pix_fmt", "yuv420p", "-af", af, "-c:a", "aac", "-b:a", AUDIO_BITRATE, "-movflags", "+faststart", "out.mp4"]
     cap = bitrate_cap(video)
     err = ""
     for name in params.get("encode", {}).get("prefer") or ["h264_nvenc", "libx264"]:

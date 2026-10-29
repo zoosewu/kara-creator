@@ -375,7 +375,7 @@ func TestEndToEnd(t *testing.T) {
 		}
 	}
 
-	// 4b-2. 原曲音訊：設定打開後變成待匯出；匯出時產生 m4a（AAC 直接複製）放在伴唱帶旁邊；關掉後再匯出就拿掉
+	// 4b-2. 原曲音訊：設定打開後變成待匯出；匯出時產生 m4a（套用和伴唱帶相同的增益）放在伴唱帶旁邊；關掉後再匯出就拿掉
 	original := filepath.Join(lib, "export", "日文", "虛構歌手 - 自己編的歌_original.m4a")
 	for _, on := range []bool{true, false} {
 		if code := c.do("PATCH", "/api/v1/settings", map[string]any{"export_original": on}, nil); code != 200 {
@@ -396,6 +396,9 @@ func TestEndToEnd(t *testing.T) {
 			info, err := tools.Probe(context.Background(), original)
 			if err != nil || info.Audio != "aac" || info.HasVideo {
 				t.Fatalf("原曲音訊要是只有 AAC 音軌的 m4a：%+v %v", info, err)
+			}
+			if m, _ := filepath.Glob(filepath.Join(lib, "cache", "original", "*_-2.5dB.m4a")); len(m) != 1 {
+				t.Fatalf("原曲音訊要套用伴唱帶的增益（假的 worker：%v dB）", fakeworker.FakeGain)
 			}
 		}
 		c.do("GET", "/api/v1/songs/dQw4w9WgXcQ", nil, &song)

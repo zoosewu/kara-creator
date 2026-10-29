@@ -1,4 +1,6 @@
 """任務裡不需要模型的部分：讀音、字幕大小、ASS 產生。"""
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -159,6 +161,31 @@ def test_canvas_is_16_9():
     assert tasks.canvas(tasks.Video(1080, 1920, None)) == (3414, 1920)
     assert tasks.canvas(tasks.Video(2560, 1080, None)) == (2560, 1440)
     assert tasks.canvas(tasks.Video(2160, 3840, None)) == (3840, 2160)
+
+
+def test_gain():
+    # 調到 -16 LUFS；無聲不調；最多 ±20 dB
+    assert tasks.gain_for(tasks.Loudness(-20.04, -3.0)) == 4.0
+    assert tasks.gain_for(tasks.Loudness(-9.0, 0.5)) == -7.0
+    assert tasks.gain_for(tasks.Loudness(None, -90.0)) == 0.0
+    assert tasks.gain_for(tasks.Loudness(-50.0, -30.0)) == 20.0
+    # 調完會超過 -1 dB 才加限幅器；調小不需要；最高點未知（原曲版）時調大就加
+    assert tasks.audio_filter(4.0, -6.0) == "volume=4.0dB"
+    assert "alimiter=limit=0.8913:level=0:latency=1" in tasks.audio_filter(4.0, -3.0)
+    assert tasks.audio_filter(-7.0, 0.5) == "volume=-7.0dB"
+    assert "alimiter" in tasks.audio_filter(1.0, None)
+
+
+@pytest.mark.skipif(not shutil.which(tasks.FFMPEG), reason="沒有 ffmpeg")
+def test_measure_loudness(tmp_path):
+    # ffmpeg 預設的 1 kHz 正弦波（振幅 1/8，最高點 -18 dBFS）：約 -21 LUFS → 要調大約 5 dB；無聲 → 不調
+    tone, silent = tmp_path / "tone.wav", tmp_path / "silent.wav"
+    for path, src in [(tone, "sine=f=1000:d=5"), (silent, "anullsrc=d=5")]:
+        subprocess.run([tasks.FFMPEG, "-y", "-v", "error", "-f", "lavfi", "-i", src, "-t", "5", str(path)], check=True)
+    loud = tasks.measure_loudness(tone)
+    assert loud.lufs is not None and abs(loud.lufs - -21) < 1.0 and -19 < loud.peak_db < -17
+    assert tasks.gain_for(loud) == round(-16 - loud.lufs, 1)
+    assert tasks.gain_for(tasks.measure_loudness(silent)) == 0.0
 
 
 def test_bitrate_cap():

@@ -22,7 +22,7 @@ container 用環境變數：`KARA_NAS`、`KARA_WORKER_NAME`、`KARA_WORKER_TOKEN
 `versions.json`（repo 根目錄，兩邊共用）：
 
 ```json
-{ "protocol": 1, "separate": 1, "align": 7, "qa": 4, "reading": 3, "render": 7 }
+{ "protocol": 1, "separate": 1, "align": 7, "qa": 4, "reading": 3, "render": 8 }
 ```
 
 - `align`：對時方法（`align.py`）改了就加一（**會讓所有歌整首重新對時、手動調整被取代，先問使用者**）
@@ -113,7 +113,7 @@ MeCab tagger 不是執行緒安全的：interactive 迴圈用自己的 tagger �
 | `align_line` | `audio`：speech.wav | `text`、`rubies`、`t0`、`t1`（下一句開頭，可為 null）、`language` | `{line}` | — |
 | `qa` | `audio`：speech.wav | `lines`、`texts`、`rubies`、`language`、`model` | `{doc: {lines}}`：每句的檢查結果（`index`、`status`、`reasons`、`offset`…） | — |
 | `reading` | — | `language`、`texts` | `{lines: [[{start, end, ruby}…]…]}`：每句的**自動**讀音，位置以 code point 計；去掉送假名，漢字中間夾著假名時拆開標（取り戻す → 取{と}り戻{もど}す）；歌詞慣用讀音：私 → わたし、明日 → あした、何時 → いつ、何 接で・て・っ・だ・の・と・じゃ 唸なん，其他唸なに | — |
-| `render` | `media`：伴奏影片（或原曲，看 target）；`ass`：手動改過的 ASS（選填） | 見下 | `{width, height, ass_sha256}`（燒出來的畫面大小，一律 16:9） | `karaoke.ass`（沒有手動 ASS 時）、`video.mp4` |
+| `render` | `media`：伴奏影片（或原曲，看 target）；`ass`：手動改過的 ASS（選填）；`instrumental`：伴奏（原曲版才有，量音量的基準） | 見下 | `{width, height, ass_sha256, gain_db, loudness}`（畫面一律 16:9；伴奏的響度與套用的增益，見下） | `karaoke.ass`（沒有手動 ASS 時）、`video.mp4` |
 
 `render` 的 params：
 
@@ -131,6 +131,10 @@ MeCab tagger 不是執行緒安全的：interactive 迴圈用自己的 tagger �
   "encode": { "prefer": ["h264_nvenc", "libx264"] }   // 依序嘗試：NVENC p5 vbr cq26 / x264 medium crf21，位元率上限 = 來源影像的 1.5 倍（至少 1.5 Mbps）；音訊 aac 192k
 }
 ```
+
+音量：`render` 先量伴奏（伴唱帶是 `media`，原曲版是 `instrumental`）的 EBU R128 整合響度，整首套用同一個增益調到 -16 LUFS
+（最多 ±20 dB，無聲不調），調完會超過 -1 dB 的瞬間才用限幅器壓住；原曲版套用同一個增益，伴奏的音量才和伴唱帶一致。
+`loudness` 是伴奏原本的響度（LUFS，無聲為 null），`gain_db` 是套用的增益；NAS 匯出原曲音訊時也套用伴唱帶的 `gain_db`。
 
 `reading` 也會被 `render` 內部用到（日文假名），worker 直接在行程內呼叫，不另外派任務。
 

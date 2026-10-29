@@ -125,20 +125,24 @@ type RenderInput struct {
 	Version      int     // versions.render
 	Reading      int     // versions.reading：日文的假名由 worker 燒錄時自己算，讀音規則改了成品也會變
 	ASS          string  // 使用者手動改過的 ASS 的 sha256（沒有時為空）
+	Loudness     string  // 原曲版：量音量用的伴奏 sha256（音量照伴奏調）；伴唱帶的 Media 就是伴奏，為空
 }
 
 // Render 是成品（字幕 + 燒錄）的指紋：變了只重新產生字幕與燒錄。
 // 手動改過 ASS 時畫面完全由那份 ASS 決定，對時、歌詞、標題畫面、樣式、字型都不算。
 func Render(in RenderInput) string {
-	if in.ASS != "" {
-		return H(Field{"stage", "render"}, Field{"target", in.Target}, Field{"media", in.Media}, Field{"ass", in.ASS},
-			Field{"size", in.Size}, Field{"version", in.Version})
+	media := []Field{{"stage", "render"}, {"target", in.Target}, {"media", in.Media}}
+	if in.Loudness != "" {
+		media = append(media, Field{"loudness", in.Loudness})
 	}
-	return H(Field{"stage", "render"}, Field{"target", in.Target}, Field{"media", in.Media}, Field{"alignment", in.Alignment},
+	if in.ASS != "" {
+		return H(append(media, Field{"ass", in.ASS}, Field{"size", in.Size}, Field{"version", in.Version})...)
+	}
+	return H(append(media, Field{"alignment", in.Alignment},
 		Field{"lyrics", in.Lyrics}, Field{"singers", in.Singers}, Field{"translations", in.Translations},
 		Field{"title", in.Title}, Field{"artist", in.Artist}, Field{"note", in.Note},
 		Field{"scale", strconv.FormatFloat(in.Scale, 'f', 2, 64)}, Field{"font", in.Font}, Field{"size", in.Size},
-		Field{"version", in.Version}, Field{"reading", in.Reading})
+		Field{"version", in.Version}, Field{"reading", in.Reading})...)
 }
 
 // QA 是對時檢查的指紋。

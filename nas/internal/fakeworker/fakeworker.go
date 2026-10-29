@@ -40,6 +40,9 @@ type Options struct {
 	Logf     func(format string, args ...any)
 }
 
+// FakeGain 是假的燒錄結果回報的增益（dB）。
+const FakeGain = -2.5
+
 // ErrVersion 表示 NAS 拒絕了這個 worker 的版本。
 var ErrVersion = errors.New("版本和 NAS 不同")
 
@@ -357,7 +360,7 @@ func compute(task wp.Task, inputs map[string][]byte) (any, map[string][]byte, er
 			files[wp.FileASS] = ass
 		}
 		sum := sha256.Sum256(ass)
-		return wp.RenderResult{Width: 1920, Height: 1080, AssSHA256: hex.EncodeToString(sum[:])}, files, nil
+		return wp.RenderResult{Width: 1920, Height: 1080, AssSHA256: hex.EncodeToString(sum[:]), GainDB: FakeGain}, files, nil
 	}
 	return nil, nil, fmt.Errorf("不支援的任務種類：%s", task.Kind)
 }

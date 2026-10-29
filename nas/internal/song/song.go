@@ -142,6 +142,8 @@ type RenderStage struct {
 	Content string  `json:"content"`
 	ASS     ASSRef  `json:"ass"`
 	Video   FileRef `json:"video"`
+	// Gain：燒錄時套用的增益（dB，讓伴奏到目標響度）；匯出原曲音訊時也套用伴唱帶的這個值。舊紀錄沒有
+	Gain *float64 `json:"gain_db,omitempty"`
 }
 
 // ASSRef 是成品的字幕。Manual = 使用者用 Aegisub 改過，之後燒錄改用這份、不重新產生。

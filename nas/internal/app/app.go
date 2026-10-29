@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -297,13 +298,27 @@ func (a *App) exportVideo(id string) string {
 	return ""
 }
 
-// originalAudio 是原曲音訊（m4a）的路徑：cache/original/<來源 sha256>.m4a（匯出時才產生；來源換了就換一個檔）。
+// originalAudio 是原曲音訊（m4a）的路徑：cache/original/<來源 sha256>[_<增益>dB].m4a
+// （匯出時才產生；來源或增益換了就換一個檔）。
 func (a *App) originalAudio(id string) string {
 	sg, ok := a.Store.Song(id)
 	if !ok || sg.Source.File.SHA256 == "" {
 		return ""
 	}
-	return a.Store.Path(store.CacheDir, "original", sg.Source.File.SHA256+".m4a")
+	name := sg.Source.File.SHA256
+	if g := originalGain(sg); g != 0 {
+		name += "_" + strconv.FormatFloat(g, 'f', 1, 64) + "dB"
+	}
+	return a.Store.Path(store.CacheDir, "original", name+".m4a")
+}
+
+// originalGain 是匯出原曲音訊時套用的增益：和伴唱帶燒錄時相同（伴奏的音量一致）。
+// 本來就是卡拉 OK 版、或伴唱帶是調音量之前燒的，不調整。
+func originalGain(sg *song.Song) float64 {
+	if rec := sg.Stages.Render[song.TargetInstrumental]; rec != nil && rec.Gain != nil && !sg.Info.Prebuilt {
+		return *rec.Gain
+	}
+	return 0
 }
 
 // Export 把已確認的伴唱帶（設定打開時加上原曲音訊）同步到匯出資料夾（使用者按「匯出」時才執行）。
@@ -320,7 +335,7 @@ func (a *App) Export(ctx context.Context) (export.Result, error) {
 		sg, _ := a.Store.Song(s.ID)
 		err := os.MkdirAll(filepath.Dir(s.Original), 0o755)
 		if err == nil {
-			err = a.Media.ExportAudio(ctx, a.Store.SongPath(s.ID, sg.Source.File.Name), s.Original)
+			err = a.Media.ExportAudio(ctx, a.Store.SongPath(s.ID, sg.Source.File.Name), s.Original, originalGain(sg))
 		}
 		if err != nil {
 			if ctx.Err() != nil {

@@ -247,18 +247,19 @@ func Evaluate(in Input) Result {
 
 	// 成品
 	karaoke := Done
+	instrumental := ""
+	if sep != nil {
+		instrumental = sep.Instrumental.SHA256
+	}
 	for _, target := range sg.Info.Targets {
-		media := sg.Source.File.SHA256
+		media, loudness := sg.Source.File.SHA256, instrumental // 原曲版的音量照伴奏調
 		if target == song.TargetInstrumental {
-			media = ""
-			if sep != nil {
-				media = sep.Instrumental.SHA256
-			}
+			media, loudness = instrumental, ""
 		}
 		ri := fingerprint.RenderInput{Target: target, Media: media, Alignment: r.ContentFP, Lyrics: r.LyricsFP,
 			Singers: singers, Translations: translations, Title: cardTitle, Artist: cardArtist, Note: cardNote,
 			Scale: in.Settings.SubtitleScale, Font: r.FontID(), Size: r.Size, Version: in.Versions.Render,
-			Reading: in.Versions.Reading}
+			Reading: in.Versions.Reading, Loudness: loudness}
 		plain := fingerprint.Render(ri)
 		r.RenderPlain[target], r.RenderFP[target] = plain, plain
 		rec := sg.Stages.Render[target]

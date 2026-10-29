@@ -295,3 +295,12 @@ Playwright 把每個畫面、對話框、選單在手機 / 平板直式 / 平板
 - [x] worker `tasks.canvas`：比較窄的（正方形、直式）左右補黑邊，比較寬的上下補；不放大原畫面，超過 4K 才縮小；字幕依 16:9 畫布排版
 - [x] versions.json render 6 → 7（所有伴唱帶變成只需重燒）
 - [x] pytest / ruff / go vet / go test 通過；在 kara-ai-dev 用 NVENC 實際燒正方形、直式、超寬、16:9 四種測試影片並看過畫面
+
+## 每首歌的音量一致
+
+- [x] worker 燒錄時量伴奏的整合響度（loudnorm 分析），整首套用同一個增益到 -16 LUFS（±20 dB 內，無聲不調）；調完超過 -1 dB 才加限幅器（level=0、latency=1）
+- [x] 原曲版（target original）多送伴奏當基準，套用同一個增益；指紋加 loudness=<伴奏 sha256>
+- [x] render 結果回傳 gain_db / loudness，NAS 記在 render 紀錄的 gain_db
+- [x] 匯出原曲音訊套用伴唱帶的 gain_db（cache/original/<sha>_<增益>dB.m4a，增益變了就重新產生）；舊紀錄、本來就是卡拉 OK 版不調整
+- [x] versions.json render 7 → 8
+- [x] pytest / ruff / gofmt / go vet / go test 通過；kara-ai-dev 實際燒錄：-33.2 與 -18.0 LUFS 的伴奏都到 -16.2、-16.3 LUFS；NAS 匯出的原曲音訊和 worker 的原曲版響度一致

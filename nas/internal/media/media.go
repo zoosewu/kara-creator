@@ -130,8 +130,9 @@ func (t Tools) SpeechWav(ctx context.Context, src, dst string) error {
 }
 
 // ExportAudio 把來源的第一條音軌存成 m4a（匯出原曲音訊用）：AAC 直接複製（不重新編碼），其他編碼轉成 AAC 320k。
+// gainDB 不是 0 時套用增益（和伴唱帶相同，伴奏的音量才一致），一定要重新編碼；調大時加限幅器避免破音。
 // 先寫到暫存檔再改名，寫到一半中斷不會留下壞掉的檔案。
-func (t Tools) ExportAudio(ctx context.Context, src, dst string) error {
+func (t Tools) ExportAudio(ctx context.Context, src, dst string, gainDB float64) error {
 	info, err := t.Probe(ctx, src)
 	if err != nil {
 		return err
@@ -140,7 +141,14 @@ func (t Tools) ExportAudio(ctx context.Context, src, dst string) error {
 		return errors.New("來源沒有音軌")
 	}
 	codec := []string{"-c:a", "aac", "-b:a", "320k"}
-	if info.Audio == "aac" {
+	switch {
+	case gainDB != 0:
+		af := "volume=" + strconv.FormatFloat(gainDB, 'f', 1, 64) + "dB"
+		if gainDB > 0 { // level=0：不要自動再調音量；latency=1：補回限幅器的延遲
+			af += ",alimiter=limit=0.8913:level=0:latency=1" // -1 dB
+		}
+		codec = append([]string{"-af", af}, codec...)
+	case info.Audio == "aac":
 		codec = []string{"-c:a", "copy"}
 	}
 	tmp := dst + ".tmp"

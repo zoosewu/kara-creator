@@ -262,11 +262,21 @@ func TestKaraokeFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// 原曲＋字幕：多一個成品；拿掉之後舊檔刪除
+	// 原曲＋字幕：多一個成品，音量照伴奏調（伴奏也送給 AI）；拿掉之後舊檔刪除
 	_ = e.st.EditSong("abc", func(s *song.Song) error { s.Info.Targets = []string{"instrumental", "original"}; return nil })
 	e.karaoke("render")
 	if _, err := os.Stat(e.st.SongPath("abc", "original.mp4")); err != nil {
 		t.Fatal(err)
+	}
+	last = e.ai.specs[len(e.ai.specs)-1]
+	if _, ok := last.Inputs[wp.InputInstrumental]; !ok || last.Params.(wp.RenderParams).Target != song.TargetOriginal {
+		t.Fatalf("原曲版要附上伴奏當音量基準：%+v", last)
+	}
+	sg, _ = e.st.Song("abc")
+	for _, target := range []string{song.TargetInstrumental, song.TargetOriginal} {
+		if g := sg.Stages.Render[target].Gain; g == nil || *g != fakeworker.FakeGain {
+			t.Fatalf("%s 要記下套用的增益：%v", target, g)
+		}
 	}
 	_ = e.st.EditSong("abc", func(s *song.Song) error { s.Info.Targets = []string{"instrumental"}; return nil })
 	e.karaoke("")

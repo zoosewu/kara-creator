@@ -29,7 +29,7 @@
   cache/                  可以整個刪掉的衍生檔
     work/                 給 AI 的暫存輸入（抽出的 wav、speech.wav），以 sha256 命名
     readings.jsonl        讀音快取
-    original/             匯出用的原曲音訊（<來源 sha256>.m4a）
+    original/             匯出用的原曲音訊（<來源 sha256>[_<增益>dB].m4a）
 ```
 
 資料備份（git repo）的位置另外指定（`--data`，預設 `<library>/data`），格式見「資料備份」。
@@ -91,6 +91,7 @@ id 決定資料夾名稱，之後不會改變。還沒下載完的歌可能只�
         "key": "…",
         "ass": { "name": "karaoke.ass", "size": 0, "mtime_ns": 0, "sha256": "…", "manual": false },
         "video": { "name": "karaoke.mp4", "size": 0, "mtime_ns": 0, "sha256": "…" },
+        "gain_db": 3.2,               // 燒錄時套用的增益（讓伴奏到 -16 LUFS）；舊紀錄沒有
         "worker": "…", "done_at": "…"
       }
     },
@@ -158,7 +159,7 @@ H(欄位…)       = sha256( 每個欄位以 "\n" 串接，最後也加 "\n" )�
 | --- | --- | --- |
 | 去人聲 `separate` | `stage=separate`、`source=<來源 sha256>`、`model=htdemucs`、`stems=2`、`version=<versions.separate>` | 來源檔換了，或去人聲方法改了 |
 | 對時 `align` | `stage=align`、`lyrics=<歌詞指紋>`、`vocals=<人聲 sha256>`、`model=large-v3`、`language=<語言>`、`version=<versions.align>` | 歌詞文字或讀音改了、人聲重新分離過、語言改了、對時方法改了 → **整首重新對時** |
-| 成品 `render`（每個 target） | `stage=render`、`target`、`media=<伴奏或來源 sha256>`、`alignment=<對時內容指紋>`、`lyrics=<歌詞指紋>`、`singers=<清單>`、`translations=<清單，不燒時為空>`、`title=<歌名>`、`artist=<演唱者>`、`note=<備註>`、`scale=<字幕大小，小數兩位>`、`font=<字型 id（sha256:index）>`、`size=<寬>x<高>`、`version=<versions.render>`、`reading=<versions.reading>`（日文假名由 worker 燒錄時自己算）；**手動改過 ASS 時**只剩 `stage`、`target`、`media`、`ass=<那份 ASS 的 sha256>`、`size`、`version`（畫面完全由那份 ASS 決定，標題畫面也在裡面） | 任何會改變畫面的東西變了 → **只重新產生字幕與燒錄** |
+| 成品 `render`（每個 target） | `stage=render`、`target`、`media=<伴奏或來源 sha256>`、`alignment=<對時內容指紋>`、`lyrics=<歌詞指紋>`、`singers=<清單>`、`translations=<清單，不燒時為空>`、`title=<歌名>`、`artist=<演唱者>`、`note=<備註>`、`scale=<字幕大小，小數兩位>`、`font=<字型 id（sha256:index）>`、`size=<寬>x<高>`、`version=<versions.render>`、`reading=<versions.reading>`（日文假名由 worker 燒錄時自己算）；原曲版在 `media` 後面多一個 `loudness=<伴奏 sha256>`（音量照伴奏調）；**手動改過 ASS 時**只剩 `stage`、`target`、`media`（、`loudness`）、`ass=<那份 ASS 的 sha256>`、`size`、`version`（畫面完全由那份 ASS 決定，標題畫面也在裡面） | 任何會改變畫面的東西變了 → **只重新產生字幕與燒錄** |
 | 對時檢查 `qa` | `stage=qa`、`alignment=<對時內容指紋>`、`lyrics=<歌詞指紋>`、`vocals=<人聲 sha256>`、`language`、`model`、`version=<versions.qa>` | 對時改了 → 重新檢查 |
 | 已確認 | `stage=approve`、`lyrics=<歌詞指紋>`、`language`、`method=<versions.align>`、`run=<alignment.json 的對時編號>`；伴唱帶是 needs_align 時一律算失效 | **需要重新對時**才失效：只需重燒的更新（演唱者、翻譯、標題畫面、字型、字幕大小、手動調時間、AI 對時某幾句）都不影響確認 |
 
@@ -237,8 +238,9 @@ NAS 在記憶體裡保留所有歌的狀態，**只在有變動時重算該首�
 只匯出 `instrumental` 成品；匯出的是按下匯出當時的成品。
 
 **原曲音訊**（設定的 `export_original`）：打開時，已確認的歌另外匯出一份原曲（有人聲）的音訊「歌手 - 歌名_original.m4a」，
-放在伴唱帶旁邊（同名編號跟著伴唱帶：「… (2)_original.m4a」）。按匯出時才從來源檔產生，存在 `cache/original/<來源 sha256>.m4a`
-（來源的音軌是 AAC 就直接複製、不重新編碼；其他編碼轉成 AAC 320k）。設定關掉時，下次匯出把這些檔案拿掉；
+放在伴唱帶旁邊（同名編號跟著伴唱帶：「… (2)_original.m4a」）。按匯出時才從來源檔產生，存在 `cache/original/<來源 sha256>_<增益>dB.m4a`
+（套用伴唱帶燒錄時的 `gain_db`，伴奏的音量和伴唱帶一致，調大時加限幅器；轉成 AAC 320k。
+伴唱帶是調音量之前燒的、或本來就是卡拉 OK 版時不調整，檔名沒有增益，來源的音軌是 AAC 就直接複製）。設定關掉時，下次匯出把這些檔案拿掉；
 設定改了也會讓歌變成待匯出。來源沒有音軌時只匯出伴唱帶，並在匯出結果的 `failed` 列出。
 
 放置方式依序嘗試，失敗就換下一種，不必事先設定：
