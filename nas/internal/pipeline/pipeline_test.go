@@ -441,3 +441,26 @@ func TestPrebuiltKaraoke(t *testing.T) {
 		t.Fatalf("不檢查對時：%v", err)
 	}
 }
+
+// 好幾件工作同時要同一份人聲（例如聲音相同的兩首歌）：排隊轉一次，不會搶同一個暫存檔而失敗。
+func TestSpeechWavConcurrent(t *testing.T) {
+	e := newEnv(t)
+	sg, _ := e.st.Song("abc")
+	vocals := sg.Source.File // 測試影片的聲音當人聲
+	var wg sync.WaitGroup
+	got := make([]scheduler.Input, 6)
+	errs := make([]error, len(got))
+	for i := range got {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			got[i], errs[i] = e.p.speechWav(context.Background(), "abc", vocals)
+		}()
+	}
+	wg.Wait()
+	for i := range got {
+		if errs[i] != nil || got[i].SHA256 == "" || got[i] != got[0] {
+			t.Fatalf("第 %d 件：%+v %v（第 1 件 %+v）", i, got[i], errs[i], got[0])
+		}
+	}
+}

@@ -50,8 +50,9 @@ type Deps struct {
 type Pipeline struct {
 	d Deps
 
-	mu     sync.Mutex
-	speech map[string]scheduler.Input // speech.wav 的路徑 → 雜湊（同一份人聲常常重複用）
+	mu       sync.Mutex
+	speech   map[string]scheduler.Input // speech.wav 的路徑 → 雜湊（同一份人聲常常重複用）
+	speechMu map[string]*sync.Mutex     // speech.wav 的路徑 → 轉檔鎖（同一份人聲同時只轉一次）
 }
 
 // New 建立 Pipeline。
@@ -62,7 +63,7 @@ func New(d Deps) *Pipeline {
 	if d.LocalSlots == nil {
 		d.LocalSlots = make(chan struct{}, 2)
 	}
-	return &Pipeline{d: d, speech: map[string]scheduler.Input{}}
+	return &Pipeline{d: d, speech: map[string]scheduler.Input{}, speechMu: map[string]*sync.Mutex{}}
 }
 
 // Run 是一次執行的環境：紀錄、進度、AI 任務的優先順序。
@@ -260,8 +261,18 @@ func (p *Pipeline) Separate(ctx context.Context, id string, force bool, run Run)
 }
 
 // speechWav 把人聲轉成 16kHz 單聲道 wav（對時與檢查的輸入），同一份人聲只轉一次。
+// 好幾件工作同時要同一份人聲時（例如聲音相同的兩首歌）排隊：後到的直接用先轉好的，不會搶同一個暫存檔。
 func (p *Pipeline) speechWav(ctx context.Context, id string, vocals song.FileRef) (scheduler.Input, error) {
 	path := p.workFile("speech-" + vocals.SHA256[:16] + ".wav")
+	p.mu.Lock()
+	lock := p.speechMu[path]
+	if lock == nil {
+		lock = &sync.Mutex{}
+		p.speechMu[path] = lock
+	}
+	p.mu.Unlock()
+	lock.Lock()
+	defer lock.Unlock()
 	p.mu.Lock()
 	in, ok := p.speech[path]
 	p.mu.Unlock()
