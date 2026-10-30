@@ -8,6 +8,9 @@ __pycache__/
 
 # worker 在 Windows 上直接執行時，setup.ps1 下載的 ffmpeg
 /worker/tools/
+# worker 在 Windows 上直接執行時的模型與快取（env.ps1）
+/worker/models/
+/worker/cache/
 # worker 記住的 NAS 網址、名稱、token（有密碼）
 /worker/.worker.json
 

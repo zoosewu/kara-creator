@@ -73,6 +73,10 @@ cd kara-creator\worker
 
 問到的值連上 NAS 後記在 `worker\.worker.json`（不進 git），下次括號裡會顯示上次的值，直接按 Enter 就沿用。
 
+所有東西都放在 `worker` 資料夾裡（不進 git），不會占用 C 槽的使用者資料夾：Python 環境 `.venv`、ffmpeg `tools`、
+模型 `models`（Whisper、Demucs、MMS，約 5 GB，第一次處理時下載）、快取 `cache`（輸入檔、字型、pip 下載的安裝檔）。
+位置在 `worker\env.ps1`；Python 本體（winget 安裝的）仍在系統的位置。
+
 更新：`git pull` 後再執行一次 `setup.ps1`，然後啟動 `worker.ps1`。其他參數見 `.\worker.ps1 --help`（例如 `--channels`、`--device cpu`）。
 
 ## 使用

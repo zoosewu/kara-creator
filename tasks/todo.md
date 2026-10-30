@@ -336,3 +336,9 @@ Playwright 把每個畫面、對話框、選單在手機 / 平板直式 / 平板
 長度 10 秒、開頭淡入、被剪掉的句子不在字幕裡、剪好的影片第 1.5 秒顯示來源的 6.5 秒且字幕剛好唱到；卡拉 OK 版不燒字幕、純音訊來源也正確。
 開發環境 + fakeworker + Playwright：播放畫面設定範圍、模擬・伴唱跳過剪掉的部分、重燒後燒錄模式的時間換算、資訊對話框的欄位與錯誤提示、
 匯出原曲音訊剪成同一段（13 秒）並套用增益。
+
+## worker 的模型與快取放在專案內
+
+- [x] worker\env.ps1（setup.ps1、worker.ps1 共用）：XDG_CACHE_HOME / TORCH_HOME / HF_HOME → worker\models，KARA_CACHE → worker\cache，PIP_CACHE_DIR → worker\cache\pip（和 Docker 映像同一組變數；已設定的不動）；ffmpeg 下載暫存也改到 cache\tmp
+- [x] .gitignore 排除 /worker/models/、/worker/cache/；README 說明
+- [x] 在 kara-ai-dev 確認這些變數決定 Whisper（XDG_CACHE_HOME）、torch hub（Demucs、MMS）、HF 的位置；沒有 pwsh，ps1 沒有實際執行

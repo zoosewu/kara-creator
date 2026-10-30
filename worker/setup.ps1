@@ -11,6 +11,7 @@ param(
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"   # 關掉進度條，Invoke-WebRequest 會快很多
 $root = $PSScriptRoot
+. (Join-Path $root "env.ps1")   # 模型、快取（含 pip 下載的安裝檔）放在 worker 資料夾裡
 
 # fnm（Node.js 版本管理）每個 shell 都在 AppData\Local\fnm_multishells 建一個連結點並加進 PATH；
 # pip 經過它時 Windows 會判定是「未受信任的掛接點」而失敗（WinError 448）。安裝時先從 PATH 拿掉（只影響這次執行）。
@@ -22,9 +23,11 @@ if (Test-Path (Join-Path $ffmpegBin "ffmpeg.exe")) {
     Write-Host "ffmpeg 已存在，略過"
 } else {
     Write-Host "安裝 ffmpeg"
-    $zip = Join-Path ([IO.Path]::GetTempPath()) "ffmpeg-essentials.zip"
+    $dl = Join-Path $env:KARA_CACHE "tmp"   # 下載的暫存檔也不放 C 槽
+    New-Item -ItemType Directory -Force $dl | Out-Null
+    $zip = Join-Path $dl "ffmpeg-essentials.zip"
     Invoke-WebRequest "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" -OutFile $zip
-    $tmp = Join-Path ([IO.Path]::GetTempPath()) "ffmpeg-essentials"
+    $tmp = Join-Path $dl "ffmpeg-essentials"
     Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
     Expand-Archive $zip $tmp
     $top = Get-ChildItem $tmp -Directory | Select-Object -First 1

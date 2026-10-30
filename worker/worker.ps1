@@ -5,6 +5,7 @@
 #   .\worker.ps1 --nas http://mac-mini.local:8765 --name pc-4070 --token 密碼
 #   .\worker.ps1 --help                                      # 其他參數
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "env.ps1")   # 模型、快取放在 worker 資料夾裡
 $env:KARA_WORKER_SETTINGS = Join-Path $PSScriptRoot ".worker.json"   # 上次填的設定（.gitignore 已排除）
 $env:PATH = (Join-Path $PSScriptRoot "tools\ffmpeg\bin") + [IO.Path]::PathSeparator + $env:PATH
 $exe = Join-Path $PSScriptRoot ".venv\Scripts\kara-worker.exe"
