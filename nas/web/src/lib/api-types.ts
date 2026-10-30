@@ -806,6 +806,7 @@ export interface components {
             targets: string[];
             title: string;
             translation: boolean;
+            trim?: components["schemas"]["Trim"];
         };
         InfoUpdate: {
             /**
@@ -818,11 +819,13 @@ export interface components {
             language?: string;
             link?: string;
             note?: string;
-            /** @description 本來就是卡拉 OK 版：不用歌詞、不製作，原影片就是伴唱帶 */
+            /** @description 本來就是卡拉 OK 版：不用歌詞、不對時，伴唱帶 = 原影片畫面 + 去人聲後的伴奏 */
             prebuilt?: boolean;
             targets?: string[];
             title?: string;
             translation?: boolean;
+            /** @description 伴唱帶只保留來源的這一段（秒，以沒剪的影片計）；{start: 0, end: 0} = 不剪 */
+            trim?: components["schemas"]["Trim"];
         };
         JobRequest: {
             /**
@@ -962,6 +965,8 @@ export interface components {
             /** @enum {string} */
             kind: "karaoke" | "karaoke_original" | "instrumental" | "vocals" | "source";
             label: string;
+            /** Format: double */
+            offset: number;
             url: string;
         };
         PlaceRequest: {
@@ -1335,6 +1340,18 @@ export interface components {
             lines: components["schemas"]["TimingLine"][];
             /** @description 這次一起被推動的句子（從 0 起算） */
             pushed?: number[];
+        };
+        Trim: {
+            /**
+             * Format: double
+             * @description 到幾秒結束（0 = 不剪結尾）
+             */
+            end: number;
+            /**
+             * Format: double
+             * @description 從幾秒開始（0 = 不剪開頭）
+             */
+            start: number;
         };
         Versions: {
             /** Format: int64 */

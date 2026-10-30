@@ -255,28 +255,61 @@ func TestRestored(t *testing.T) {
 }
 
 func TestPrebuilt(t *testing.T) {
-	// 本來就是卡拉 OK 版：不用歌詞，但還是要去人聲；伴唱帶 = 去人聲的結果，做完就可以確認
+	// 本來就是卡拉 OK 版：不用歌詞，但還是要去人聲；去人聲後燒錄（不燒字幕），做完就可以確認
 	in := newInput()
 	in.Song.Info.Prebuilt = true
 	if r := Evaluate(in); r.Status != (Status{Download: Done, Separate: Pending, Lyrics: Skipped, Karaoke: Pending}) || r.ApproveFP != "" {
 		t.Fatalf("還沒去人聲：%+v", r.Status)
 	}
 	r := makeAll(t, &in) // 只會做去人聲（沒有歌詞）
-	if r.Status != (Status{Download: Done, Separate: Done, Lyrics: Skipped, Karaoke: Done}) || r.ApproveFP == "" {
-		t.Fatalf("去人聲之後：%+v %q", r.Status, r.ApproveFP)
+	if r.Status != (Status{Download: Done, Separate: Done, Lyrics: Skipped, Karaoke: NeedsRender}) || r.ApproveFP == "" {
+		t.Fatalf("去人聲之後只需燒錄（還沒燒過的舊歌也是）：%+v %q", r.Status, r.ApproveFP)
+	}
+	target := song.TargetInstrumental
+	in.Song.Stages.Render = map[string]*song.RenderStage{target: {Stage: song.Stage{Key: r.RenderFP[target]}}}
+	in.Render[target] = RenderFiles{VideoOK: true}
+	if r := Evaluate(in); r.Status.Karaoke != Done {
+		t.Fatalf("燒錄之後：%+v", r.Status)
 	}
 	in.Song.Info.Approved = &song.Approval{Fingerprint: r.ApproveFP}
 	if r := Evaluate(in); r.Status.Approval != Approved {
 		t.Fatalf("確認：%+v", r.Status)
 	}
-	// 有歌詞也不用（不對時、不燒錄）
+	// 有歌詞也不用（不對時、不燒字幕）；字型、字幕大小都不影響
 	in.Lyrics = doc("一句\n")
+	in.Settings.SubtitleScale = 1.5
 	if r := Evaluate(in); r.Status.Lyrics != Done || r.Status.Karaoke != Done || r.Status.Approval != Approved {
 		t.Fatalf("%+v", r.Status)
+	}
+	// 剪頭尾：只需重燒，確認不受影響
+	in.Song.Info.Trim = &song.Trim{Start: 3}
+	if r := Evaluate(in); r.Status.Karaoke != NeedsRender || r.Status.Approval != Approved {
+		t.Fatalf("剪頭尾：%+v", r.Status)
 	}
 	// 重新去人聲（伴奏換了）：要重新確認
 	in.Song.Stages.Separate.Instrumental.SHA256 = "other"
 	if r := Evaluate(in); r.Status.Approval != Stale {
 		t.Fatalf("伴奏換了要重新確認：%+v", r.Status)
+	}
+}
+
+func TestTrim(t *testing.T) {
+	// 剪頭尾只影響成品：只需重燒、確認不失效；不剪的歌指紋和以前一樣
+	in := newInput()
+	in.Lyrics = doc("一\n二\n")
+	r := makeAll(t, &in)
+	before := r.RenderFP[song.TargetInstrumental]
+	in.Song.Info.Approved = &song.Approval{Fingerprint: r.ApproveFP}
+	in.Song.Info.Trim = &song.Trim{Start: 2.5, End: 100}
+	r = Evaluate(in)
+	if r.Status.Karaoke != NeedsRender || r.Status.Approval != Approved || r.RenderFP[song.TargetInstrumental] == before {
+		t.Fatalf("剪頭尾：%+v", r.Status)
+	}
+	in.Song.Info.Trim = nil
+	if r := Evaluate(in); r.Status.Karaoke != Done || r.RenderFP[song.TargetInstrumental] != before {
+		t.Fatalf("不剪就回到原本的成品：%+v", r.Status)
+	}
+	if TrimKey(&song.Trim{Start: 2.5}) != "2.50-0.00" || TrimKey(nil) != "" {
+		t.Fatal(TrimKey(&song.Trim{Start: 2.5}))
 	}
 }

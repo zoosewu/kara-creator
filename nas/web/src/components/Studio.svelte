@@ -67,9 +67,45 @@
   let volume = $state(prefs.volume)
   let muted = $state(prefs.muted)
   let paused = $state(true)
-  let now = $state(0)
-  let duration = $state(1)
+  let now = $state(0) // 播放到來源的第幾秒
+  let duration = $state(1) // 畫面播到來源的第幾秒為止
+  let offset = $state(0) // 畫面的 0 秒是來源的第幾秒（剪過開頭的伴唱帶）
   let seeking = false
+  // 時間一律以來源（沒剪的影片）為準：讀寫播放位置都經過這兩個
+  const pos = () => (video?.currentTime ?? 0) + offset
+  function seekTo(t: number) {
+    if (video) video.currentTime = Math.max(0, t - offset)
+  }
+
+  // 剪頭尾（伴唱帶只保留來源的這一段；改了只需重燒）
+  let trimStart = $derived(song?.info.trim?.start ?? 0)
+  let trimEnd = $derived(song?.info.trim?.end || 0) // 0 = 不剪結尾
+  const outside = (t: { start: number; end: number }) => t.end <= trimStart || (trimEnd > 0 && t.start >= trimEnd)
+  const partly = (t: { start: number; end: number }) =>
+    !outside(t) && (t.start < trimStart || (trimEnd > 0 && t.end > trimEnd))
+  let cutLines = $derived(timing.flatMap((t, i) => (outside(t) ? [i] : [])))
+  let partLines = $derived(timing.flatMap((t, i) => (partly(t) ? [i] : [])))
+  // 模擬・伴唱就是在預覽伴唱帶：剪掉的部分直接跳過
+  let skipCut = $derived(mode === 'live' && track === 'instrumental')
+  // 進度條下緣標出伴唱帶保留的範圍（畫面本身就是剪好的伴唱帶時不必標）
+  let keptBar = $derived.by(() => {
+    const span = duration - offset
+    if (!(trimStart || trimEnd) || span <= 0) return null
+    const a = Math.min(1, Math.max(0, (trimStart - offset) / span))
+    const b = Math.min(1, Math.max(0, ((trimEnd || duration) - offset) / span))
+    return a <= 0.001 && b >= 0.999 ? null : { left: a * 100, width: (b - a) * 100 }
+  })
+
+  /** 設定伴唱帶保留的範圍（都是 0 = 不剪）：馬上存到 NAS，按「更新伴唱帶」重燒。 */
+  async function setTrim(start: number, end: number) {
+    const r2 = (x: number) => Math.round(x * 100) / 100
+    const msg =
+      !start && !end ? '不剪頭尾了' : `伴唱帶保留 ${fmtClock(start)} – ${end ? fmtClock(end) : '結尾'}`
+    await store.run(
+      () => api(`/songs/${enc(id)}`, { method: 'PATCH', body: { trim: { start: r2(start), end: r2(end) } } }),
+      `${msg}；按「更新伴唱帶」重燒`,
+    )
+  }
 
   let video = $state<HTMLVideoElement>()
   let frame = $state<HTMLDivElement>()
@@ -195,6 +231,7 @@
     const v = video!
     const play = autoplay ?? !v.paused
     extAudio = Boolean(p.audio)
+    offset = p.offset
     if (audio) {
       audio.pause()
       if (p.audio) audio.src = p.audio
@@ -205,8 +242,8 @@
     v.addEventListener(
       'loadedmetadata',
       () => {
-        v.currentTime = at || 0
-        duration = v.duration || 1
+        seekTo(at || 0)
+        duration = (v.duration || 1) + offset
         fit()
         syncAudio()
         if (play) v.play().catch(() => {})
@@ -220,7 +257,8 @@
     const v = video
     if (!extAudio || !audio || !v) return
     audio.playbackRate = v.playbackRate
-    if (Math.abs(audio.currentTime - v.currentTime) > 0.2) audio.currentTime = v.currentTime
+    const t = v.currentTime + offset // 另外播放的聲音沒剪過
+    if (Math.abs(audio.currentTime - t) > 0.2) audio.currentTime = t
     if (v.paused !== audio.paused) (v.paused ? audio.pause() : audio.play().catch(() => {}))
   }
 
@@ -240,7 +278,7 @@
   /** 調整時正在看燒好的字幕：換到模擬（同樣的聲音），才看得到調整後的字幕。 */
   function ensureLive() {
     if (mode !== 'burned' || !choose(song.media, 'live', track)) return
-    setSource('live', track, video!.currentTime)
+    setSource('live', track, pos())
     store.notify('已切換到「模擬」預覽調整')
   }
 
@@ -298,8 +336,12 @@
     raf = requestAnimationFrame(loop)
     const v = video
     if (!v) return
-    now = v.currentTime
+    now = pos()
     paused = v.paused
+    if (skipCut && !v.paused) {
+      if (now < trimStart - 0.05) seekTo((now = trimStart))
+      else if (trimEnd > 0 && now >= trimEnd) v.pause()
+    }
     syncAudio()
     if (!timing.length) return
     let current = -1
@@ -396,7 +438,7 @@
     if (manual) follow = false
     tick().then(() => rows[selected]?.scrollIntoView({ block: manual ? 'nearest' : 'center' })) // 手動點選只捲到看得見，不亂跳
     const t = timing[selected]
-    if (seek && t && video) video.currentTime = Math.max(0, t.start - 1.5)
+    if (seek && t) seekTo(t.start - 1.5)
   }
 
   function playLine(i: number) {
@@ -430,7 +472,7 @@
   async function setNow(i = selected) {
     const t = timing[i]
     if (!t || !video) return
-    if ((await shift(i, video.currentTime - t.start)) && i + 1 < lyricIdx.length) select(i + 1)
+    if ((await shift(i, pos() - t.start)) && i + 1 < lyricIdx.length) select(i + 1)
   }
 
   function edit(i: number, change: { text?: string; singer?: string }) {
@@ -589,8 +631,8 @@
     const v = video!
     const actions: Record<string, () => unknown> = {
       ' ': () => (v.paused ? v.play().catch(() => {}) : v.pause()),
-      ArrowLeft: () => (v.currentTime = Math.max(0, v.currentTime - 2)),
-      ArrowRight: () => (v.currentTime = v.currentTime + 2),
+      ArrowLeft: () => seekTo(pos() - 2),
+      ArrowRight: () => seekTo(pos() + 2),
       ArrowUp: () => select(selected - 1),
       ArrowDown: () => select(selected + 1),
       Enter: () => setNow(),
@@ -663,7 +705,7 @@
         class:on={mode === m}
         disabled={!TRACKS.some(([t]) => plan(song.media, m, t))}
         title={TRACKS.some(([t]) => plan(song.media, m, t)) ? hint : '還沒有伴唱帶'}
-        onclick={() => setSource(m, track, video?.currentTime ?? 0)}>{label}</button
+        onclick={() => setSource(m, track, pos())}>{label}</button
       >
     {/each}
   </div>
@@ -674,7 +716,7 @@
         class:on={track === t}
         disabled={!plan(song.media, mode, t)}
         title={plan(song.media, mode, t) ? '' : '還沒有去人聲'}
-        onclick={() => setSource(mode, t, video?.currentTime ?? 0)}>{label}</button
+        onclick={() => setSource(mode, t, pos())}>{label}</button
       >
     {/each}
   </div>
@@ -711,6 +753,23 @@
   />
 {/snippet}
 
+{#snippet trimTools()}
+  <div class="trim-tools">
+    <span class="trim-range" title="伴唱帶只保留這一段；時間仍照沒剪的影片算"
+      ><Icon name="cut" />保留 {fmtClock(trimStart)} – {trimEnd ? fmtClock(trimEnd) : '結尾'}</span
+    >
+    <button type="button" class="btn small" title="伴唱帶從目前播放的位置開始（剪掉前面的非音樂片段）" onclick={() => setTrim(now, trimEnd)}
+      >從這裡開始</button
+    >
+    <button type="button" class="btn small" title="伴唱帶到目前播放的位置結束（剪掉後面的非音樂片段）" onclick={() => setTrim(trimStart, now)}
+      >到這裡結束</button
+    >
+    {#if trimStart || trimEnd}
+      <button type="button" class="btn small" title="伴唱帶保留整段影片" onclick={() => setTrim(0, 0)}>不剪</button>
+    {/if}
+  </div>
+{/snippet}
+
 {#snippet notices()}
   <label
     class="time-following studio-follow"
@@ -723,6 +782,19 @@
         ? `改了第 ${[...changed].map((i) => i + 1).join('、')} 句，看過再確認。`
         : '重新對時過，看過再確認。'}
     </div>
+  {/if}
+  {#if cutLines.length || partLines.length}
+    <div class="studio-note">
+      {[
+        cutLines.length ? `第 ${cutLines.map((i) => i + 1).join('、')} 句在剪掉的範圍裡，不會出現在伴唱帶` : '',
+        partLines.length ? `第 ${partLines.map((i) => i + 1).join('、')} 句被剪到一部分` : '',
+      ]
+        .filter(Boolean)
+        .join('；')}。
+    </div>
+  {/if}
+  {#if skipCut && (trimStart || trimEnd)}
+    <div class="studio-note">「模擬・伴唱」播放時跳過剪掉的部分；想聽剪掉的部分請切到「原始影片」。</div>
   {/if}
   {#if pendingReadings && language === 'ja'}
     <div class="studio-note studio-pending">{pendingReadings} 句的假名稍後補上（AI 伺服器算好就會出現）</div>
@@ -796,21 +868,26 @@
             ><Icon name={paused ? 'play' : 'pause'} /><span class="desk-only">{paused ? '播放' : '暫停'}</span></button
           >
           <span class="studio-clock">{fmtClock(now)}</span>
-          <input
-            type="range"
-            min="0"
-            max={duration}
-            step="0.01"
-            value={now}
-            aria-label="播放位置"
-            onpointerdown={() => (seeking = true)}
-            onpointerup={() => (seeking = false)}
-            oninput={(e) => (video!.currentTime = parseFloat((e.currentTarget as HTMLInputElement).value))}
-          />
+          <div class="seek-wrap">
+            <input
+              type="range"
+              class="studio-seek"
+              min={offset}
+              max={duration}
+              step="0.01"
+              value={now}
+              aria-label="播放位置"
+              onpointerdown={() => (seeking = true)}
+              onpointerup={() => (seeking = false)}
+              oninput={(e) => seekTo(parseFloat((e.currentTarget as HTMLInputElement).value))}
+            />
+            {#if keptBar}<span class="kept-bar" title="伴唱帶保留的範圍" style="left:{keptBar.left}%;width:{keptBar.width}%"></span>{/if}
+          </div>
           <span class="desk-only studio-playback">{@render playback()}</span>
           <button type="button" class="icon-btn phone-only" title="更多" aria-label="更多選項" onclick={() => (sheetOpen = true)}><Icon name="more" size={20} /></button>
           <button type="button" class="icon-btn phone-only" title="關閉" aria-label="關閉" onclick={close}><Icon name="close" size={20} /></button>
         </div>
+        <div class="desk-only">{@render trimTools()}</div>
         <div class="studio-keys">
           <span><kbd>空白</kbd> 播放 / 暫停</span>
           <span><kbd>←</kbd><kbd>→</kbd> 倒退 / 快轉 2 秒</span>
@@ -848,6 +925,7 @@
                 class:draft={draftLines.has(i)}
                 class:playing={i === playing}
                 class:changed={changed.has(i)}
+                class:cut={t != null && outside(t)}
                 role="button"
                 tabindex="-1"
                 onclick={() => select(i)}
@@ -919,7 +997,9 @@
                 <div class="line-tools">
                   <span
                     class="studio-time"
-                    title={t?.mismatch
+                    title={t && outside(t)
+                      ? '在剪掉的範圍裡，不會出現在伴唱帶'
+                      : t?.mismatch
                       ? '歌詞改過，這是改之前的時間'
                       : draftLines.has(i) && savedTiming[i]
                         ? `還沒儲存（原本 ${fmtClock(savedTiming[i].start)}）`
@@ -953,7 +1033,7 @@
             <button type="button" class="btn" disabled={saving} title="還原到上次儲存的狀態" onclick={discard}>放棄修改</button>
             <button type="button" class="btn primary" disabled={saving} title="儲存調整（Ctrl+S）" onclick={() => save()}>儲存</button>
           {/if}
-          <button type="button" class="btn" class:primary={!dirty} disabled={song.status.lyrics !== 'done' || saving} title="用調整後的歌詞與時間重新製作" onclick={runKaraoke}
+          <button type="button" class="btn" class:primary={!dirty} disabled={(song.status.lyrics !== 'done' && !song.info.prebuilt) || saving} title="用調整後的歌詞與時間重新製作" onclick={runKaraoke}
             >{dirty ? '儲存並' : ''}{['pending', 'no_lyrics'].includes(song.status.karaoke) ? '製作伴唱帶' : '更新伴唱帶'}</button
           >
         </footer>
@@ -971,6 +1051,7 @@
           </div>
           <div class="phone-sheet-row">{@render actions()}</div>
           <div class="phone-sheet-row">{@render playback()}</div>
+          <div class="phone-sheet-row">{@render trimTools()}</div>
           {#if burned && timing.length}<div class="studio-note">字幕已燒在影片裡，調整後按「更新伴唱帶」才會反映。</div>{/if}
           {@render notices()}
           <button

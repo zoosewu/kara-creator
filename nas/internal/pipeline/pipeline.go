@@ -163,8 +163,8 @@ func copyFile(src, dst string) error {
 
 // ---- 去人聲 --------------------------------------------------------------------
 
-// prebuiltNote：本來就是卡拉 OK 版的歌不處理。
-const prebuiltNote = "這首本來就是卡拉 OK 版：字幕在影片裡，伴唱帶就是去人聲的結果，不用對時、燒錄"
+// prebuiltNote：本來就是卡拉 OK 版的歌不對時、不燒字幕。
+const prebuiltNote = "這首本來就是卡拉 OK 版：字幕在影片裡，不用對時；伴唱帶 = 原影片畫面 + 去人聲後的伴奏（不燒字幕）"
 
 // Separate 去人聲（人聲 / 伴奏分離）。已經是最新的就略過（force 時重做）。
 func (p *Pipeline) Separate(ctx context.Context, id string, force bool, run Run) error {
@@ -319,12 +319,8 @@ func (p *Pipeline) Karaoke(ctx context.Context, id string, opt KaraokeOptions, r
 	if err != nil {
 		return err
 	}
-	if in.Song.Info.Prebuilt { // 伴唱帶就是去人聲的結果（原影片畫面 + 伴奏）：只要去人聲
-		if r.Status.Separate != planner.Done {
-			return p.Separate(ctx, id, false, run)
-		}
-		run.log(prebuiltNote)
-		return nil
+	if in.Song.Info.Prebuilt { // 伴唱帶 = 原影片畫面 + 去人聲後的伴奏：去人聲，再燒錄（不燒字幕）
+		return p.prebuilt(ctx, id, r, opt.Force, run)
 	}
 	if in.Lyrics == nil {
 		run.log("缺歌詞，暫不製作伴唱帶。請先輸入歌詞")
@@ -415,6 +411,37 @@ func (p *Pipeline) Karaoke(ctx context.Context, id string, opt KaraokeOptions, r
 	}
 	run.log("伴唱帶完成")
 	return nil
+}
+
+// prebuilt 製作本來就是卡拉 OK 版的伴唱帶：（需要時先去人聲）→ 燒錄（不燒字幕：剪頭尾、補成 16:9、統一音量）。
+func (p *Pipeline) prebuilt(ctx context.Context, id string, r planner.Result, force bool, run Run) error {
+	run.log(prebuiltNote)
+	if r.Status.Separate != planner.Done {
+		if err := p.Separate(ctx, id, false, run); err != nil {
+			return err
+		}
+		run.stage("製作伴唱帶")
+	}
+	in, r, err := p.evaluate(id)
+	if err != nil {
+		return err
+	}
+	if r.Status.Karaoke == planner.Done && !force {
+		run.log("  . %s 已是最新", song.VideoFile(song.TargetInstrumental))
+	} else if err := p.render(ctx, id, song.TargetInstrumental, in, r, force, run); err != nil {
+		return err
+	}
+	if err := p.dropOldTargets(id, []string{song.TargetInstrumental}); err != nil {
+		return err
+	}
+	run.log("伴唱帶完成")
+	return nil
+}
+
+// clock 把秒數寫成 m:ss.s。
+func clock(sec float64) string {
+	m := int(sec) / 60
+	return fmt.Sprintf("%d:%04.1f", m, sec-float64(m*60))
 }
 
 func lyricsParams(doc *lyrics.Document) ([]string, [][]lyrics.Ruby) {
@@ -608,12 +635,14 @@ func (p *Pipeline) recordAlign(id, key, worker string) error {
 	})
 }
 
+// render 產生字幕並燒錄一個成品；本來就是卡拉 OK 版的歌不燒字幕（只剪頭尾、補成 16:9、統一音量）。
 func (p *Pipeline) render(ctx context.Context, id, target string, in planner.Input, r planner.Result, force bool, run Run) error {
 	sg := in.Song
-	if !r.FontOK {
+	plain := sg.Info.Prebuilt
+	if !r.FontOK && !plain {
 		return userError("找不到「%s」要用的字型檔，請到設定確認字型", languageName(r.Language))
 	}
-	manual := r.ManualASS[target] && !force
+	manual := r.ManualASS[target] && !force && !plain
 	inputs := map[string]scheduler.Input{}
 	mediaPath := p.d.Store.SongPath(id, sg.Source.File.Name)
 	if target == song.TargetInstrumental {
@@ -639,28 +668,43 @@ func (p *Pipeline) render(ctx context.Context, id, target string, in planner.Inp
 			return err
 		}
 		inputs[wp.InputASS] = assIn
-	} else {
+	} else if !plain {
 		outputs = append(outputs, wp.FileASS)
 	}
-	texts, rubies := lyricsParams(in.Lyrics)
-	lines := make([]wp.Line, len(in.Alignment.Lines))
-	for i, ln := range in.Alignment.Lines {
-		ln.Text = timing.LineText(ln)
-		lines[i] = ln
+	params := wp.RenderParams{Target: target, Lines: []wp.Line{}, Texts: []string{}, Rubies: [][]wp.Ruby{}, Singers: []*string{},
+		Translations: []string{}, TitleCard: []*string{nil, nil}, Scale: in.Settings.SubtitleScale,
+		Encode: wp.Encode{Prefer: []string{"h264_nvenc", "libx264"}}, NoSubtitles: plain}
+	if t := sg.Info.Trim; t != nil {
+		params.TrimStart, params.TrimEnd = t.Start, t.End
 	}
-	singers := r.Singers
-	if singers == nil {
-		singers = []*string{}
+	if plain {
+		run.log("  . 燒錄（本來就是卡拉 OK 版，不燒字幕）→ %s", song.VideoFile(target))
+	} else {
+		texts, rubies := lyricsParams(in.Lyrics)
+		params.Texts, params.Rubies, params.Language, params.Font = texts, toProto(rubies), r.Language, r.Font
+		params.TitleCard = r.TitleCard
+		params.Lines = make([]wp.Line, len(in.Alignment.Lines))
+		for i, ln := range in.Alignment.Lines {
+			ln.Text = timing.LineText(ln)
+			params.Lines[i] = ln
+		}
+		if r.Singers != nil {
+			params.Singers = r.Singers
+		}
+		if r.Translations != nil {
+			params.Translations = r.Translations
+		}
+		run.log("  . 產生字幕並燒錄 → %s", song.VideoFile(target))
 	}
-	translations := r.Translations
-	if translations == nil {
-		translations = []string{}
+	if t := sg.Info.Trim; t != nil {
+		end := "結尾"
+		if t.End > 0 {
+			end = clock(t.End)
+		}
+		run.log("  . 只保留 %s–%s", clock(t.Start), end)
 	}
-	run.log("  . 產生字幕並燒錄 → %s", song.VideoFile(target))
 	res, err := p.d.AI.Submit(ctx, run.spec(scheduler.Spec{Kind: wp.KindRender, Song: id, Inputs: inputs, Outputs: outputs,
-		Params: wp.RenderParams{Target: target, Lines: lines, Texts: texts, Rubies: toProto(rubies), Language: r.Language,
-			Singers: singers, Translations: translations, TitleCard: r.TitleCard, Scale: in.Settings.SubtitleScale,
-			Font: r.Font, Encode: wp.Encode{Prefer: []string{"h264_nvenc", "libx264"}}}}))
+		Params: params}))
 	if err != nil {
 		return err
 	}
@@ -674,9 +718,10 @@ func (p *Pipeline) render(ctx context.Context, id, target string, in planner.Inp
 		return err
 	}
 	var ass song.FileRef
-	if manual {
+	switch {
+	case manual:
 		ass, err = store.Refresh(p.d.Store.SongPath(id, song.FileASS), song.FileRef{})
-	} else {
+	case !plain:
 		ass, err = p.place(id, res.Files[wp.FileASS], song.FileASS)
 	}
 	if err != nil {
@@ -686,15 +731,20 @@ func (p *Pipeline) render(ctx context.Context, id, target string, in planner.Inp
 	if manual {
 		key = r.RenderFP[target]
 	}
+	var trim *song.Trim // 燒錄時的範圍（複製一份，不和歌曲資訊共用）
+	if t := sg.Info.Trim; t != nil {
+		trim = &song.Trim{Start: t.Start, End: t.End}
+	}
 	return p.d.Store.EditSong(id, func(s *song.Song) error {
 		if s.Stages.Render == nil {
 			s.Stages.Render = map[string]*song.RenderStage{}
 		}
 		s.Stages.Render[target] = &song.RenderStage{Stage: song.Stage{Key: key, Worker: res.Worker, DoneAt: p.now()},
-			Content: r.RenderPlain[target], ASS: song.ASSRef{FileRef: ass, Manual: manual}, Video: video, Gain: &out.GainDB}
+			Content: r.RenderPlain[target], ASS: song.ASSRef{FileRef: ass, Manual: manual}, Video: video, Gain: &out.GainDB,
+			Trim: trim}
 		// 同一份 ASS 給所有成品用：其他成品的紀錄也更新成這份（內容沒變時它們本來就相同）
 		for t, rec := range s.Stages.Render {
-			if t != target && rec.Content == r.RenderPlain[t] && !manual {
+			if t != target && rec.Content == r.RenderPlain[t] && !manual && !plain {
 				rec.ASS = song.ASSRef{FileRef: ass}
 			}
 		}

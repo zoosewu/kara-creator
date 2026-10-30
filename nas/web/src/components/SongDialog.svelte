@@ -3,7 +3,7 @@
   import { api, enc } from '../lib/api'
   import { store } from '../lib/state.svelte'
   import { ui } from '../lib/ui.svelte'
-  import { copyText, exportName } from '../lib/util'
+  import { copyText, exportName, fmtClock, parseClock } from '../lib/util'
   import FolderSelect from './FolderSelect.svelte'
   import Icon from './Icon.svelte'
 
@@ -29,6 +29,10 @@
   let prebuilt = $state(song.info.prebuilt ?? false)
   let language = $state(song.info.language)
   let link = $state(song.source.kind === 'url' ? (song.source.url ?? '') : song.info.link)
+  // 剪頭尾：時間照沒剪的影片算；留白 = 不剪
+  const trim0 = song.info.trim
+  let trimStart = $state(trim0?.start ? fmtClock(trim0.start) : '')
+  let trimEnd = $state(trim0?.end ? fmtClock(trim0.end) : '')
   let titleInput = $state<HTMLInputElement>()
   const downloaded = song.source.kind === 'url'
 
@@ -55,6 +59,13 @@
     e.preventDefault()
     const body: Record<string, unknown> = { title: title.trim(), artist: artist.trim(), language, note: note.trim(), translation, prebuilt }
     if (!downloaded) body.link = link.trim()
+    const start = parseClock(trimStart)
+    const end = parseClock(trimEnd)
+    if (start == null || end == null) {
+      store.notify('剪頭尾的時間看不懂：請寫成「分:秒」或秒數，例如 1:23.5', true)
+      return
+    }
+    if (start !== (trim0?.start ?? 0) || end !== (trim0?.end ?? 0)) body.trim = { start, end }
     const ok = await store.run(async () => {
       await api(`/songs/${enc(id)}`, { method: 'PATCH', body })
       if (folder !== song.folder) await api('/library/place', { method: 'POST', body: { kind: 'song', ids: [id], parent: folder, before: '' } })
@@ -106,6 +117,15 @@
         </label>
         <p class="hint">{LANGUAGE_HINTS[language] ?? ''}{languageChanged ? ' 改了語言要重新對時，已確認會失效。' : ''}</p>
       {/if}
+      <div class="field-row">
+        <label class="field"
+          >伴唱帶從<input bind:value={trimStart} placeholder="開頭" inputmode="decimal" autocomplete="off" spellcheck="false" /></label
+        >
+        <label class="field">到<input bind:value={trimEnd} placeholder="結尾" inputmode="decimal" autocomplete="off" spellcheck="false" /></label>
+      </div>
+      <p class="hint">
+        剪掉開頭、結尾的非音樂片段（例如 0:12.5；留白 = 不剪）。時間照沒剪的影片算，也可以在播放畫面邊聽邊按「從這裡開始」「到這裡結束」。改了只需重燒。
+      </p>
       <label class="field">資料夾<FolderSelect bind:value={folder} /></label>
       <label class="field"
         >影片連結

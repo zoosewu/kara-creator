@@ -428,14 +428,32 @@ func TestPrebuiltKaraoke(t *testing.T) {
 	if err := e.p.Karaoke(context.Background(), "abc", KaraokeOptions{}, e.run()); err != nil {
 		t.Fatal(err)
 	}
-	if got := e.ai.take(); got != "separate" {
-		t.Fatalf("只做去人聲：%q", got)
+	if got := e.ai.take(); got != "separate,render" {
+		t.Fatalf("去人聲之後燒錄：%q", got)
+	}
+	last := e.ai.specs[len(e.ai.specs)-1]
+	if p := last.Params.(wp.RenderParams); !p.NoSubtitles || len(last.Outputs) != 1 || p.TrimStart != 0 || p.TrimEnd != 0 {
+		t.Fatalf("不燒字幕、只上傳影片、沒剪：%+v", last)
 	}
 	if r := e.status(); r.Status.Karaoke != planner.Done || r.Status.Lyrics != planner.Skipped {
 		t.Fatalf("%+v", r.Status)
 	}
 	if err := e.p.Karaoke(context.Background(), "abc", KaraokeOptions{}, e.run()); err != nil || e.ai.take() != "" {
 		t.Fatalf("做完之後不再做：%v", err)
+	}
+	// 剪頭尾：只重燒，範圍送給 AI，紀錄記下燒錄時的範圍
+	_ = e.st.EditSong("abc", func(s *song.Song) error { s.Info.Trim = &song.Trim{Start: 0.5, End: 2.5}; return nil })
+	if r := e.status(); r.Status.Karaoke != planner.NeedsRender {
+		t.Fatalf("剪頭尾只需重燒：%+v", r.Status)
+	}
+	if err := e.p.Karaoke(context.Background(), "abc", KaraokeOptions{}, e.run()); err != nil || e.ai.take() != "render" {
+		t.Fatal(err)
+	}
+	if p := e.ai.specs[len(e.ai.specs)-1].Params.(wp.RenderParams); p.TrimStart != 0.5 || p.TrimEnd != 2.5 {
+		t.Fatalf("%+v", p)
+	}
+	if sg, _ := e.st.Song("abc"); *sg.Stages.Render[song.TargetInstrumental].Trim != (song.Trim{Start: 0.5, End: 2.5}) {
+		t.Fatalf("%+v", sg.Stages.Render[song.TargetInstrumental])
 	}
 	if err := e.p.Check(context.Background(), "abc", true, e.run()); err != nil || e.ai.take() != "" {
 		t.Fatalf("不檢查對時：%v", err)

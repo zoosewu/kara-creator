@@ -282,6 +282,11 @@ type RenderParams struct {
 	Scale        float64   `json:"scale"`        // 字幕大小（1 = 100%，worker 乘上預設字高比例）
 	Font         Font      `json:"font"`
 	Encode       Encode    `json:"encode"`
+	// 只保留來源的 [TrimStart, TrimEnd)（TrimEnd 0 = 到結尾），剪的那一端淡入 / 淡出；字幕的時間照來源算
+	TrimStart float64 `json:"trim_start"`
+	TrimEnd   float64 `json:"trim_end"`
+	// NoSubtitles：不燒字幕（本來就是卡拉 OK 版），不需要字型，不上傳 karaoke.ass
+	NoSubtitles bool `json:"no_subtitles,omitempty"`
 }
 
 // RenderResult 是 render 的結果。

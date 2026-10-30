@@ -113,7 +113,7 @@ MeCab tagger 不是執行緒安全的：interactive 迴圈用自己的 tagger �
 | `align_line` | `audio`：speech.wav | `text`、`rubies`、`t0`、`t1`（下一句開頭，可為 null）、`language` | `{line}` | — |
 | `qa` | `audio`：speech.wav | `lines`、`texts`、`rubies`、`language`、`model` | `{doc: {lines}}`：每句的檢查結果（`index`、`status`、`reasons`、`offset`…） | — |
 | `reading` | — | `language`、`texts` | `{lines: [[{start, end, ruby}…]…]}`：每句的**自動**讀音，位置以 code point 計；去掉送假名，漢字中間夾著假名時拆開標（取り戻す → 取{と}り戻{もど}す）；歌詞慣用讀音：私 → わたし、明日 → あした、何時 → いつ、何 接で・て・っ・だ・の・と・じゃ 唸なん，其他唸なに | — |
-| `render` | `media`：伴奏影片（或原曲，看 target）；`ass`：手動改過的 ASS（選填）；`instrumental`：伴奏（原曲版才有，量音量的基準） | 見下 | `{width, height, ass_sha256, gain_db, loudness}`（畫面一律 16:9；伴奏的響度與套用的增益，見下） | `karaoke.ass`（沒有手動 ASS 時）、`video.mp4` |
+| `render` | `media`：伴奏影片（或原曲，看 target）；`ass`：手動改過的 ASS（選填）；`instrumental`：伴奏（原曲版才有，量音量的基準） | 見下 | `{width, height, ass_sha256, gain_db, loudness}`（畫面一律 16:9；伴奏的響度與套用的增益，見下；不燒字幕時 `ass_sha256` 為空） | `karaoke.ass`（沒有手動 ASS、有燒字幕時）、`video.mp4` |
 
 `render` 的 params：
 
@@ -128,7 +128,9 @@ MeCab tagger 不是執行緒安全的：interactive 迴圈用自己的 tagger �
   "title_card": ["歌名", "演唱者", "備註"],   // 不顯示時為 [null, null]
   "scale": 1.0,                         // 字幕大小（1 = 100%）；worker 乘上預設樣式的字高比例
   "font": { "sha256": "…", "family": "Noto Sans CJK JP", "index": 0 },
-  "encode": { "prefer": ["h264_nvenc", "libx264"] }   // 依序嘗試：NVENC p5 vbr cq26 / x264 medium crf21，位元率上限 = 來源影像的 1.5 倍（至少 1.5 Mbps）；音訊 aac 192k
+  "encode": { "prefer": ["h264_nvenc", "libx264"] },  // 依序嘗試：NVENC p5 vbr cq26 / x264 medium crf21，位元率上限 = 來源影像的 1.5 倍（至少 1.5 Mbps）；音訊 aac 192k
+  "trim_start": 12.5, "trim_end": 245,  // 只保留來源的這一段（0 = 不剪那一端）：所有時間照來源算；剪的那一端淡入 / 淡出 0.5 秒，完全被剪掉的句子不放進字幕
+  "no_subtitles": false                 // true：本來就是卡拉 OK 版，不燒字幕（不需要字型，lines 等為空），只剪頭尾、補 16:9、統一音量
 }
 ```
 

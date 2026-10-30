@@ -3,6 +3,7 @@ package song
 
 import (
 	"fmt"
+	"math"
 	"slices"
 	"strings"
 
@@ -97,13 +98,25 @@ type Info struct {
 	Link        string   `json:"link"`     // 手動放入的影片補上的原始連結
 	Translation bool     `json:"translation"`
 	Targets     []string `json:"targets"`
-	// Prebuilt：來源本來就是卡拉 OK 版（字幕已經在影片裡）：不用歌詞、不去人聲、不製作，原影片就是伴唱帶
-	Prebuilt bool      `json:"prebuilt,omitempty"`
+	// Prebuilt：來源本來就是卡拉 OK 版（字幕已經在影片裡）：不用歌詞、不對時，伴唱帶 = 原影片畫面 + 去人聲後的伴奏（不燒字幕）
+	Prebuilt bool `json:"prebuilt,omitempty"`
+	// Trim：伴唱帶只保留來源的這一段（剪掉開頭、結尾的非音樂片段）；nil = 不剪。
+	// 對時等所有時間仍以來源（沒剪的影片）為準，只在燒錄與匯出原曲音訊時剪
+	Trim     *Trim     `json:"trim,omitempty"`
 	Approved *Approval `json:"approved"` // 目前的確認；沒確認過或取消確認時為 null
 	// History 是曾經確認過的紀錄（新的在後）。需要重新對時之後確認會失效，但紀錄留著，
 	// 用來告訴使用者「上次確認之後歌詞改了哪幾句」，小改動不必整首重看。
 	History []Approval `json:"approval_history,omitempty"`
 }
+
+// Trim 是保留的範圍（秒，以來源的時間計）。
+type Trim struct {
+	Start float64 `json:"start" doc:"從幾秒開始（0 = 不剪開頭）"`
+	End   float64 `json:"end" doc:"到幾秒結束（0 = 不剪結尾）"`
+}
+
+// MinTrimLength 是剪完至少要剩幾秒。
+const MinTrimLength = 5.0
 
 // Approval 是一次「已確認」：綁對時（fingerprint.Approve），只需重燒的更新不影響確認。
 type Approval struct {
@@ -144,6 +157,8 @@ type RenderStage struct {
 	Video   FileRef `json:"video"`
 	// Gain：燒錄時套用的增益（dB，讓伴奏到目標響度）；匯出原曲音訊時也套用伴唱帶的這個值。舊紀錄沒有
 	Gain *float64 `json:"gain_db,omitempty"`
+	// Trim：燒錄時保留的範圍（影片的 0 秒 = 來源的 Trim.Start）；匯出原曲音訊時照這個剪。沒剪時為 nil
+	Trim *Trim `json:"trim,omitempty"`
 }
 
 // ASSRef 是成品的字幕。Manual = 使用者用 Aegisub 改過，之後燒錄改用這份、不重新產生。
@@ -167,7 +182,8 @@ type InfoUpdate struct {
 	Link        *string   `json:"link,omitempty"`
 	Translation *bool     `json:"translation,omitempty"`
 	Targets     *[]string `json:"targets,omitempty"`
-	Prebuilt    *bool     `json:"prebuilt,omitempty" doc:"本來就是卡拉 OK 版：不用歌詞、不製作，原影片就是伴唱帶"`
+	Prebuilt    *bool     `json:"prebuilt,omitempty" doc:"本來就是卡拉 OK 版：不用歌詞、不對時，伴唱帶 = 原影片畫面 + 去人聲後的伴奏"`
+	Trim        *Trim     `json:"trim,omitempty" doc:"伴唱帶只保留來源的這一段（秒，以沒剪的影片計）；{start: 0, end: 0} = 不剪"`
 }
 
 // ApplyInfo 驗證並套用歌曲資訊。出錯時不做任何修改。
@@ -201,6 +217,13 @@ func (s *Song) ApplyInfo(u InfoUpdate) error {
 	if u.Prebuilt != nil {
 		next.Prebuilt = *u.Prebuilt
 	}
+	if u.Trim != nil {
+		t, err := s.Source.checkTrim(*u.Trim)
+		if err != nil {
+			return err
+		}
+		next.Trim = t
+	}
 	if u.Targets != nil {
 		var targets []string
 		for _, t := range Targets { // 依固定順序、去掉重複
@@ -220,4 +243,26 @@ func (s *Song) ApplyInfo(u InfoUpdate) error {
 	}
 	s.Info = next
 	return nil
+}
+
+// checkTrim 驗證並整理要保留的範圍（取到 0.01 秒；結尾在影片最後就當作不剪結尾）；都不剪時回傳 nil。
+func (src Source) checkTrim(t Trim) (*Trim, error) {
+	t.Start, t.End = math.Round(t.Start*100)/100, math.Round(t.End*100)/100
+	if t.Start < 0 || t.End < 0 {
+		return nil, fmt.Errorf("剪的位置不能是負的")
+	}
+	if src.Duration > 0 && t.End >= src.Duration-0.05 {
+		t.End = 0
+	}
+	end := t.End
+	if end == 0 {
+		end = src.Duration
+	}
+	if end > 0 && end-t.Start < MinTrimLength {
+		return nil, fmt.Errorf("剪完至少要留 %g 秒", MinTrimLength)
+	}
+	if t == (Trim{}) {
+		return nil, nil
+	}
+	return &t, nil
 }

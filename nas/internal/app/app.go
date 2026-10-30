@@ -289,36 +289,46 @@ func (a *App) exportVideo(id string) string {
 	if !ok {
 		return ""
 	}
-	if sep := sg.Stages.Separate; sg.Info.Prebuilt && sep != nil && sep.Instrumental.Name != "" {
-		return a.Store.SongPath(id, sep.Instrumental.Name) // 本來就是卡拉 OK 版：伴唱帶就是去人聲的結果
-	}
 	if rec := sg.Stages.Render[song.TargetInstrumental]; rec != nil && rec.Video.Name != "" {
 		return a.Store.SongPath(id, rec.Video.Name)
+	}
+	if sep := sg.Stages.Separate; sg.Info.Prebuilt && sep != nil && sep.Instrumental.Name != "" {
+		return a.Store.SongPath(id, sep.Instrumental.Name) // 還沒燒錄過的卡拉 OK 版舊歌：去人聲的結果就是伴唱帶
 	}
 	return ""
 }
 
-// originalAudio 是原曲音訊（m4a）的路徑：cache/original/<來源 sha256>[_<增益>dB].m4a
-// （匯出時才產生；來源或增益換了就換一個檔）。
+// originalAudio 是原曲音訊（m4a）的路徑：cache/original/<來源 sha256>[_<增益>dB][_t<開始>-<結束>].m4a
+// （匯出時才產生；來源、增益或剪的範圍換了就換一個檔）。
 func (a *App) originalAudio(id string) string {
 	sg, ok := a.Store.Song(id)
 	if !ok || sg.Source.File.SHA256 == "" {
 		return ""
 	}
 	name := sg.Source.File.SHA256
-	if g := originalGain(sg); g != 0 {
-		name += "_" + strconv.FormatFloat(g, 'f', 1, 64) + "dB"
+	e := originalEdit(sg)
+	if e.GainDB != 0 {
+		name += "_" + strconv.FormatFloat(e.GainDB, 'f', 1, 64) + "dB"
+	}
+	if e.Start > 0 || e.End > 0 {
+		name += "_t" + strconv.FormatFloat(e.Start, 'f', 2, 64) + "-" + strconv.FormatFloat(e.End, 'f', 2, 64)
 	}
 	return a.Store.Path(store.CacheDir, "original", name+".m4a")
 }
 
-// originalGain 是匯出原曲音訊時套用的增益：和伴唱帶燒錄時相同（伴奏的音量一致）。
-// 本來就是卡拉 OK 版、或伴唱帶是調音量之前燒的，不調整。
-func originalGain(sg *song.Song) float64 {
-	if rec := sg.Stages.Render[song.TargetInstrumental]; rec != nil && rec.Gain != nil && !sg.Info.Prebuilt {
-		return *rec.Gain
+// originalEdit 是匯出原曲音訊時的處理：和伴唱帶燒錄時相同的增益（伴奏的音量一致）與範圍（長度一致）。
+// 伴唱帶是調音量之前燒的就不調整；還沒燒過（卡拉 OK 版的舊歌）就照原樣。
+func originalEdit(sg *song.Song) media.AudioEdit {
+	var e media.AudioEdit
+	if rec := sg.Stages.Render[song.TargetInstrumental]; rec != nil {
+		if rec.Gain != nil {
+			e.GainDB = *rec.Gain
+		}
+		if rec.Trim != nil {
+			e.Start, e.End = rec.Trim.Start, rec.Trim.End
+		}
 	}
-	return 0
+	return e
 }
 
 // Export 把已確認的伴唱帶（設定打開時加上原曲音訊）同步到匯出資料夾（使用者按「匯出」時才執行）。
@@ -335,7 +345,7 @@ func (a *App) Export(ctx context.Context) (export.Result, error) {
 		sg, _ := a.Store.Song(s.ID)
 		err := os.MkdirAll(filepath.Dir(s.Original), 0o755)
 		if err == nil {
-			err = a.Media.ExportAudio(ctx, a.Store.SongPath(s.ID, sg.Source.File.Name), s.Original, originalGain(sg))
+			err = a.Media.ExportAudio(ctx, a.Store.SongPath(s.ID, sg.Source.File.Name), s.Original, originalEdit(sg))
 		}
 		if err != nil {
 			if ctx.Err() != nil {

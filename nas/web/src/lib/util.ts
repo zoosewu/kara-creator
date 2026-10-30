@@ -11,6 +11,17 @@ export function fmtClock(sec: number): string {
   return `${m}:${(sec - m * 60).toFixed(2).padStart(5, '0')}`
 }
 
+/** 讀「分:秒」或「秒」（例如 1:23.5、83.5）；空字串為 0，看不懂時為 null。 */
+export function parseClock(text: string): number | null {
+  const s = text.trim()
+  if (!s) return 0
+  const m = /^(?:(\d+):)?(\d+(?:\.\d*)?)$/.exec(s)
+  if (!m) return null
+  const sec = Number(m[2])
+  if (m[1] != null && sec >= 60) return null
+  return Number(m[1] ?? 0) * 60 + sec
+}
+
 export function fmtTime(iso?: string | null): string {
   if (!iso) return ''
   return new Date(iso).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })

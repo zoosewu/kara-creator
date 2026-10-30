@@ -73,6 +73,8 @@ id 決定資料夾名稱，之後不會改變。還沒下載完的歌可能只�
     "link": "",                       // 手動放入的影片補上的原始連結
     "translation": true,              // 歌詞有翻譯時是否燒進伴唱帶
     "targets": ["instrumental"],      // 要做哪些成品：instrumental（伴唱帶）/ original（原曲＋字幕，UI 還沒有入口）
+    "prebuilt": false,                // 本來就是卡拉 OK 版（見下）
+    "trim": { "start": 12.5, "end": 245 },   // 伴唱帶只保留來源的這一段（秒，以沒剪的影片計；end 0 = 到結尾）；不剪時沒有這個欄位
     "approved": { "fingerprint": "…", "at": "…", "texts": ["確認當時每句的歌詞"] },   // 目前的確認；沒確認過或取消確認時為 null
     "approval_history": [ { "fingerprint": "…", "at": "…", "texts": [ … ] } ]          // 曾經確認過的紀錄（最近 20 次）
   },
@@ -92,6 +94,7 @@ id 決定資料夾名稱，之後不會改變。還沒下載完的歌可能只�
         "ass": { "name": "karaoke.ass", "size": 0, "mtime_ns": 0, "sha256": "…", "manual": false },
         "video": { "name": "karaoke.mp4", "size": 0, "mtime_ns": 0, "sha256": "…" },
         "gain_db": 3.2,               // 燒錄時套用的增益（讓伴奏到 -16 LUFS）；舊紀錄沒有
+        "trim": { "start": 12.5, "end": 245 },   // 燒錄時保留的範圍（影片的 0 秒 = 來源的 start 秒）；沒剪時沒有
         "worker": "…", "done_at": "…"
       }
     },
@@ -159,13 +162,19 @@ H(欄位…)       = sha256( 每個欄位以 "\n" 串接，最後也加 "\n" )�
 | --- | --- | --- |
 | 去人聲 `separate` | `stage=separate`、`source=<來源 sha256>`、`model=htdemucs`、`stems=2`、`version=<versions.separate>` | 來源檔換了，或去人聲方法改了 |
 | 對時 `align` | `stage=align`、`lyrics=<歌詞指紋>`、`vocals=<人聲 sha256>`、`model=large-v3`、`language=<語言>`、`version=<versions.align>` | 歌詞文字或讀音改了、人聲重新分離過、語言改了、對時方法改了 → **整首重新對時** |
-| 成品 `render`（每個 target） | `stage=render`、`target`、`media=<伴奏或來源 sha256>`、`alignment=<對時內容指紋>`、`lyrics=<歌詞指紋>`、`singers=<清單>`、`translations=<清單，不燒時為空>`、`title=<歌名>`、`artist=<演唱者>`、`note=<備註>`、`scale=<字幕大小，小數兩位>`、`font=<字型 id（sha256:index）>`、`size=<寬>x<高>`、`version=<versions.render>`、`reading=<versions.reading>`（日文假名由 worker 燒錄時自己算）；原曲版在 `media` 後面多一個 `loudness=<伴奏 sha256>`（音量照伴奏調）；**手動改過 ASS 時**只剩 `stage`、`target`、`media`（、`loudness`）、`ass=<那份 ASS 的 sha256>`、`size`、`version`（畫面完全由那份 ASS 決定，標題畫面也在裡面） | 任何會改變畫面的東西變了 → **只重新產生字幕與燒錄** |
+| 成品 `render`（每個 target） | `stage=render`、`target`、`media=<伴奏或來源 sha256>`、`alignment=<對時內容指紋>`、`lyrics=<歌詞指紋>`、`singers=<清單>`、`translations=<清單，不燒時為空>`、`title=<歌名>`、`artist=<演唱者>`、`note=<備註>`、`scale=<字幕大小，小數兩位>`、`font=<字型 id（sha256:index）>`、`size=<寬>x<高>`、`version=<versions.render>`、`reading=<versions.reading>`（日文假名由 worker 燒錄時自己算）；原曲版在 `media` 後面多一個 `loudness=<伴奏 sha256>`（音量照伴奏調），剪頭尾時再多一個 `trim=<開始>-<結束>`（秒，小數兩位）；**手動改過 ASS 時**只剩 `stage`、`target`、`media`（、`loudness`、`trim`）、`ass=<那份 ASS 的 sha256>`、`size`、`version`（畫面完全由那份 ASS 決定，標題畫面也在裡面）；**本來就是卡拉 OK 版**只有 `stage`、`target`、`media`（、`trim`）、`subtitles=none`、`size`、`version` | 任何會改變畫面的東西變了 → **只重新產生字幕與燒錄** |
 | 對時檢查 `qa` | `stage=qa`、`alignment=<對時內容指紋>`、`lyrics=<歌詞指紋>`、`vocals=<人聲 sha256>`、`language`、`model`、`version=<versions.qa>` | 對時改了 → 重新檢查 |
 | 已確認 | `stage=approve`、`lyrics=<歌詞指紋>`、`language`、`method=<versions.align>`、`run=<alignment.json 的對時編號>`；伴唱帶是 needs_align 時一律算失效 | **需要重新對時**才失效：只需重燒的更新（演唱者、翻譯、標題畫面、字型、字幕大小、手動調時間、AI 對時某幾句）都不影響確認 |
 
-本來就是卡拉 OK 版（`song.json` 的 `info.prebuilt`）：字幕已經在影片裡，不用歌詞、不對時、不燒錄；還是要去人聲（卡拉 OK 版常有一個聲道帶導唱），
-去人聲產生的 `instrumental.mp4`（原影片畫面 + 伴奏）就是伴唱帶（播放、匯出都用它；原影片當「原曲＋字幕」）。
-「已確認」綁伴奏的 sha256（`fingerprint.Prebuilt`），換了來源、重新去人聲就要重新確認。
+本來就是卡拉 OK 版（`song.json` 的 `info.prebuilt`）：字幕已經在影片裡，不用歌詞、不對時；還是要去人聲（卡拉 OK 版常有一個聲道帶導唱），
+再把 `instrumental.mp4`（原影片畫面 + 伴奏）燒錄成 `karaoke.mp4`，但不燒字幕：只剪頭尾、補成 16:9、統一音量（播放、匯出都用它；原影片當「原曲＋字幕」）。
+還沒燒過的舊歌是「只需重燒」，重燒前播放、匯出照舊用 `instrumental.mp4`。
+「已確認」綁伴奏的 sha256（`fingerprint.Prebuilt`），換了來源、重新去人聲就要重新確認；剪頭尾等只需重燒的更新不影響確認。
+
+**剪頭尾**（`info.trim`）：伴唱帶只保留來源的一段，剪掉開頭、結尾的非音樂片段。對時、檢查、播放畫面的時間**一律照來源（沒剪的影片）算**，
+只在燒錄時剪：先剪、再照來源的時間上字幕、再把時間歸零，剪的那一端淡入 / 淡出 0.5 秒；完全落在剪掉範圍的句子不放進字幕，
+一部分在範圍裡的照常放；標題畫面從保留的開頭起算前奏；音量只量保留的那段。改了只需重燒，不影響確認。
+`karaoke.ass` 的時間也照來源算（和伴奏、原影片對得上，不是和剪過的 `karaoke.mp4`）。
 
 標題畫面：歌名來自手動設定、歌詞檔或標題辨識；標題辨識只能用整個影片標題（`source=fallback`）時不顯示標題畫面。
 標題畫面放在第一段超過 6 秒的空檔（和字幕判斷間奏同一個標準）：前奏，或前奏不夠長（開頭直接唱副歌）時開頭 40 秒內的第一段間奏；都沒有就強制放在開頭，和歌詞同時出現，這時標題中心固定在畫面高度 33%（上方翻譯和上行歌詞之間，最大字幕含假名也不重疊）。見 worker 的 `subtitles._title_window`。
@@ -238,9 +247,9 @@ NAS 在記憶體裡保留所有歌的狀態，**只在有變動時重算該首�
 只匯出 `instrumental` 成品；匯出的是按下匯出當時的成品。
 
 **原曲音訊**（設定的 `export_original`）：打開時，已確認的歌另外匯出一份原曲（有人聲）的音訊「歌手 - 歌名_original.m4a」，
-放在伴唱帶旁邊（同名編號跟著伴唱帶：「… (2)_original.m4a」）。按匯出時才從來源檔產生，存在 `cache/original/<來源 sha256>_<增益>dB.m4a`
-（套用伴唱帶燒錄時的 `gain_db`，伴奏的音量和伴唱帶一致，調大時加限幅器；轉成 AAC 320k。
-伴唱帶是調音量之前燒的、或本來就是卡拉 OK 版時不調整，檔名沒有增益，來源的音軌是 AAC 就直接複製）。設定關掉時，下次匯出把這些檔案拿掉；
+放在伴唱帶旁邊（同名編號跟著伴唱帶：「… (2)_original.m4a」）。按匯出時才從來源檔產生，存在 `cache/original/<來源 sha256>[_<增益>dB][_t<開始>-<結束>].m4a`
+（套用伴唱帶燒錄時的 `gain_db` 與 `trim`：伴奏的音量、長度、淡入淡出都和伴唱帶一致，調大時加限幅器；轉成 AAC 320k。
+伴唱帶是調音量之前燒的、或還沒燒過時不調整，檔名沒有增益，來源的音軌是 AAC 就直接複製）。設定關掉時，下次匯出把這些檔案拿掉；
 設定改了也會讓歌變成待匯出。來源沒有音軌時只匯出伴唱帶，並在匯出結果的 `failed` 列出。
 
 放置方式依序嘗試，失敗就換下一種，不必事先設定：

@@ -188,6 +188,44 @@ def test_measure_loudness(tmp_path):
     assert tasks.gain_for(tasks.measure_loudness(silent)) == 0.0
 
 
+def test_trim_filters():
+    # 不剪：沒有任何濾鏡；剪頭尾：先剪（字幕照來源時間），字幕之後才歸零、淡入淡出
+    none = tasks.Trim()
+    assert not none and none.video() == ([], []) and none.audio() == [] and none.seek() == []
+    assert tasks.video_filter(tasks.Video(1920, 1080, None), (1920, 1080), False, none) == "null"
+    t = tasks.Trim.from_params({"trim_start": 12.5, "trim_end": 200})
+    assert t.seek() == ["-ss", "12.500", "-to", "200.000"]
+    assert t.audio() == ["atrim=start=12.500:end=200.000", "asetpts=PTS-STARTPTS",
+                         "afade=t=in:st=0:d=0.5", "afade=t=out:st=187.000:d=0.5"]
+    assert tasks.video_filter(tasks.Video(1080, 1080, None), (1920, 1080), True, t) == (
+        "trim=start=12.500:end=200.000,scale=1920:1080:force_original_aspect_ratio=decrease:force_divisible_by=2,"
+        "pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black,setsar=1,subtitles=sub.ass:fontsdir=fonts,"
+        "setpts=PTS-STARTPTS,fade=t=in:st=0:d=0.5,fade=t=out:st=187.000:d=0.5")
+    # 只剪開頭：不淡出；只剪結尾：不淡入
+    assert tasks.Trim(3, 0).audio()[-1] == "afade=t=in:st=0:d=0.5"
+    assert tasks.Trim(0, 60).audio() == ["atrim=start=0.000:end=60.000", "asetpts=PTS-STARTPTS",
+                                         "afade=t=out:st=59.500:d=0.5"]
+    # 完全被剪掉的句子不要；一部分在範圍裡的留著
+    assert [t.keeps({"start": s, "end": e}) for s, e in [(5, 12), (12, 14), (199, 205), (200, 210)]] == [
+        False, True, True, False]
+
+
+@pytest.mark.skipif(not NOTO.exists(), reason="沒有 Noto Sans CJK")
+def test_build_ass_trim():
+    # 剪掉開頭：被剪掉的句子（含翻譯）不放；時間照來源；前奏從保留的開頭起算（20 秒開始、第一句 30 秒 → 有標題畫面）
+    def line(text, start):
+        return {"text": text, "start": start, "end": start + 1,
+                "words": [{"text": text, "start": start, "end": start + 1}]}
+    params = {"lines": [line("剪掉的句子", 5.0), line("留下的句子", 30.0)], "texts": ["剪掉的句子", "留下的句子"],
+              "rubies": [[], []], "language": "zh", "translations": ["剪掉的翻譯", "留下的翻譯"],
+              "title_card": ["自己編的歌", "虛構歌手"], "scale": 1.0, "trim_start": 20.0,
+              "font": {"sha256": "x", "family": "Noto Sans CJK TC", "index": 0}}
+    text = tasks.build_ass(params, (1920, 1080), NOTO)
+    assert "剪掉" not in text and "留下的句子" in text and "留下的翻譯" in text
+    title = next(ln for ln in text.splitlines() if ",Title,," in ln)
+    assert title.startswith("Dialogue: 0,0:00:20.50,") and "\\pos(" not in title   # 放在保留的前奏，不強制
+
+
 def test_bitrate_cap():
     # 上限是來源影像的 1.5 倍，至少 1.5 Mbps；純音訊或讀不到位元率時用最低值
     assert tasks.bitrate_cap(tasks.Video(1920, 1080, 1_800_000)) == 2_700_000

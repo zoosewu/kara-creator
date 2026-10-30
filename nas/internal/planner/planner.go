@@ -179,16 +179,30 @@ func Evaluate(in Input) Result {
 		r.Status.Lyrics = Missing
 	}
 
-	// 本來就是卡拉 OK 版：字幕已經在影片裡，不用歌詞、不對時、不燒錄；伴唱帶 = 原影片的畫面 + 去人聲後的伴奏
-	// （卡拉 OK 版常有一個聲道帶導唱，所以還是要去人聲；去人聲產生的 instrumental.mp4 就是伴唱帶）。確認綁伴奏
+	r.Size = DefaultSize
+	if sg.Source.Width > 0 && sg.Source.Height > 0 {
+		r.Size = strconv.Itoa(sg.Source.Width) + "x" + strconv.Itoa(sg.Source.Height)
+	}
+	trim := TrimKey(sg.Info.Trim)
+
+	// 本來就是卡拉 OK 版：字幕已經在影片裡，不用歌詞、不對時；伴唱帶 = 原影片的畫面 + 去人聲後的伴奏
+	// （卡拉 OK 版常有一個聲道帶導唱，所以還是要去人聲），一樣經過燒錄（不燒字幕）：剪頭尾、補成 16:9、統一音量。
+	// 確認綁伴奏：剪頭尾等只需重燒的更新不影響確認
 	if sg.Info.Prebuilt {
 		if in.Lyrics == nil {
 			r.Status.Lyrics = Skipped
 		}
 		r.Status.Karaoke = Pending
 		if r.Status.Separate == Done {
-			r.Status.Karaoke = Done
 			r.ApproveFP = fingerprint.Prebuilt(sep.Instrumental.SHA256)
+			target := song.TargetInstrumental
+			fp := fingerprint.Render(fingerprint.RenderInput{Target: target, Media: sep.Instrumental.SHA256, Trim: trim,
+				NoSubtitles: true, Size: r.Size, Version: in.Versions.Render})
+			r.RenderPlain[target], r.RenderFP[target] = fp, fp
+			r.Status.Karaoke = Done
+			if rec := sg.Stages.Render[target]; rec == nil || rec.Key != fp || !in.Render[target].VideoOK {
+				r.Status.Karaoke = NeedsRender // 包括還沒燒過的舊歌：只需重燒
+			}
 		}
 		approval(&r, sg, texts)
 		return r
@@ -229,10 +243,6 @@ func Evaluate(in Input) Result {
 			}
 		}
 	}
-	r.Size = DefaultSize
-	if sg.Source.Width > 0 && sg.Source.Height > 0 {
-		r.Size = strconv.Itoa(sg.Source.Width) + "x" + strconv.Itoa(sg.Source.Height)
-	}
 	if in.Font != nil {
 		r.Font, r.FontOK = in.Font(r.Language)
 	}
@@ -259,7 +269,7 @@ func Evaluate(in Input) Result {
 		ri := fingerprint.RenderInput{Target: target, Media: media, Alignment: r.ContentFP, Lyrics: r.LyricsFP,
 			Singers: singers, Translations: translations, Title: cardTitle, Artist: cardArtist, Note: cardNote,
 			Scale: in.Settings.SubtitleScale, Font: r.FontID(), Size: r.Size, Version: in.Versions.Render,
-			Reading: in.Versions.Reading, Loudness: loudness}
+			Reading: in.Versions.Reading, Loudness: loudness, Trim: trim}
 		plain := fingerprint.Render(ri)
 		r.RenderPlain[target], r.RenderFP[target] = plain, plain
 		rec := sg.Stages.Render[target]
@@ -357,4 +367,12 @@ func ptrs(values []string) []*string {
 		out[i] = &values[i]
 	}
 	return out
+}
+
+// TrimKey 是成品指紋裡的保留範圍（「開始-結束」，秒取到 0.01）；不剪時為空。
+func TrimKey(t *song.Trim) string {
+	if t == nil {
+		return ""
+	}
+	return strconv.FormatFloat(t.Start, 'f', 2, 64) + "-" + strconv.FormatFloat(t.End, 'f', 2, 64)
 }

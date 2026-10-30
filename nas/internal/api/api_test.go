@@ -470,8 +470,14 @@ func TestEndToEnd(t *testing.T) {
 		return err == nil
 	})
 
-	// 6b. 本來就是卡拉 OK 版：不對時、不燒錄，伴唱帶就是去人聲的結果（原影片畫面 + 伴奏），可以直接確認、匯出
+	// 6b. 本來就是卡拉 OK 版：不對時、不燒字幕，伴唱帶 = 原影片畫面 + 伴奏（燒錄時剪頭尾、補 16:9、統一音量），可以確認、匯出
 	if code := c.do("PATCH", "/api/v1/songs/dQw4w9WgXcQ", map[string]any{"prebuilt": true}, &song); code != 200 {
+		t.Fatal(code)
+	}
+	if song.Status.Karaoke != "needs_render" {
+		t.Fatalf("切成卡拉 OK 版只需重燒：%+v", song.Status)
+	}
+	if code := c.do("POST", "/api/v1/jobs", map[string]any{"songs": []string{"dQw4w9WgXcQ"}, "steps": []string{"karaoke"}}, nil); code != 202 {
 		t.Fatal(code)
 	}
 	waitFor(t, "卡拉 OK 版", func() bool {
@@ -487,14 +493,10 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatalf("批次製作要略過：%+v", batch)
 	}
 	c.do("POST", "/api/v1/export", nil, &exp)
-	sources, _ := filepath.Glob(filepath.Join(lib, "songs", "dQw4w9WgXcQ", "instrumental.*"))
-	if len(sources) != 1 {
-		t.Fatalf("%v", sources)
-	}
-	if a, err := os.ReadFile(sources[0]); err != nil {
+	if a, err := os.ReadFile(filepath.Join(lib, "songs", "dQw4w9WgXcQ", "karaoke.mp4")); err != nil {
 		t.Fatal(err)
 	} else if b, err := os.ReadFile(filepath.Join(lib, "export", filepath.FromSlash(song.Export))); err != nil || string(a) != string(b) {
-		t.Fatalf("匯出去人聲的結果（原影片畫面 + 伴奏）：%s %v", song.Export, err)
+		t.Fatalf("匯出燒好的伴唱帶（不燒字幕）：%s %v", song.Export, err)
 	}
 
 	// 7. SSE 有送事件

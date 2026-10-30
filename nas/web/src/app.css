@@ -579,6 +579,13 @@ ruby.editing { background: var(--accent-soft); }
 .stage-frame video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; cursor: pointer; }
 .studio-controls { display: flex; align-items: center; gap: 10px; }
 .studio-controls input[type=range] { flex: 1; accent-color: var(--accent); }
+.seek-wrap { flex: 1; position: relative; display: flex; min-width: 0; }
+.seek-wrap input[type=range] { width: 100%; }
+/* 伴唱帶保留的範圍：進度條下緣的細線，剪掉的部分是空的 */
+.kept-bar { position: absolute; bottom: -3px; height: 3px; border-radius: 2px; background: var(--accent); opacity: .55; pointer-events: none; }
+.trim-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; }
+.trim-range { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 4px; }
+.studio-line.cut { opacity: .45; }
 .studio-controls select { width: auto; }
 .studio-controls input.studio-volume { flex: 0 0 72px; }
 .studio-clock { font-variant-numeric: tabular-nums; font-size: 13px; min-width: 64px; }

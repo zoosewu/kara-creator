@@ -316,3 +316,23 @@ Playwright 把每個畫面、對話框、選單在手機 / 平板直式 / 平板
 - [x] 原因：speechWav 的暫存檔名只看人聲 sha256，本機轉檔可同時兩件；兩件工作要同一份人聲時寫同一個暫存檔，後改名的那件 rename 失敗
 - [x] 修正：同一份人聲的轉檔排隊（每個路徑一把鎖），後到的直接用先轉好的
 - [x] 回歸測試 TestSpeechWavConcurrent（舊程式失敗、新程式 -race 連跑 5 次通過）；go vet / go test -race 全部通過；開發環境重現兩首相同聲音的歌同時重做，兩件都完成
+
+## 剪掉歌曲開頭 / 結尾
+
+時間一律照原影片記；剪頭尾是燒錄時的設定（改了只需重燒，不影響已確認）。
+
+- [x] 資料：song.json info.trim {start, end}（end 0 = 到結尾）；PATCH /songs/{id} 的 trim（驗證範圍，{0,0} = 不剪）；render 紀錄記下燒錄時用的 trim
+- [x] 指紋：成品指紋加 trim（有設定才加，沒剪的歌指紋不變）；卡拉 OK 版的成品指紋（不燒字幕）
+- [x] 協定：render params 加 trim_start / trim_end / no_subtitles
+- [x] worker：trim → 字幕（照原時間軸，ffmpeg 先 trim 再上字幕再歸零）→ 淡入淡出 0.5 秒（有剪的那一端）；音量只量剪剩的段；標題畫面從剪剩的開頭算；完全被剪掉的句子不放進字幕
+- [x] 卡拉 OK 版也走燒錄（不燒字幕）：planner 狀態、pipeline、播放 / 匯出用燒好的檔（還沒燒的舊歌退回 instrumental.mp4）
+- [x] 匯出原曲音訊：照伴唱帶燒錄時的 trim 剪、淡入淡出；快取檔名含 trim
+- [x] 播放畫面：燒好的影片換算時間（media.offset）；進度條與歌詞標出剪掉的範圍；模擬・伴唱播放時跳過；「從這裡開始 / 到這裡結束 / 不剪」；提醒被剪到的句子
+- [x] 歌曲資訊：開頭 / 結尾欄位
+- [x] 測試：Go（指紋、planner、pipeline、匯出）、pytest（字幕過濾、標題畫面起點、ffmpeg 參數）、kara-ai-dev 實際燒錄、Playwright
+- [x] 文件：data.md、worker-protocol.md、frontend.md、architecture.md
+
+驗證：gofmt / go vet / go test -race、npm check、pytest / ruff 全部通過。kara-ai-dev 用 NVENC 實際燒錄 20 秒的測試影片剪成 5–15 秒：
+長度 10 秒、開頭淡入、被剪掉的句子不在字幕裡、剪好的影片第 1.5 秒顯示來源的 6.5 秒且字幕剛好唱到；卡拉 OK 版不燒字幕、純音訊來源也正確。
+開發環境 + fakeworker + Playwright：播放畫面設定範圍、模擬・伴唱跳過剪掉的部分、重燒後燒錄模式的時間換算、資訊對話框的欄位與錯誤提示、
+匯出原曲音訊剪成同一段（13 秒）並套用增益。

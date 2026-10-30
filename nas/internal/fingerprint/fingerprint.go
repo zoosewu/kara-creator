@@ -126,6 +126,8 @@ type RenderInput struct {
 	Reading      int     // versions.reading：日文的假名由 worker 燒錄時自己算，讀音規則改了成品也會變
 	ASS          string  // 使用者手動改過的 ASS 的 sha256（沒有時為空）
 	Loudness     string  // 原曲版：量音量用的伴奏 sha256（音量照伴奏調）；伴唱帶的 Media 就是伴奏，為空
+	Trim         string  // 保留的範圍「開始-結束」；不剪時為空
+	NoSubtitles  bool    // 不燒字幕（本來就是卡拉 OK 版）
 }
 
 // Render 是成品（字幕 + 燒錄）的指紋：變了只重新產生字幕與燒錄。
@@ -134,6 +136,12 @@ func Render(in RenderInput) string {
 	media := []Field{{"stage", "render"}, {"target", in.Target}, {"media", in.Media}}
 	if in.Loudness != "" {
 		media = append(media, Field{"loudness", in.Loudness})
+	}
+	if in.Trim != "" {
+		media = append(media, Field{"trim", in.Trim})
+	}
+	if in.NoSubtitles { // 畫面就是來源的畫面：只看來源、範圍、大小與版本
+		return H(append(media, Field{"subtitles", "none"}, Field{"size", in.Size}, Field{"version", in.Version})...)
 	}
 	if in.ASS != "" {
 		return H(append(media, Field{"ass", in.ASS}, Field{"size", in.Size}, Field{"version", in.Version})...)

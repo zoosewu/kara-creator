@@ -92,6 +92,8 @@ type MediaView struct {
 	Label string `json:"label"`
 	Hint  string `json:"hint"`
 	URL   string `json:"url"`
+	// Offset：這個檔案的 0 秒是來源的第幾秒（剪過開頭的伴唱帶；其他檔案為 0）
+	Offset float64 `json:"offset"`
 }
 
 var mediaLabels = map[string][2]string{
@@ -255,7 +257,7 @@ func (a *App) compute(id string) (*SongView, error) {
 		}
 	}
 	// 可以播放的版本，依重要性排序（最終成品優先）
-	add := func(kind, file string) {
+	add := func(kind, file string, offset float64) {
 		if file == "" {
 			return
 		}
@@ -266,25 +268,35 @@ func (a *App) compute(id string) (*SongView, error) {
 		// 網址帶上檔案的修改時間：重燒之後網址就不同，播放器不會拿到瀏覽器快取裡的舊影片
 		l := mediaLabels[kind]
 		url := fmt.Sprintf("/media/%s/%s?v=%d", id, file, st.ModTime().UnixMilli())
-		v.Media = append(v.Media, MediaView{Kind: kind, Label: l[0], Hint: l[1], URL: url})
+		v.Media = append(v.Media, MediaView{Kind: kind, Label: l[0], Hint: l[1], URL: url, Offset: offset})
 	}
-	if sg.Info.Prebuilt { // 本來就是卡拉 OK 版：伴唱帶 = 去人聲的伴奏（原影片畫面）；原影片就是「原曲＋字幕」
-		if sep := sg.Stages.Separate; sep != nil && r.Status.Separate == planner.Done {
-			add("karaoke", sep.Instrumental.Name)
+	rendered := func(target string) bool {
+		rec := sg.Stages.Render[target]
+		if rec == nil {
+			return false
 		}
-		add("karaoke_original", sg.Source.File.Name)
+		offset := 0.0
+		if rec.Trim != nil {
+			offset = rec.Trim.Start
+		}
+		kind := map[string]string{song.TargetInstrumental: "karaoke", song.TargetOriginal: "karaoke_original"}[target]
+		add(kind, rec.Video.Name, offset)
+		return true
 	}
-	if rec := sg.Stages.Render[song.TargetInstrumental]; rec != nil && !sg.Info.Prebuilt {
-		add("karaoke", rec.Video.Name)
-	}
-	if rec := sg.Stages.Render[song.TargetOriginal]; rec != nil && !sg.Info.Prebuilt {
-		add("karaoke_original", rec.Video.Name)
+	if sg.Info.Prebuilt { // 本來就是卡拉 OK 版：伴唱帶 = 原影片畫面 + 伴奏（不燒字幕）；原影片就是「原曲＋字幕」
+		if !rendered(song.TargetInstrumental) && r.Status.Separate == planner.Done {
+			add("karaoke", sg.Stages.Separate.Instrumental.Name, 0) // 還沒燒錄過的舊歌
+		}
+		add("karaoke_original", sg.Source.File.Name, 0)
+	} else {
+		rendered(song.TargetInstrumental)
+		rendered(song.TargetOriginal)
 	}
 	if sep := sg.Stages.Separate; sep != nil && r.Status.Separate != planner.Pending {
-		add("instrumental", sep.Instrumental.Name)
-		add("vocals", sep.Vocals.Name)
+		add("instrumental", sep.Instrumental.Name, 0)
+		add("vocals", sep.Vocals.Name, 0)
 	}
-	add("source", sg.Source.File.Name)
+	add("source", sg.Source.File.Name, 0)
 	return v, nil
 }
 

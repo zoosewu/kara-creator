@@ -129,10 +129,19 @@ func (t Tools) SpeechWav(ctx context.Context, src, dst string) error {
 	return err
 }
 
+// AudioEdit 是匯出原曲音訊時和伴唱帶一致的處理：增益與保留的範圍。
+type AudioEdit struct {
+	GainDB     float64 // 0 = 不調
+	Start, End float64 // 保留來源的 [Start, End)（秒）；End 0 = 到結尾
+}
+
+// Fade 是剪掉的那一端淡入 / 淡出的秒數（和伴唱帶相同）。
+const Fade = 0.5
+
 // ExportAudio 把來源的第一條音軌存成 m4a（匯出原曲音訊用）：AAC 直接複製（不重新編碼），其他編碼轉成 AAC 320k。
-// gainDB 不是 0 時套用增益（和伴唱帶相同，伴奏的音量才一致），一定要重新編碼；調大時加限幅器避免破音。
-// 先寫到暫存檔再改名，寫到一半中斷不會留下壞掉的檔案。
-func (t Tools) ExportAudio(ctx context.Context, src, dst string, gainDB float64) error {
+// 有增益或剪頭尾時一定要重新編碼：增益和伴唱帶相同（伴奏的音量才一致），調大時加限幅器避免破音；
+// 剪掉的那一端淡入 / 淡出。先寫到暫存檔再改名，寫到一半中斷不會留下壞掉的檔案。
+func (t Tools) ExportAudio(ctx context.Context, src, dst string, e AudioEdit) error {
 	info, err := t.Probe(ctx, src)
 	if err != nil {
 		return err
@@ -140,19 +149,31 @@ func (t Tools) ExportAudio(ctx context.Context, src, dst string, gainDB float64)
 	if info.Audio == "" {
 		return errors.New("來源沒有音軌")
 	}
+	sec := func(v float64) string { return strconv.FormatFloat(v, 'f', 3, 64) }
+	var seek, af []string
+	if e.Start > 0 {
+		seek = append(seek, "-ss", sec(e.Start))
+		af = append(af, "afade=t=in:d="+sec(Fade))
+	}
+	if e.End > 0 {
+		seek = append(seek, "-to", sec(e.End))
+		af = append(af, "afade=t=out:st="+sec(e.End-e.Start-Fade)+":d="+sec(Fade))
+	}
+	if e.GainDB != 0 {
+		af = append(af, "volume="+strconv.FormatFloat(e.GainDB, 'f', 1, 64)+"dB")
+		if e.GainDB > 0 { // level=0：不要自動再調音量；latency=1：補回限幅器的延遲
+			af = append(af, "alimiter=limit=0.8913:level=0:latency=1") // -1 dB
+		}
+	}
 	codec := []string{"-c:a", "aac", "-b:a", "320k"}
 	switch {
-	case gainDB != 0:
-		af := "volume=" + strconv.FormatFloat(gainDB, 'f', 1, 64) + "dB"
-		if gainDB > 0 { // level=0：不要自動再調音量；latency=1：補回限幅器的延遲
-			af += ",alimiter=limit=0.8913:level=0:latency=1" // -1 dB
-		}
-		codec = append([]string{"-af", af}, codec...)
+	case len(af) > 0:
+		codec = append([]string{"-af", strings.Join(af, ",")}, codec...)
 	case info.Audio == "aac":
 		codec = []string{"-c:a", "copy"}
 	}
 	tmp := dst + ".tmp"
-	args := append([]string{"-y", "-v", "error", "-i", src, "-vn", "-map", "0:a:0"}, codec...)
+	args := append(append(append([]string{"-y", "-v", "error"}, seek...), "-i", src, "-vn", "-map", "0:a:0"), codec...)
 	if _, err := t.run(ctx, t.FFmpeg, append(args, "-movflags", "+faststart", "-f", "ipod", tmp)...); err != nil {
 		_ = os.Remove(tmp)
 		return err

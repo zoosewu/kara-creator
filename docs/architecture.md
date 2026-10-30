@@ -94,7 +94,7 @@ docs/                     本設計文件；openapi.json 由 Go 產生（CI 檢�
 5. [NAS] planner：要對時（有歌詞）→ NAS 把人聲轉成 16kHz 單聲道 wav（speech.wav，算 sha256）→ 任務 align
 6. [AI] align → 回傳 lines → [NAS] 寫 alignment.json
 7. [NAS] planner：要產生成品 → 任務 render（輸入：伴奏影片、對時、歌詞句子與讀音、演唱者、翻譯、標題畫面、樣式、字型）
-8. [AI] 缺字型就向 NAS 索取 → 量字寬、加假名、產生 ASS → 原畫面置中補黑邊成 16:9（不放大，超過 4K 才縮小）、伴奏音量調到 -16 LUFS、用 NVENC 燒錄（不行就 x264）→ 上傳 karaoke.ass、karaoke.mp4
+8. [AI] 缺字型就向 NAS 索取 → 量字寬、加假名、產生 ASS → 剪頭尾（有設定時，淡入淡出）、原畫面置中補黑邊成 16:9（不放大，超過 4K 才縮小）、伴奏音量調到 -16 LUFS、用 NVENC 燒錄（不行就 x264）→ 上傳 karaoke.ass、karaoke.mp4
 9. [NAS] 寫成品紀錄 → 任務 qa（輸入 speech.wav、對時、歌詞）→ [AI] 回傳檢查結果 → [NAS] 寫 qa.json
 10. [NAS] 工作 J 完成；佇列清空時做資料備份。使用者確認沒問題、按「匯出」後才放到 export/（data.md「確認與匯出」）
 ```

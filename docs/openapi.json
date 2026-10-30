@@ -658,6 +658,9 @@
           },
           "translation": {
             "type": "boolean"
+          },
+          "trim": {
+            "$ref": "#/components/schemas/Trim"
           }
         },
         "required": [
@@ -697,7 +700,7 @@
             "type": "string"
           },
           "prebuilt": {
-            "description": "本來就是卡拉 OK 版：不用歌詞、不製作，原影片就是伴唱帶",
+            "description": "本來就是卡拉 OK 版：不用歌詞、不對時，伴唱帶 = 原影片畫面 + 去人聲後的伴奏",
             "type": "boolean"
           },
           "targets": {
@@ -711,6 +714,10 @@
           },
           "translation": {
             "type": "boolean"
+          },
+          "trim": {
+            "$ref": "#/components/schemas/Trim",
+            "description": "伴唱帶只保留來源的這一段（秒，以沒剪的影片計）；{start: 0, end: 0} = 不剪"
           }
         },
         "type": "object"
@@ -1085,6 +1092,10 @@
           "label": {
             "type": "string"
           },
+          "offset": {
+            "format": "double",
+            "type": "number"
+          },
           "url": {
             "type": "string"
           }
@@ -1093,7 +1104,8 @@
           "kind",
           "label",
           "hint",
-          "url"
+          "url",
+          "offset"
         ],
         "type": "object"
       },
@@ -2043,6 +2055,26 @@
         "required": [
           "lines",
           "adjustments"
+        ],
+        "type": "object"
+      },
+      "Trim": {
+        "additionalProperties": false,
+        "properties": {
+          "end": {
+            "description": "到幾秒結束（0 = 不剪結尾）",
+            "format": "double",
+            "type": "number"
+          },
+          "start": {
+            "description": "從幾秒開始（0 = 不剪開頭）",
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "start",
+          "end"
         ],
         "type": "object"
       },

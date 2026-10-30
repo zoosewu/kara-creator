@@ -353,9 +353,13 @@ func compute(task wp.Task, inputs map[string][]byte) (any, map[string][]byte, er
 		}
 		return r, nil, nil
 	case wp.KindRender:
+		var p wp.RenderParams
+		if err := json.Unmarshal(task.Params, &p); err != nil {
+			return nil, nil, err
+		}
 		ass, manual := inputs[wp.InputASS]
 		files := map[string][]byte{wp.FileVideo: inputs[wp.InputMedia]}
-		if !manual {
+		if !manual && !p.NoSubtitles {
 			ass = []byte("[Script Info]\nScriptType: v4.00+\n; 假的 worker 產生\n")
 			files[wp.FileASS] = ass
 		}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -99,5 +100,27 @@ func TestErrors(t *testing.T) {
 	_, err := tl.run(ctx, tl.FFmpeg, "-v", "error", "-re", "-f", "lavfi", "-i", "sine=duration=30", "-f", "null", "-")
 	if !errors.Is(err, ErrCancelled) {
 		t.Fatalf("取消時應該回傳 ErrCancelled：%v", err)
+	}
+}
+
+func TestExportAudioEdit(t *testing.T) {
+	// 匯出原曲音訊和伴唱帶一致：剪成同一段（2 秒的影片只留 0.5–1.5 秒），有處理時重新編碼成 AAC
+	tl := tools(t)
+	dir := t.TempDir()
+	src := testVideo(t, tl, dir)
+	ctx := context.Background()
+	for name, e := range map[string]AudioEdit{"copy.m4a": {}, "edit.m4a": {GainDB: 3, Start: 0.5, End: 1.5}} {
+		dst := filepath.Join(dir, name)
+		if err := tl.ExportAudio(ctx, src, dst, e); err != nil {
+			t.Fatal(err)
+		}
+		info, err := tl.Probe(ctx, dst)
+		want := 2.0
+		if e.End > 0 {
+			want = e.End - e.Start
+		}
+		if err != nil || info.Audio != "aac" || info.HasVideo || math.Abs(info.Duration-want) > 0.1 {
+			t.Fatalf("%s：%+v %v（要 %g 秒）", name, info, err, want)
+		}
 	}
 }

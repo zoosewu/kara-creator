@@ -108,10 +108,11 @@ TRANSLATION_LAYOUT = "top-center"
 
 def build(lines: list[dict], width: int, height: int, style: Style, *, font_file: Path, font_index: int = 0,
           title: str | None = None, artist: str | None = None, note: str | None = None,
-          translations: list[str] | None = None) -> str:
+          translations: list[str] | None = None, origin: float = 0.0) -> str:
     """lines: [{"text", "start", "end", "words": [{"text", "start", "end"}],
                 "singer"?, "rubies"?: [(start, end, reading)]}]
-    font_file / font_index：量字寬用的字型檔（和燒錄用的是同一個）。"""
+    font_file / font_index：量字寬用的字型檔（和燒錄用的是同一個）。
+    origin：伴唱帶從來源的第幾秒開始（剪掉開頭時）；時間仍照來源算，標題畫面從這裡起算前奏。"""
     measure = _Measure(font_file, font_index)
     fs = round(height * style.size_ratio)
     margin_x = round(width * 0.06)
@@ -167,7 +168,7 @@ def build(lines: list[dict], width: int, height: int, style: Style, *, font_file
         for text in _rubies(line, left, y, size, style, measure, tint, appear[i]):
             events.append((appear[i], end, "Ruby", text))
 
-    card = _title_window(lines, appear, style) if title and lines else None
+    card = _title_window(lines, appear, style, origin) if title and lines else None
     if card:
         # 標題畫面不自動換行（WrapStyle 2）：每一欄自己換行，最多兩行，還放不下才縮小字級
         max_w = width * 0.9
@@ -297,21 +298,22 @@ TITLE_SEARCH = 40.0  # 前奏太短時，往後找這麼多秒內的第一段間
 TITLE_FORCED_Y = 0.33  # 強制放在開頭（和歌詞同時出現）時，標題中心的高度 / 畫面高：放在上方翻譯和上行歌詞（最大字幕、含假名）之間
 
 
-def _title_window(lines: list[dict], appear: list[float], style: Style) -> tuple[float, float, bool]:
+def _title_window(lines: list[dict], appear: list[float], style: Style, origin: float = 0.0) -> tuple[float, float, bool]:
     """標題畫面的時間：放在第一段夠長的空檔（超過 break_gap 秒，和字幕判斷間奏同一個標準）：
     前奏（歌曲開頭到第一句）夠長就放前奏；開頭直接唱副歌的話，放在開頭 TITLE_SEARCH 秒內的第一段間奏，
-    前一句的字幕收掉之後出現、下一段字幕出現之前消失。都沒有就強制放在開頭，和歌詞同時出現（第三個值為 True）。"""
+    前一句的字幕收掉之後出現、下一段字幕出現之前消失。都沒有就強制放在開頭，和歌詞同時出現（第三個值為 True）。
+    origin 是伴唱帶的開頭（剪掉開頭時是來源的第幾秒）。"""
     for i in range(len(lines)):
-        if i and lines[i]["start"] > TITLE_SEARCH:
+        if i and lines[i]["start"] > origin + TITLE_SEARCH:
             break
-        prev_end = lines[i - 1]["end"] if i else 0.0
+        prev_end = lines[i - 1]["end"] if i else origin
         if lines[i]["start"] - prev_end <= style.break_gap:
             continue
-        start = prev_end + style.tail + 0.3 if i else 0.5
+        start = prev_end + style.tail + 0.3 if i else origin + 0.5
         end = min(appear[i] - 0.3, start + TITLE_MAX)
         if end - start >= TITLE_MIN:
             return start, end, False
-    return 0.5, 0.5 + TITLE_MAX, True
+    return origin + 0.5, origin + 0.5 + TITLE_MAX, True
 
 
 def _schedule(lines: list[dict], style: Style) -> tuple[list[float], list[int]]:

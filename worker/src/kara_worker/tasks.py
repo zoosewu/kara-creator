@@ -161,15 +161,61 @@ PEAK_LIMIT_DB = -1.0
 MAX_GAIN_DB = 20.0   # 幾乎無聲的音軌不要無限放大
 
 
+# 剪頭尾：時間一律照來源（沒剪的影片）算，燒錄時才剪；剪掉的那一端淡入 / 淡出。
+FADE = 0.5
+
+
+@dataclass
+class Trim:
+    start: float = 0.0   # 從來源的第幾秒開始（0 = 不剪開頭）
+    end: float = 0.0     # 到第幾秒結束（0 = 不剪結尾）
+
+    @classmethod
+    def from_params(cls, params: dict) -> Trim:
+        return cls(float(params.get("trim_start") or 0), float(params.get("trim_end") or 0))
+
+    def __bool__(self) -> bool:
+        return bool(self.start or self.end)
+
+    def keeps(self, line: dict) -> bool:
+        """這句有沒有任何一部分在保留的範圍裡（完全被剪掉的句子不放進字幕）。"""
+        return line["end"] > self.start and (not self.end or line["start"] < self.end)
+
+    def seek(self) -> list[str]:
+        """ffmpeg 的輸入選項：只讀保留的那段。"""
+        return [*(["-ss", f"{self.start:.3f}"] if self.start else []), *(["-to", f"{self.end:.3f}"] if self.end else [])]
+
+    def video(self) -> tuple[list[str], list[str]]:
+        """畫面濾鏡：(剪，放在字幕之前，時間還是來源的), (時間歸零 + 淡入淡出，放在字幕之後)。"""
+        if not self:
+            return [], []
+        cut = f"trim=start={self.start:.3f}" + (f":end={self.end:.3f}" if self.end else "")
+        return [cut], ["setpts=PTS-STARTPTS", *self._fades("fade")]
+
+    def audio(self) -> list[str]:
+        """聲音濾鏡：剪、時間歸零、淡入淡出。"""
+        if not self:
+            return []
+        cut = f"atrim=start={self.start:.3f}" + (f":end={self.end:.3f}" if self.end else "")
+        return [cut, "asetpts=PTS-STARTPTS", *self._fades("afade")]
+
+    def _fades(self, name: str) -> list[str]:
+        out = [f"{name}=t=in:st=0:d={FADE}"] if self.start else []
+        if self.end:
+            out.append(f"{name}=t=out:st={self.end - self.start - FADE:.3f}:d={FADE}")
+        return out
+
+
 @dataclass
 class Loudness:
     lufs: float | None   # 整合響度；無聲時為 None
     peak_db: float       # 最高的 true peak（dBTP）
 
 
-def measure_loudness(path: Path, should_stop: Callable[[], bool] | None = None) -> Loudness:
-    """量第一條音軌的響度（ffmpeg loudnorm 的分析結果）。"""
-    code, err = run_cancellable([FFMPEG, "-hide_banner", "-nostats", "-i", str(path), "-map", "0:a:0",
+def measure_loudness(path: Path, should_stop: Callable[[], bool] | None = None, trim: Trim | None = None) -> Loudness:
+    """量第一條音軌的響度（ffmpeg loudnorm 的分析結果）；有剪頭尾時只量保留的那段。"""
+    seek = trim.seek() if trim else []
+    code, err = run_cancellable([FFMPEG, "-hide_banner", "-nostats", *seek, "-i", str(path), "-map", "0:a:0",
                                  "-af", f"loudnorm=I={TARGET_LUFS}:TP={PEAK_LIMIT_DB}:print_format=json", "-f", "null", "-"],
                                 should_stop)
     start = err.rfind("{")
@@ -210,7 +256,7 @@ def _attach_furigana(lines: list[dict], lyr: Lyrics) -> None:
 
 
 def build_ass(params: dict, size: tuple[int, int], font_file: Path) -> str:
-    """產生 ASS 字幕。"""
+    """產生 ASS 字幕。時間照來源算；剪頭尾時完全被剪掉的句子不放，標題畫面從保留的開頭起算前奏。"""
     font = params["font"]
     style = subtitles.Style(font=font["family"], size_ratio=subtitle_ratio(float(params.get("scale", 1))))
     lines = [dict(line) for line in params["lines"]]
@@ -218,38 +264,48 @@ def build_ass(params: dict, size: tuple[int, int], font_file: Path) -> str:
         line["singer"] = singer
     if params.get("language") == "ja":
         _attach_furigana(lines, Lyrics.from_params(params))
+    translations = params.get("translations") or []
+    trim = Trim.from_params(params)
+    if trim:
+        kept = [i for i, line in enumerate(lines) if trim.keeps(line)]
+        lines = [lines[i] for i in kept]
+        translations = [translations[i] for i in kept if i < len(translations)] if translations else []
     card = params.get("title_card") or [None, None]
     return subtitles.build(lines, *size, style, font_file=font_file, font_index=int(font.get("index", 0)),
                            title=card[0], artist=card[1] or None, note=card[2] if len(card) > 2 else None,
-                           translations=params.get("translations") or [])
+                           translations=translations, origin=trim.start)
 
 
 def _render(params: dict, ctx: Context) -> dict:
     media = ctx.inputs["media"]
     video = _probe_video(media)
     width, height = canvas(video)
-    font_file = ctx.font(params["font"])
-    ass_path = ctx.out_dir / "karaoke.ass"
-    if "ass" in ctx.inputs:
-        ctx.log("  . 使用手動修改過的字幕")
-        shutil.copyfile(ctx.inputs["ass"], ass_path)
-    else:
-        ctx.log("  . 產生字幕")
-        # utf-8-sig：Aegisub 等軟體要 BOM 才認得是 UTF-8
-        ass_path.write_text(build_ass(params, (width, height), font_file), encoding="utf-8-sig")
-        ctx.files.append("karaoke.ass")
+    trim = Trim.from_params(params)
+    font_file = ass_path = None
+    if not params.get("no_subtitles"):   # 本來就是卡拉 OK 版：字幕在影片裡，不燒字幕
+        font_file = ctx.font(params["font"])
+        ass_path = ctx.out_dir / "karaoke.ass"
+        if "ass" in ctx.inputs:
+            ctx.log("  . 使用手動修改過的字幕")
+            shutil.copyfile(ctx.inputs["ass"], ass_path)
+        else:
+            ctx.log("  . 產生字幕")
+            # utf-8-sig：Aegisub 等軟體要 BOM 才認得是 UTF-8
+            ass_path.write_text(build_ass(params, (width, height), font_file), encoding="utf-8-sig")
+            ctx.files.append("karaoke.ass")
     if ctx.should_stop():
         raise Cancelled()
-    ctx.log("  . 量伴奏的音量")
+    ctx.log("  . 量伴奏的音量" + ("（只量保留的那段）" if trim else ""))
     # 伴唱帶的 media 就是伴奏；原曲版另外給伴奏（instrumental）當基準
     ref = ctx.inputs.get("instrumental", media)
-    loud = measure_loudness(ref, ctx.should_stop)
+    loud = measure_loudness(ref, ctx.should_stop, trim)
     gain = gain_for(loud)
     ctx.log(f"  . 響度 {'無聲' if loud.lufs is None else f'{loud.lufs:.1f} LUFS'}，調整 {gain:+.1f} dB → {TARGET_LUFS:g} LUFS")
-    _burn(media, ass_path, ctx.out_dir / "video.mp4", (width, height), video, font_file, params, ctx,
-          audio_filter(gain, loud.peak_db if ref == media else None))   # 原曲有人聲，最高點和伴奏不同
+    af = ",".join([*trim.audio(), audio_filter(gain, loud.peak_db if ref == media else None)])   # 原曲有人聲，最高點和伴奏不同
+    _burn(media, ass_path, ctx.out_dir / "video.mp4", (width, height), video, font_file, params, ctx, af, trim)
     ctx.files.append("video.mp4")
-    return {"width": width, "height": height, "ass_sha256": hashlib.sha256(ass_path.read_bytes()).hexdigest(),
+    return {"width": width, "height": height,
+            "ass_sha256": hashlib.sha256(ass_path.read_bytes()).hexdigest() if ass_path else "",
             "gain_db": gain, "loudness": loud.lufs}
 
 
@@ -275,27 +331,37 @@ def encoder_args(name: str, cap: int) -> list[str] | None:
     }.get(name)
 
 
-def _burn(src: Path, ass_path: Path, dest: Path, size: tuple[int, int], video: Video | None, font_file: Path,
-          params: dict, ctx: Context, af: str) -> None:
-    """燒錄字幕。字型只用 NAS 給的那個檔（fontsdir 只放它），多台 worker 燒出來才一致。"""
+def video_filter(video: Video | None, size: tuple[int, int], subtitles: bool, trim: Trim) -> str:
+    """畫面濾鏡：剪（時間還是來源的，字幕才對得上）→ 補成 16:9 → 字幕 → 時間歸零、淡入淡出。"""
+    w, h = size
+    cut, after = trim.video()
+    chain = list(cut)
+    if video and (video.width, video.height) != size:   # 原畫面置中、不放大，四周補黑邊成 16:9
+        chain += [f"scale={w}:{h}:force_original_aspect_ratio=decrease:force_divisible_by=2",
+                  f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:black", "setsar=1"]
+    if subtitles:
+        chain.append("subtitles=sub.ass:fontsdir=fonts")
+    return ",".join(chain + after) or "null"
+
+
+def _burn(src: Path, ass_path: Path | None, dest: Path, size: tuple[int, int], video: Video | None,
+          font_file: Path | None, params: dict, ctx: Context, af: str, trim: Trim) -> None:
+    """燒錄（沒有 ass_path 時不燒字幕）。字型只用 NAS 給的那個檔（fontsdir 只放它），多台 worker 燒出來才一致。"""
     work = ctx.out_dir / "burn"
     fonts = work / "fonts"
     fonts.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(font_file, fonts / font_file.name)
-    # subtitles 濾鏡對路徑中的冒號、括號等字元很敏感：用工作資料夾裡的 ASCII 相對路徑
-    shutil.copyfile(ass_path, work / "sub.ass")
+    if ass_path and font_file:
+        shutil.copyfile(font_file, fonts / font_file.name)
+        # subtitles 濾鏡對路徑中的冒號、括號等字元很敏感：用工作資料夾裡的 ASCII 相對路徑
+        shutil.copyfile(ass_path, work / "sub.ass")
     w, h = size
-    fit = ""
     if video:
         inputs, maps = ["-i", str(src)], ["-map", "0:v:0", "-map", "0:a:0"]
-        if (video.width, video.height) != size:   # 原畫面置中、不放大，四周補黑邊成 16:9
-            fit = (f"scale={w}:{h}:force_original_aspect_ratio=decrease:force_divisible_by=2,"
-                   f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,")
     else:
-        # 純音訊來源：用黑底當畫面
+        # 純音訊來源：用黑底當畫面（從 0 秒開始，和聲音的時間一致）
         inputs = ["-f", "lavfi", "-i", f"color=c=black:s={w}x{h}:r=30", "-i", str(src)]
         maps = ["-map", "0:v:0", "-map", "1:a:0", "-shortest"]
-    base = [FFMPEG, "-y", "-v", "error", *inputs, *maps, "-vf", f"{fit}subtitles=sub.ass:fontsdir=fonts"]
+    base = [FFMPEG, "-y", "-v", "error", *inputs, *maps, "-vf", video_filter(video, size, ass_path is not None, trim)]
     tail = ["-pix_fmt", "yuv420p", "-af", af, "-c:a", "aac", "-b:a", AUDIO_BITRATE, "-movflags", "+faststart", "out.mp4"]
     cap = bitrate_cap(video)
     err = ""
@@ -303,7 +369,7 @@ def _burn(src: Path, ass_path: Path, dest: Path, size: tuple[int, int], video: V
         args = encoder_args(name, cap)
         if args is None:
             continue
-        ctx.log(f"  . 燒錄字幕（{name}，最高 {cap / 1e6:.1f} Mbps）...")
+        ctx.log(f"  . 燒錄{'字幕' if ass_path else ''}（{name}，最高 {cap / 1e6:.1f} Mbps）...")
         code, err = run_cancellable([*base, *args, *tail], ctx.should_stop, cwd=work)
         if code == 0:
             (work / "out.mp4").replace(dest)
