@@ -49,8 +49,9 @@ export const STEP_NAMES: Record<string, string> = {
 }
 export const SINGER_ORDER: (string | null)[] = [null, '男', '女', '合']
 
+/** 下一個演唱者（男 → 女 → 合唱 → 不指定 → 男…）；空字串和 null 都是「不指定」。 */
 export function nextSinger(cur?: string | null): string | null {
-  return SINGER_ORDER[(SINGER_ORDER.indexOf(cur ?? null) + 1) % SINGER_ORDER.length]
+  return SINGER_ORDER[(SINGER_ORDER.indexOf(cur || null) + 1) % SINGER_ORDER.length]
 }
 
 /** 本機儲存（無痕模式等存不了就算了）。 */
