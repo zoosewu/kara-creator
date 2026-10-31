@@ -76,7 +76,7 @@
   }
 
   function moreMenu(anchor: HTMLElement) {
-    menu.show(anchor, `選取的 ${picked} 首`, [
+    menu.show(anchor, '', [
       { label: '標記已確認', desc: '只對做好的伴唱帶有效', icon: 'check', action: () => batchApproval(true) },
       { label: '取消確認', action: () => batchApproval(false) },
       { label: '重新去人聲', desc: '之後需重新對時', action: () => runBatch('redoSeparate') },
@@ -141,10 +141,20 @@
     </button>
     <div class="lib-tools">
       {#if store.folders.length}
-        <button type="button" class="view-link" onclick={() => (store.collapsed.clear(), store.remember())}>全部展開</button>
-        <button type="button" class="view-link" onclick={() => (store.folders.forEach((f) => store.collapsed.add(f.id)), store.remember())}>全部收合</button>
+        {@const anyOpen = store.folders.some((f) => !store.collapsed.has(f.id))}
+        <button
+          type="button"
+          class="view-link fold-all"
+          class:folded={!anyOpen}
+          title={anyOpen ? '全部收合' : '全部展開'}
+          aria-label={anyOpen ? '全部收合' : '全部展開'}
+          onclick={() => (anyOpen ? store.folders.forEach((f) => store.collapsed.add(f.id)) : store.collapsed.clear(), store.remember())}
+          ><Icon name="caret" /><span class="btn-text">{anyOpen ? '全部收合' : '全部展開'}</span></button
+        >
       {/if}
-      <button type="button" class="btn small" title="在最上層新增資料夾" onclick={() => (ui.folder = { id: null, parent: '' })}><Icon name="plus" />新資料夾</button>
+      <button type="button" class="btn small" title="在最上層新增資料夾" aria-label="新資料夾" onclick={() => (ui.folder = { id: null, parent: '' })}
+        ><Icon name="plus" /><span class="btn-text">新資料夾</span></button
+      >
       <button
         type="button"
         class="btn small"

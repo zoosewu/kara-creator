@@ -28,7 +28,7 @@
 
 {#if menu.open}
   <div class="menu" role="menu" bind:this={el} style="left:{left}px;top:{top}px">
-    <div class="menu-title">{menu.title}</div>
+    {#if menu.title}<div class="menu-title">{menu.title}</div>{/if}
     {#each menu.entries as e}
       <button
         type="button"
@@ -36,6 +36,7 @@
         class="menu-item"
         class:danger={e.danger}
         disabled={e.disabled}
+        title={e.desc}
         style={e.indent ? `padding-left:${10 + e.indent * 18}px` : undefined}
         onclick={() => {
           menu.close()
@@ -44,7 +45,6 @@
       >
         <Icon name={e.icon ?? 'play'} />
         <span class="label">{e.label}</span>
-        <span class="desc">{e.desc ?? ''}</span>
       </button>
     {/each}
   </div>

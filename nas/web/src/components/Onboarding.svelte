@@ -23,11 +23,6 @@
       <h2 id="onboarding-heading">{first ? '開始使用前，先設定這台瀏覽器' : '有新的設定項目'}</h2>
     </header>
     <div class="dialog-body">
-      <p class="hint">
-        {first
-          ? '這些設定只存在這台瀏覽器（換電腦或手機要再設一次），之後可以在右上角「設定」修改。'
-          : '標「新」的是新加的項目，確認一下就好；之後可以在右上角「設定」修改。'}
-      </p>
       <BrowserPrefs bind:draft {fresh} collapse />
     </div>
     <footer class="dialog-foot">

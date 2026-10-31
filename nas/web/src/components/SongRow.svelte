@@ -138,9 +138,10 @@
   let meta = $derived(
     [
       song.info.note, // 副標題：備註在最前面
-      song.title !== song.source.title ? song.source.title : '',
+      // 原始標題只在看得出不同時才顯示（只是「演唱者 - 歌名」就不重複）
+      [song.title, song.artist].every((s) => !s || song.source.title.includes(s)) ? '' : song.source.title,
       fmtDuration(song.source.duration),
-      song.source.mode === 'audio' ? '音訊' : '影片',
+      song.source.mode === 'audio' ? '音訊' : '',
       LANGUAGE_NAMES[song.language] ?? '',
     ].filter(Boolean),
   )
@@ -181,9 +182,8 @@
 
   function redoMenu(anchor: HTMLElement) {
     const hasTiming = ['done', 'needs_render', 'needs_align'].includes(karaoke)
-    const phone = matchMedia('(max-width: 640px)').matches
-    menu.show(anchor, busy ? '處理中，請等目前的工作結束' : '更多', [
-      ...(phone ? [{ label: '複製檔案位置', desc: song.path, action: reveal }] : []),
+    menu.show(anchor, busy ? '處理中，請等目前的工作結束' : '', [
+      { label: '複製檔案位置', desc: song.path, icon: 'folder', action: reveal },
       { label: '重新去人聲', desc: '之後需重新對時', disabled: busy, action: () => run(['separate'], { force: true }) },
       { label: '重新對時', desc: '重新抓每個字的時間；已確認會失效', disabled: busy || !hasLyrics || prebuilt, action: () => run(['karaoke'], { realign: true }) },
       { label: '檢查對時', desc: '標出可能不準的句子', disabled: busy || !hasTiming || prebuilt, action: () => run(['check'], { force: true }) },
@@ -208,7 +208,7 @@
   function previewMenu(anchor: HTMLElement) {
     menu.show(
       anchor,
-      '播放其他版本',
+      '',
       MODES.flatMap(([m, , hint]) =>
         TRACKS.filter(([t]) => plan(song.media, m, t)).map(([t]) => ({ label: label(m, t), desc: hint, action: () => ui.openStudio(song.id, { mode: m, track: t }) })),
       ),
@@ -295,8 +295,6 @@
               <button type="button" class="btn small primary status-play" onclick={() => ((tip = null), ui.openStudio(song.id, jump))}
                 ><Icon name="play" />播放{qa ? `（從第一句${qa.wrong ? '可能不準' : '待確認'}的開始）` : ''}</button
               >
-            {:else if song.media.length}
-              <div class="status-foot">點一下播放{qa ? `，從第一句${qa.wrong ? '可能不準' : '待確認'}的開始` : approval.status === 'stale' && approval.changed?.length ? '，從改過的句子開始' : ''}</div>
             {/if}
           </div>
         {/if}
@@ -321,13 +319,10 @@
           ><Icon name="lyrics" />{hasLyrics || prebuilt ? '歌詞' : '輸入歌詞'}</button
         >
         <button type="button" class="view-link" onclick={() => (ui.song = song.id)}><Icon name="tag" />資訊</button>
-        <button type="button" class="view-link hide-phone" title="複製這首歌在 NAS 上的資料夾路徑：{song.path}" onclick={reveal}
-          ><Icon name="folder" />檔案位置</button
-        >
         <button
           type="button"
           class="view-link"
-          title="更多（重新處理…）"
+          title="更多"
           aria-haspopup="menu"
           aria-label="更多"
           onclick={(e) => redoMenu(e.currentTarget)}><Icon name="more" /></button
@@ -355,6 +350,5 @@
         onclick={(e) => previewMenu(e.currentTarget)}><Icon name="caret" /></button
       >
     </div>
-    <span class="preview-label">{playDefault || '尚無影片'}</span>
   </div>
 </article>

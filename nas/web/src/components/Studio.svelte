@@ -546,9 +546,9 @@
 
   function retimeMenu(anchor: HTMLElement, i: number) {
     const count = timing.length - i
-    menu.show(anchor, `AI 從第 ${i + 1} 句目前的開頭重新抓每個字的時間（先播到開唱的地方按「這裡開唱」會更準）`, [
-      { label: '這句重新對時', desc: '其他句子不動・幾秒完成', action: () => retime(i, 'line') },
-      { label: `從這句到最後重新對時（${count} 句）`, desc: '這句之前的不動・約 10–30 秒', action: () => retime(i, 'from') },
+    menu.show(anchor, '', [
+      { label: '這句重新對時', desc: 'AI 從這句目前的開頭重新抓每個字的時間；其他句子不動，幾秒完成', action: () => retime(i, 'line') },
+      { label: `從這句到最後重新對時（${count} 句）`, desc: '這句之前的不動，約 10–30 秒', action: () => retime(i, 'from') },
     ])
   }
 
@@ -755,8 +755,8 @@
 
 {#snippet trimTools()}
   <div class="trim-tools">
-    <span class="trim-range" title="伴唱帶只保留這一段；時間仍照沒剪的影片算"
-      ><Icon name="cut" />保留 {fmtClock(trimStart)} – {trimEnd ? fmtClock(trimEnd) : '結尾'}</span
+    <span class="trim-range" title="伴唱帶保留的範圍（時間照沒剪的影片算）"
+      ><Icon name="cut" />{fmtClock(trimStart)} – {trimEnd ? fmtClock(trimEnd) : '結尾'}</span
     >
     <button type="button" class="btn small" title="伴唱帶從目前播放的位置開始（剪掉前面的非音樂片段）" onclick={() => setTrim(now, trimEnd)}
       >從這裡開始</button
@@ -860,9 +860,6 @@
             </div>
           {/if}
         </div>
-        {#if burned && timing.length}
-          <div class="studio-note desk-only">字幕已燒在影片裡，調整後按「更新伴唱帶」才會反映。</div>
-        {/if}
         <div class="studio-controls">
           <button type="button" class="btn small" title="播放 / 暫停（空白鍵）" onclick={() => (video!.paused ? video!.play() : video!.pause())}
             ><Icon name={paused ? 'play' : 'pause'} /><span class="desk-only">{paused ? '播放' : '暫停'}</span></button
@@ -887,13 +884,15 @@
           <button type="button" class="icon-btn phone-only" title="更多" aria-label="更多選項" onclick={() => (sheetOpen = true)}><Icon name="more" size={20} /></button>
           <button type="button" class="icon-btn phone-only" title="關閉" aria-label="關閉" onclick={close}><Icon name="close" size={20} /></button>
         </div>
-        <div class="desk-only">{@render trimTools()}</div>
-        <div class="studio-keys">
-          <span><kbd>空白</kbd> 播放 / 暫停</span>
-          <span><kbd>←</kbd><kbd>→</kbd> 倒退 / 快轉 2 秒</span>
-          <span><kbd>↑</kbd><kbd>↓</kbd> 上一句 / 下一句</span>
-          <span><kbd>Enter</kbd> 選取的句子這裡開唱</span>
-          <span><kbd>[</kbd><kbd>]</kbd> 選取的句子 −/+ 0.1 秒（Shift：0.5 秒）</span>
+        <div class="desk-only studio-tools">
+          {@render trimTools()}
+          <span
+            class="keys-hint"
+            role="img"
+            aria-label="快速鍵"
+            title={'快速鍵\n空白　播放 / 暫停\n← →　倒退 / 快轉 2 秒\n↑ ↓　上一句 / 下一句\nEnter　選取的句子這裡開唱\n[ ]　選取的句子 −/+ 0.1 秒（Shift：0.5 秒）'}
+            ><Icon name="keys" size={18} /></span
+          >
         </div>
       </div>
       <div class="studio-side">
@@ -1052,7 +1051,6 @@
           <div class="phone-sheet-row">{@render actions()}</div>
           <div class="phone-sheet-row">{@render playback()}</div>
           <div class="phone-sheet-row">{@render trimTools()}</div>
-          {#if burned && timing.length}<div class="studio-note">字幕已燒在影片裡，調整後按「更新伴唱帶」才會反映。</div>{/if}
           {@render notices()}
           <button
             type="button"

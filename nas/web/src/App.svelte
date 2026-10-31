@@ -40,7 +40,7 @@
 </script>
 
 <header class="topbar">
-  <div class="brand">kara <span class="muted">伴唱帶工作室</span></div>
+  <div class="brand">kara</div>
   <span class="grow"></span>
   <button type="button" class="view-link" title="設定" onclick={() => (ui.settings = true)}><Icon name="gear" />設定</button>
   <button class="icon-btn" title="切換亮色 / 暗色" aria-label="切換亮色 / 暗色" onclick={toggleTheme}>

@@ -40,7 +40,7 @@
 
 {#snippet badge(k: SettingKey)}{#if isNew(k)}<span class="new-badge">新</span>{/if}{/snippet}
 
-<div class="field">
+<div class="field" title="用網址新增的歌存在這裡（放進 inbox 的歌在曲庫最上層）">
   <span>新歌預設資料夾{@render badge('newSongFolder')}</span>
   {#if creating}
     <span class="link-row">
@@ -65,10 +65,9 @@
     </span>
   {/if}
 </div>
-<p class="hint">用網址新增的歌存在這裡（放進 inbox 的歌在曲庫最上層）。</p>
 
 {#snippet others()}
-  <div class="field-row">
+  <div class="field-row" title="播放畫面打開時用這些；在播放畫面裡切換只影響那一次">
     <label class="field"
       ><span>播放畫面預設字幕{@render badge('studioMode')}</span>
       <select bind:value={draft.studioMode}>
@@ -91,7 +90,6 @@
   <label class="check-field"
     ><input type="checkbox" bind:checked={draft.studioFollow} /> 歌詞跟著播放捲動{@render badge('studioFollow')}</label
   >
-  <p class="hint">播放畫面打開時用這些；在播放畫面裡切換只影響那一次。沒有那個版本時（例如還沒做好伴唱帶）用最接近的。</p>
 {/snippet}
 
 {#if collapse}

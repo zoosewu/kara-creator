@@ -16,13 +16,11 @@
   const overStudio = ui.studio?.id === id
 
   type Mode = 'visual' | 'annotated' | 'plain'
-  const HINTS: Record<Mode, string> = {
-    visual:
-      '點標籤切換演唱者（Shift：整段）；點假名改讀音（灰色自動、藍色手動）；點右側時間移動這句。',
-    annotated:
-      '<code>[男]</code> <code>[女]</code> <code>[合]</code> 演唱者、<code>&gt; 翻譯</code>、<code>{よみ}</code> 讀音（改了就變手動）、<code>#</code> 註解。',
-    plain:
-      '一行一句，可直接貼上。沒改的句子保留演唱者與讀音；<code>&gt;</code> 開頭是翻譯，<code>#</code> 開頭是註解。',
+  // 文字模式的標註語法（逐句編輯不需要：每個元素滑上去有說明）
+  const SYNTAX: Record<Mode, string> = {
+    visual: '',
+    annotated: '<code>[男]</code> <code>[女]</code> <code>[合]</code> 演唱者 · <code>&gt;</code> 翻譯 · <code>{よみ}</code> 讀音 · <code>#</code> 註解',
+    plain: '<code>&gt;</code> 翻譯 · <code>#</code> 註解',
   }
 
   let loaded = $state(false)
@@ -279,8 +277,8 @@
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="editor-heading">
     <header class="sheet-head">
       <div class="grow">
-        <h2 id="editor-heading">編輯歌詞</h2>
-        <div class="muted ellipsis">{song.artist ? `${song.artist} - ${song.title}` : song.title}</div>
+        <h2 id="editor-heading" class="song-title ellipsis">{song.title}{#if song.artist}<span class="artist">{song.artist}</span>{/if}</h2>
+        {#if song.info.note}<div class="muted ellipsis">{song.info.note}</div>{/if}
       </div>
       {#if song.media.length && !overStudio}
         <button
@@ -321,20 +319,12 @@
         </div>
       {/if}
       {#if mode === 'visual'}
-        <div class="legend">
-          <span><span class="singer-dot" data-singer="男"></span>男</span>
-          <span><span class="singer-dot" data-singer="女"></span>女</span>
-          <span><span class="singer-dot" data-singer="合"></span>合唱</span>
-          <span class="sep"></span>
-          <span><ruby class="auto">字<rt>じ</rt></ruby> 自動讀音</span>
-          <span><ruby class="manual">字<rt>じ</rt></ruby> 手動指定</span>
-          {#if pending.length}<span class="pending-readings">· {pending.length} 句的假名稍後補上</span>{/if}
-        </div>
+        {#if pending.length}<div class="legend"><span class="pending-readings">{pending.length} 句的假名稍後補上</span></div>{/if}
         {#if qaChecks.length}
           {@const wrong = qaChecks.filter((c) => c.status === 'wrong').length}
           <div class="qa-summary">
             <Icon name="warn" /><span
-              >對時檢查：{[wrong ? `${wrong} 句可能不準` : '', qaChecks.length - wrong ? `${qaChecks.length - wrong} 句待確認` : ''].filter(Boolean).join('、')}。點 ⚠ 播放那句。</span
+              >對時檢查：{[wrong ? `${wrong} 句可能不準` : '', qaChecks.length - wrong ? `${qaChecks.length - wrong} 句待確認` : ''].filter(Boolean).join('、')}</span
             >
           </div>
         {/if}
@@ -370,7 +360,9 @@
                           class:editing={ruby?.seg === seg}
                           data-line={index}
                           data-start={seg.start}
-                          title={seg.ruby ? '修改讀音' : '標讀音（Enter 接著標下一個字）'}
+                          title={seg.ruby
+                            ? `修改讀音（${seg.manual ? '手動指定' : '自動讀音'}）`
+                            : '標讀音（Enter 接著標下一個字）'}
                           role="button"
                           tabindex="0"
                           onclick={(e) => openRuby(e.currentTarget as HTMLElement, index, seg)}
@@ -382,7 +374,7 @@
                   <input
                     class="trans-input"
                     value={line.translation ?? ''}
-                    placeholder="中文翻譯（選填）"
+                    placeholder="翻譯"
                     spellcheck="false"
                     aria-label="中文翻譯"
                     oninput={(e) => {
@@ -422,7 +414,7 @@
       {/if}
     </div>
     <footer class="sheet-foot">
-      <div class="hint">{@html HINTS[mode]}</div>
+      <div class="hint">{@html SYNTAX[mode]}</div>
       <div class="foot-actions">
         <span class="muted ellipsis">{status}</span>
         <button

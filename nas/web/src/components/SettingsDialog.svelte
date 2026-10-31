@@ -78,7 +78,7 @@
       <button type="button" class="icon-btn" aria-label="關閉" onclick={close}><Icon name="close" size={18} /></button>
     </header>
     <div class="dialog-body">
-      <label class="field"
+      <label class="field" title="歌詞、假名、翻譯、標題一起縮放，太長會自動拆行"
         >字幕大小 <span class="scale-value">{scale}%</span>
         <input type="range" min="60" max="160" step="5" bind:value={scale} />
       </label>
@@ -93,13 +93,9 @@
         <div class="pv-line pv-upper"><span class="pv-sung">窓の外に</span> 小さな花が咲いた</div>
         <div class="pv-line pv-lower">君の声は 私の灯り</div>
       </div>
-      <p class="hint">
-        歌詞、假名、翻譯、標題一起縮放，太長會自動拆行。{changed && made
-          ? `儲存後 ${made} 首需重燒。`
-          : ''}
-      </p>
+      {#if changed && made}<p class="hint">儲存後 {made} 首需重燒。</p>{/if}
 
-      <h3 class="field">字型</h3>
+      <h3 class="field" title="字型檔放在曲庫的 fonts 資料夾">字型</h3>
       {#each LANGS as [lang, label]}
         <label class="field"
           >{label}
@@ -109,25 +105,19 @@
           </select>
         </label>
       {/each}
-      <p class="hint">
-        字型檔放在曲庫的 fonts 資料夾。{fontChanged ? '做好的伴唱帶需重燒。' : ''}{fonts.length
-          ? ''
-          : ' 目前沒有字型檔。'}
-      </p>
+      {#if !fonts.length}<p class="hint">目前沒有字型檔：放在曲庫的 fonts 資料夾。</p>{/if}
+      {#if fontChanged}<p class="hint">做好的伴唱帶需重燒。</p>{/if}
 
       <h3 class="field">這台瀏覽器</h3>
       <BrowserPrefs bind:draft={browser} />
 
       <h3 class="field">匯出</h3>
-      <label class="check-field"><input type="checkbox" bind:checked={exportOriginal} /> 也匯出原曲音訊</label>
-      <p class="hint">
-        另外匯出「演唱者 - 歌名_original.m4a」。{exportOriginal !==
-        (store.settings.export_original ?? false)
-          ? exportOriginal
-            ? '下次匯出時加上。'
-            : '下次匯出時移除。'
-          : ''}
-      </p>
+      <label class="check-field" title="另外匯出「演唱者 - 歌名_original.m4a」"
+        ><input type="checkbox" bind:checked={exportOriginal} /> 也匯出原曲音訊</label
+      >
+      {#if exportOriginal !== (store.settings.export_original ?? false)}
+        <p class="hint">下次匯出時{exportOriginal ? '加上' : '移除'}。</p>
+      {/if}
 
       {#if system}
         <h3 class="field">系統</h3>

@@ -194,6 +194,8 @@ details textarea { width: 100%; margin-top: 8px; resize: vertical; font-family: 
 .crumbs .sep { color: var(--border); }
 .crumbs .count { margin-left: 6px; color: var(--muted); font-size: 12px; }
 .lib-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fold-all svg { transition: transform .15s; }
+.fold-all:not(.folded) svg { transform: rotate(90deg); }   /* 和資料夾列一樣：展開朝下、收合朝右 */
 
 /* ---- 樹狀曲庫 ---- */
 .lib-root {
@@ -276,7 +278,6 @@ body.is-dragging .lib-root { border-color: var(--accent); border-style: dashed; 
 .preview-main svg { width: 22px; height: 22px; margin-left: 3px; }
 .preview-more { width: 24px; border-left: 1px solid color-mix(in srgb, var(--accent) 25%, transparent) !important; }
 .preview-more svg { width: 12px; height: 12px; transform: rotate(90deg); }
-.preview-label { font-size: 11px; color: var(--muted); white-space: nowrap; }
 .song-main { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }  /* 欄寬不被長標題撐開 */
 .song-top { display: flex; gap: 12px; align-items: flex-start; }
 .song-title { font-weight: 600; }
@@ -346,7 +347,6 @@ body.is-dragging .lib-root { border-color: var(--accent); border-style: dashed; 
 .status-step .status-label { color: var(--muted); }
 .status-step .status-state small { display: block; color: var(--muted); font-size: 11px; line-height: 1.4; }
 .status-step.done .status-state { color: var(--text); }
-.status-foot { margin-top: 2px; padding-top: 6px; border-top: 1px solid var(--border); font-size: 11px; color: var(--muted); }
 
 /* ---- 對時檢查 ---- */
 .qa-summary {
@@ -458,11 +458,6 @@ body.is-dragging .lib-root { border-color: var(--accent); border-style: dashed; 
 .meta-fields label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
 .legend { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--muted); padding: 4px 0 12px; }
 .legend > span { display: inline-flex; align-items: center; gap: 6px; }
-.legend .sep { width: 1px; height: 14px; background: var(--border); }
-.singer-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
-.singer-dot[data-singer="男"] { background: var(--male); }
-.singer-dot[data-singer="女"] { background: var(--female); }
-.singer-dot[data-singer="合"] { background: var(--duet); }
 
 .lines { display: grid; }
 .lyric-line { display: flex; gap: 12px; align-items: center; padding: 4px 0; border-bottom: 1px dashed var(--border); }
@@ -508,7 +503,6 @@ ruby.editing { background: var(--accent-soft); }
 .menu-item:disabled { opacity: .45; cursor: default; }
 .menu-item svg { width: 12px; height: 12px; color: var(--accent); }
 .menu-item .label { font-size: 13px; }
-.menu-item .desc { grid-column: 2; font-size: 11.5px; color: var(--muted); }
 .menu-item.danger .label { color: var(--err); }
 .menu-item.danger svg { color: var(--err); }
 
@@ -589,11 +583,9 @@ ruby.editing { background: var(--accent-soft); }
 .studio-controls select { width: auto; }
 .studio-controls input.studio-volume { flex: 0 0 72px; }
 .studio-clock { font-variant-numeric: tabular-nums; font-size: 13px; min-width: 64px; }
-.studio-keys { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--muted); }
-kbd {
-  display: inline-block; min-width: 18px; padding: 0 5px; margin-right: 2px; border: 1px solid var(--border);
-  border-bottom-width: 2px; border-radius: 4px; font: 11px/16px var(--mono); text-align: center; color: var(--text);
-}
+.studio-tools { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.studio-tools .trim-tools { flex: 1; margin-top: 0; }
+.keys-hint { display: inline-grid; place-items: center; color: var(--muted); cursor: help; }
 
 /* 即時字幕：上排目前這句（靠左）、下排下一句（靠右），像 KTV 的兩行字幕 */
 .live-sub {
@@ -649,7 +641,6 @@ kbd {
 @media (max-width: 900px) {
   .studio-body { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
   .studio-side { border-left: 0; border-top: 1px solid var(--border); }
-  .studio-keys { display: none; }
 }
 .studio-line.qa-wrong { background: color-mix(in srgb, var(--warn) 10%, transparent); }
 .studio-line.qa-suspect { background: color-mix(in srgb, var(--warn) 5%, transparent); }
@@ -825,7 +816,11 @@ ruby.slot rt { color: var(--border); }
 
 /* 手機 */
 @media (max-width: 640px) {
-  .hide-phone { display: none !important; }
+  /* 曲庫標題列排成一行：收合、新資料夾只留圖示，計數放不下就縮成「…」 */
+  .lib-tools .btn-text { display: none; }
+  .lib-head { flex-wrap: nowrap; }
+  .lib-root { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lib-tools { flex: none; flex-wrap: nowrap; }
   .topbar { padding: 12px 12px 4px; }
   .layout { padding: 4px 8px 24px; gap: 10px; }
   .new-row input[type=url] { flex: 1 1 100%; }
@@ -885,7 +880,6 @@ ruby.slot rt { color: var(--border); }
   .row-tools { opacity: 1; }
   .grip { display: none; }
   .song { grid-template-columns: auto minmax(0, 1fr) auto; }
-  .studio-keys { display: none; }
   .pick { width: 20px; height: 20px; }
   .btn.small, .view-link, .run-btn { min-height: 36px; }
   .icon-btn, .edit-btn, .qa-flag { min-width: 36px; min-height: 36px; }

@@ -16,7 +16,6 @@
   const song = store.songs.get(id)!
 
   const LANGUAGE_HINTS: Record<string, string> = {
-    '': '依歌詞文字判斷（假名 → 日文、漢字 → 國語、英文字母 → 英文）。',
     nan: '請在歌詞編輯器的「逐句編輯」替每個漢字標台羅（例：我 → guá），沒標的字會對得比較不準。',
     yue: '請在歌詞編輯器的「逐句編輯」替每個漢字標粵拼（例：我 → ngo5），沒標的字會對得比較不準。',
   }
@@ -42,7 +41,6 @@
   const fbArtist = song.lyrics_meta.artist || song.guess.artist
   const titleFrom = song.lyrics_meta.title ? '歌詞檔' : auto
   const artistFrom = song.lyrics_meta.artist ? '歌詞檔' : auto
-  const from = titleFrom === artistFrom ? `來自${titleFrom}` : `歌名來自${titleFrom}、演唱者來自${artistFrom}`
 
   let exportPath = $derived.by(() => {
     const dir = folder ? store.pathOf(folder).map((f) => store.folderById(f)?.name).join('/') + '/' : ''
@@ -85,26 +83,28 @@
       <button type="button" class="icon-btn" aria-label="關閉" onclick={() => (ui.song = null)}><Icon name="close" size={18} /></button>
     </header>
     <div class="dialog-body">
-      <label class="field">歌名<input bind:this={titleInput} bind:value={title} autocomplete="off" placeholder={fbTitle} /></label>
-      <label class="field">演唱者<input bind:value={artist} autocomplete="off" placeholder={fbArtist || '（未填）'} /></label>
-      <p class="hint">留空則自動使用「{fbTitle}{fbArtist ? ` / ${fbArtist}` : ''}」（{from}）。</p>
-      <label class="check-field"><input type="checkbox" bind:checked={prebuilt} /> 本來就是卡拉 OK 版（影片裡已經有字幕）</label>
-      <p class="hint">
-        {prebuilt
-          ? '不需要歌詞、不燒字幕：去人聲後，原影片的畫面加上伴奏就是伴唱帶，可以直接確認、匯出。'
-          : '勾了就不需要歌詞：去人聲後，原影片的畫面加上伴奏就是伴唱帶。'}
-      </p>
+      <div class="field-row">
+        <label class="field" title="留空則用「{fbTitle}」（{titleFrom}）"
+          >歌名<input bind:this={titleInput} bind:value={title} autocomplete="off" placeholder={fbTitle} /></label
+        >
+        <label class="field" title={fbArtist ? `留空則用「${fbArtist}」（${artistFrom}）` : ''}
+          >演唱者<input bind:value={artist} autocomplete="off" placeholder={fbArtist || '（未填）'} /></label
+        >
+      </div>
+      <label class="check-field" title="影片裡已經有字幕：不需要歌詞，去人聲後原影片的畫面加上伴奏就是伴唱帶"
+        ><input type="checkbox" bind:checked={prebuilt} /> 本來就是卡拉 OK 版</label
+      >
       {#if !prebuilt}
         <!-- 只在燒字幕時有作用：卡拉 OK 版的歌用不到（值保留，取消勾選就回來） -->
-        <label class="field">備註<input bind:value={note} autocomplete="off" placeholder="例如：作詞：○○／作曲：○○" /></label>
-        <p class="hint">顯示在歌曲開頭的標題畫面（歌名、演唱者下面）。</p>
-        <label class="check-field"><input type="checkbox" bind:checked={translation} /> 燒上中文翻譯</label>
-        <p class="hint">
-          {song.translation_lines
-            ? `有 ${song.translation_lines} 句翻譯，顯示在畫面上方；切換只需重燒。`
-            : '還沒有翻譯：在歌詞編輯器每句下面填。'}
-        </p>
-        <label class="field"
+        <label class="field" title="顯示在歌曲開頭的標題畫面（歌名、演唱者下面）"
+          >備註<input bind:value={note} autocomplete="off" placeholder="例如：作詞：○○／作曲：○○" /></label
+        >
+        <label class="check-field" title={song.translation_lines ? '顯示在畫面上方' : '在歌詞編輯器每句下面填'}
+          ><input type="checkbox" bind:checked={translation} /> 燒上中文翻譯<span class="muted"
+            >{song.translation_lines ? `（${song.translation_lines} 句）` : '（還沒有翻譯）'}</span
+          ></label
+        >
+        <label class="field" title="依歌詞文字：假名 → 日文、漢字 → 國語、英文字母 → 英文"
           >語言
           <select bind:value={language}>
             <option value="">依歌詞文字</option>
@@ -115,28 +115,22 @@
             <option value="en">英文</option>
           </select>
         </label>
-        <p class="hint">{LANGUAGE_HINTS[language] ?? ''}{languageChanged ? ' 改了語言要重新對時，已確認會失效。' : ''}</p>
+        {#if LANGUAGE_HINTS[language] || languageChanged}
+          <p class="hint">{LANGUAGE_HINTS[language] ?? ''}{languageChanged ? ' 改了語言要重新對時，已確認會失效。' : ''}</p>
+        {/if}
       {/if}
-      <div class="field-row">
-        <label class="field"
-          >伴唱帶從<input bind:value={trimStart} placeholder="開頭" inputmode="decimal" autocomplete="off" spellcheck="false" /></label
-        >
+      <div class="field-row" title="剪掉開頭、結尾的非音樂片段（時間照沒剪的影片算，例如 0:12.5）；也可以在播放畫面邊聽邊設定">
+        <label class="field">伴唱帶從<input bind:value={trimStart} placeholder="開頭" inputmode="decimal" autocomplete="off" spellcheck="false" /></label>
         <label class="field">到<input bind:value={trimEnd} placeholder="結尾" inputmode="decimal" autocomplete="off" spellcheck="false" /></label>
       </div>
-      <p class="hint">
-        剪掉開頭、結尾的非音樂片段（例如 0:12.5；留白 = 不剪）。時間照沒剪的影片算，也可以在播放畫面邊聽邊按「從這裡開始」「到這裡結束」。改了只需重燒。
-      </p>
       <label class="field">資料夾<FolderSelect bind:value={folder} /></label>
-      <label class="field"
+      <label class="field" title={downloaded ? '從這個連結下載' : '補上原始連結，從備份重建時會用它重新下載'}
         >影片連結
         <span class="link-row">
           <input type="url" bind:value={link} readonly={downloaded} autocomplete="off" spellcheck="false" placeholder={downloaded ? '' : 'https://www.youtube.com/watch?v=…'} />
           <button type="button" class="btn small" disabled={!link.trim()} title="複製連結" onclick={async () => (await copyText(link.trim()), store.notify('已複製連結'))}>複製</button>
         </span>
       </label>
-      <p class="hint">
-        {downloaded ? '從這個連結下載（唯讀）。' : '可以補上原始連結，從備份重建時會用它重新下載。'}
-      </p>
       <dl class="facts">
         <dt>匯出檔名</dt><dd class="mono">{exportPath}</dd>
         <dt>原始標題</dt><dd>{song.source.title}</dd>

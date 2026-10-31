@@ -48,7 +48,6 @@
     <div class="dialog-body">
       <label class="field">名稱<input bind:this={input} bind:value={name} required autocomplete="off" /></label>
       <label class="field">位置<FolderSelect bind:value={parent} exclude={folder?.id ?? ''} /></label>
-      <p class="hint">資料夾只影響曲庫整理和匯出，不會搬動檔案。</p>
     </div>
     <footer class="dialog-foot">
       {#if folder}<button type="button" class="btn danger-text" onclick={remove}>刪除資料夾</button>{/if}

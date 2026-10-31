@@ -1,7 +1,7 @@
 // 共用的彈出選單。
 export type MenuEntry = {
   label: string
-  desc?: string
+  desc?: string // 滑上去才顯示的說明（tooltip）
   icon?: string
   danger?: boolean
   disabled?: boolean
