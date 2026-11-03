@@ -34,6 +34,7 @@
   let mode = $state<Mode>('burned')
   let track = $state<Track>('instrumental')
   let extAudio = $state(false)
+  let holding = false // 畫面暫停在等另外播放的聲音載入（使用者是要播放的）
   let sheetOpen = $state(false) // 手機：「⋯」打開的面板（標題列、版本、速度、音量、提示都收在裡面）
   let audio = $state<HTMLAudioElement>()
   let selected = $state(0)
@@ -231,6 +232,7 @@
     const v = video!
     const play = autoplay ?? !v.paused
     extAudio = Boolean(p.audio)
+    holding = false
     offset = p.offset
     if (audio) {
       audio.pause()
@@ -245,21 +247,66 @@
         seekTo(at || 0)
         duration = (v.duration || 1) + offset
         fit()
-        syncAudio()
+        hardSync()
         if (play) v.play().catch(() => {})
       },
       { once: true },
     )
   }
 
-  /** 另外播放的聲音跟著畫面：時間、速度、播放 / 暫停都以畫面為準。 */
-  function syncAudio() {
+  // 另外播放的聲音跟著畫面（時間、速度、播放 / 暫停都以畫面為準）。兩邊一起等資料：
+  // 聲音在載入時畫面先停住（holding），畫面在載入時聲音也停住，準備好再一起播。
+  // 播放中的小誤差用聲音的速度慢慢追上，不跳轉：跳轉要重新載入，載入時又會落後，就會一直跳、斷斷續續。
+
+  /** 聲音直接跳到畫面的時間（換版本、拖進度條、跳句時）。 */
+  function hardSync() {
     const v = video
     if (!extAudio || !audio || !v) return
     audio.playbackRate = v.playbackRate
-    const t = v.currentTime + offset // 另外播放的聲音沒剪過
-    if (Math.abs(audio.currentTime - t) > 0.2) audio.currentTime = t
-    if (v.paused !== audio.paused) (v.paused ? audio.pause() : audio.play().catch(() => {}))
+    audio.currentTime = v.currentTime + offset // 另外播放的聲音沒剪過
+  }
+
+  /**
+   * 播放中跟著畫面：差超過 0.12 秒就微調聲音的速度追上，追到 0.04 秒以內恢復原速（中間不動，避免一直調、音高晃動）；
+   * 差超過 1 秒才跳。
+   */
+  function driftSync() {
+    const v = video
+    const a = audio
+    if (!extAudio || !a || !v || v.paused || a.paused || a.seeking || a.readyState < 3) return
+    const d = a.currentTime - (v.currentTime + offset)
+    if (Math.abs(d) > 1) return hardSync()
+    if (Math.abs(d) > 0.12) a.playbackRate = v.playbackRate * (d > 0 ? 0.97 : 1.03)
+    else if (Math.abs(d) < 0.04) a.playbackRate = v.playbackRate
+  }
+
+  function togglePlay() {
+    const v = video
+    if (!v) return
+    if (v.paused && !holding) return void v.play().catch(() => {})
+    holding = false
+    v.pause()
+    audio?.pause()
+  }
+
+  const media = {
+    // 畫面
+    play: () => extAudio && !holding && audio?.play().catch(() => {}),
+    pause: () => extAudio && !holding && audio?.pause(),
+    waiting: () => extAudio && audio?.pause(),
+    playing: () => extAudio && audio?.paused && audio.play().catch(() => {}),
+    rate: () => extAudio && audio && (audio.playbackRate = video!.playbackRate),
+    // 另外播放的聲音
+    audioWaiting: () => {
+      if (!extAudio || !video || video.paused) return
+      holding = true
+      video.pause()
+    },
+    audioReady: () => {
+      if (!holding || !video) return
+      holding = false
+      video.play().catch(() => {})
+    },
   }
 
   // 音量、靜音套用到聽得到的那個：另外播放聲音時畫面一律靜音
@@ -337,12 +384,12 @@
     const v = video
     if (!v) return
     now = pos()
-    paused = v.paused
+    paused = v.paused && !holding
     if (skipCut && !v.paused) {
       if (now < trimStart - 0.05) seekTo((now = trimStart))
       else if (trimEnd > 0 && now >= trimEnd) v.pause()
     }
-    syncAudio()
+    driftSync()
     if (!timing.length) return
     let current = -1
     timing.forEach((t, i) => {
@@ -628,9 +675,8 @@
     if (e.ctrlKey || e.metaKey || e.altKey) return
     const t = e.target as HTMLElement
     if (t?.closest('input:not([type=range]):not([type=checkbox]), select, textarea')) return
-    const v = video!
     const actions: Record<string, () => unknown> = {
-      ' ': () => (v.paused ? v.play().catch(() => {}) : v.pause()),
+      ' ': togglePlay,
       ArrowLeft: () => seekTo(pos() - 2),
       ArrowRight: () => seekTo(pos() + 2),
       ArrowUp: () => select(selected - 1),
@@ -839,13 +885,15 @@
             bind:this={video}
             preload="auto"
             playsinline
-            onclick={() => (video!.paused ? video!.play() : video!.pause())}
-            onplay={syncAudio}
-            onpause={syncAudio}
-            onseeked={syncAudio}
-            onratechange={syncAudio}
+            onclick={togglePlay}
+            onplay={media.play}
+            onpause={media.pause}
+            onwaiting={media.waiting}
+            onplaying={media.playing}
+            onseeked={hardSync}
+            onratechange={media.rate}
           ></video>
-          <audio bind:this={audio} preload="auto"></audio>
+          <audio bind:this={audio} preload="auto" onwaiting={media.audioWaiting} oncanplay={media.audioReady} onplaying={media.audioReady}></audio>
           {#if !burned}
             <div class="live-trans" style="font-size:{transFont}px;top:{transTop}px;left:{subSide}px;right:{subSide}px">{trans}</div>
             <div
@@ -861,7 +909,7 @@
           {/if}
         </div>
         <div class="studio-controls">
-          <button type="button" class="btn small" title="播放 / 暫停（空白鍵）" onclick={() => (video!.paused ? video!.play() : video!.pause())}
+          <button type="button" class="btn small" title="播放 / 暫停（空白鍵）" onclick={togglePlay}
             ><Icon name={paused ? 'play' : 'pause'} /><span class="desk-only">{paused ? '播放' : '暫停'}</span></button
           >
           <span class="studio-clock">{fmtClock(now)}</span>
